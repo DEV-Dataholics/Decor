@@ -1,0 +1,95 @@
+[
+  {
+    "id": 1,
+    "nombre": "Víctor Manuel López",
+    "rol": "encargado",
+    "especialidades": [
+      "supervisión",
+      "acabados"
+    ],
+    "tarifa_base": 0,
+    "activo": true
+  },
+  {
+    "id": 2,
+    "nombre": "José García Ramírez",
+    "rol": "carpintero",
+    "especialidades": [
+      "sillas",
+      "mesas",
+      "bancos"
+    ],
+    "tarifa_base": 350,
+    "activo": true
+  },
+  {
+    "id": 3,
+    "nombre": "Miguel Hernández Soto",
+    "rol": "carpintero",
+    "especialidades": [
+      "camas",
+      "libreros",
+      "gabinetes"
+    ],
+    "tarifa_base": 380,
+    "activo": true
+  },
+  {
+    "id": 4,
+    "nombre": "Carlos Martínez Ruiz",
+    "rol": "carpintero",
+    "especialidades": [
+      "barras",
+      "hutches",
+      "buffets"
+    ],
+    "tarifa_base": 400,
+    "activo": true
+  },
+  {
+    "id": 5,
+    "nombre": "Roberto Sánchez Díaz",
+    "rol": "pintor",
+    "especialidades": [
+      "manchas",
+      "lacas",
+      "distress"
+    ],
+    "tarifa_base": 320,
+    "activo": true
+  },
+  {
+    "id": 6,
+    "nombre": "Fernando Torres Luna",
+    "rol": "tapicero",
+    "especialidades": [
+      "cuero",
+      "tela",
+      "cowhide"
+    ],
+    "tarifa_base": 360,
+    "activo": true
+  },
+  {
+    "id": 7,
+    "nombre": "Alberto Morales Cruz",
+    "rol": "carpintero",
+    "especialidades": [
+      "mesas",
+      "escritorios"
+    ],
+    "tarifa_base": 370,
+    "activo": true
+  },
+  {
+    "id": 8,
+    "nombre": "Pedro Jiménez Flores",
+    "rol": "embalaje",
+    "especialidades": [
+      "empaque",
+      "embarque"
+    ],
+    "tarifa_base": 280,
+    "activo": true
+  }
+]

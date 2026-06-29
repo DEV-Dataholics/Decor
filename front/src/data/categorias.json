@@ -1,0 +1,117 @@
+[
+  {
+    "id": 1,
+    "nombre": "Armories",
+    "icon": "🗄️"
+  },
+  {
+    "id": 2,
+    "nombre": "Bars",
+    "icon": "🍹"
+  },
+  {
+    "id": 3,
+    "nombre": "Barstools",
+    "icon": "🍺"
+  },
+  {
+    "id": 4,
+    "nombre": "Bench",
+    "icon": "🪵"
+  },
+  {
+    "id": 5,
+    "nombre": "Bistros",
+    "icon": "🍽️"
+  },
+  {
+    "id": 6,
+    "nombre": "Bookcases",
+    "icon": "📚"
+  },
+  {
+    "id": 7,
+    "nombre": "Buffet",
+    "icon": "🍽️"
+  },
+  {
+    "id": 8,
+    "nombre": "CD'S",
+    "icon": "📀"
+  },
+  {
+    "id": 9,
+    "nombre": "Chairs",
+    "icon": "🪑"
+  },
+  {
+    "id": 10,
+    "nombre": "Coffee Tables",
+    "icon": "☕"
+  },
+  {
+    "id": 11,
+    "nombre": "Desk",
+    "icon": "💼"
+  },
+  {
+    "id": 12,
+    "nombre": "End Table",
+    "icon": "🪑"
+  },
+  {
+    "id": 13,
+    "nombre": "Jelly´s",
+    "icon": "🚪"
+  },
+  {
+    "id": 14,
+    "nombre": "Nightstand",
+    "icon": "🛏️"
+  },
+  {
+    "id": 15,
+    "nombre": "Sideboard",
+    "icon": "🗄️"
+  },
+  {
+    "id": 16,
+    "nombre": "Sofa Table",
+    "icon": "🛋️"
+  },
+  {
+    "id": 17,
+    "nombre": "Tables and islands",
+    "icon": "🍽️"
+  },
+  {
+    "id": 18,
+    "nombre": "Tv stand",
+    "icon": "📦"
+  },
+  {
+    "id": 19,
+    "nombre": "Varios",
+    "icon": "📦"
+  },
+  {
+    "id": 20,
+    "nombre": "dresser's, chest & mirror",
+    "icon": "🪞"
+  },
+  {
+    "id": 21,
+    "nombre": "headboard & beds",
+    "icon": "🛏️"
+  },
+  {
+    "id": 22,
+    "nombre": "hutch's",
+    "icon": "🗄️"
+  },
+  {
+    "id": 23,
+    "nombre": "siso",
+    "icon": "📦"
+  }
+]

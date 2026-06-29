@@ -1,0 +1,3002 @@
+[
+  {
+    "id": 1,
+    "tienda_id": 1,
+    "producto_id": 1,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 2,
+    "tienda_id": 2,
+    "producto_id": 2,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 51.75,
+    "precio_venta": 115
+  },
+  {
+    "id": 3,
+    "tienda_id": 3,
+    "producto_id": 3,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 4,
+    "tienda_id": 1,
+    "producto_id": 4,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 5,
+    "tienda_id": 2,
+    "producto_id": 5,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 33.75,
+    "precio_venta": 75
+  },
+  {
+    "id": 6,
+    "tienda_id": 3,
+    "producto_id": 6,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 7,
+    "tienda_id": 1,
+    "producto_id": 7,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 8,
+    "tienda_id": 2,
+    "producto_id": 8,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 126.9,
+    "precio_venta": 282
+  },
+  {
+    "id": 9,
+    "tienda_id": 3,
+    "producto_id": 9,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 62.1,
+    "precio_venta": 138
+  },
+  {
+    "id": 10,
+    "tienda_id": 1,
+    "producto_id": 10,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 80.55,
+    "precio_venta": 179
+  },
+  {
+    "id": 11,
+    "tienda_id": 2,
+    "producto_id": 11,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 108.9,
+    "precio_venta": 242
+  },
+  {
+    "id": 12,
+    "tienda_id": 3,
+    "producto_id": 12,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 253.8,
+    "precio_venta": 564
+  },
+  {
+    "id": 13,
+    "tienda_id": 1,
+    "producto_id": 13,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 305.55,
+    "precio_venta": 679
+  },
+  {
+    "id": 14,
+    "tienda_id": 2,
+    "producto_id": 14,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 357.3,
+    "precio_venta": 794
+  },
+  {
+    "id": 15,
+    "tienda_id": 3,
+    "producto_id": 15,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 93.15,
+    "precio_venta": 207
+  },
+  {
+    "id": 16,
+    "tienda_id": 1,
+    "producto_id": 16,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 49.5,
+    "precio_venta": 110
+  },
+  {
+    "id": 17,
+    "tienda_id": 2,
+    "producto_id": 17,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 18,
+    "tienda_id": 3,
+    "producto_id": 18,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 126.9,
+    "precio_venta": 282
+  },
+  {
+    "id": 19,
+    "tienda_id": 1,
+    "producto_id": 19,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 20,
+    "tienda_id": 2,
+    "producto_id": 20,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 21,
+    "tienda_id": 3,
+    "producto_id": 21,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 150.3,
+    "precio_venta": 334
+  },
+  {
+    "id": 22,
+    "tienda_id": 1,
+    "producto_id": 22,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 175.95,
+    "precio_venta": 391
+  },
+  {
+    "id": 23,
+    "tienda_id": 2,
+    "producto_id": 23,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 202.05,
+    "precio_venta": 449
+  },
+  {
+    "id": 24,
+    "tienda_id": 3,
+    "producto_id": 24,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 25,
+    "tienda_id": 1,
+    "producto_id": 25,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 108.9,
+    "precio_venta": 242
+  },
+  {
+    "id": 26,
+    "tienda_id": 2,
+    "producto_id": 26,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 341.55,
+    "precio_venta": 759
+  },
+  {
+    "id": 27,
+    "tienda_id": 3,
+    "producto_id": 27,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 117,
+    "precio_venta": 260
+  },
+  {
+    "id": 28,
+    "tienda_id": 1,
+    "producto_id": 28,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 29,
+    "tienda_id": 2,
+    "producto_id": 29,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 30,
+    "tienda_id": 3,
+    "producto_id": 30,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 124.2,
+    "precio_venta": 276
+  },
+  {
+    "id": 31,
+    "tienda_id": 1,
+    "producto_id": 31,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 32,
+    "tienda_id": 2,
+    "producto_id": 32,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 33,
+    "tienda_id": 3,
+    "producto_id": 33,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 124.2,
+    "precio_venta": 276
+  },
+  {
+    "id": 34,
+    "tienda_id": 1,
+    "producto_id": 34,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 35,
+    "tienda_id": 2,
+    "producto_id": 35,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 36,
+    "tienda_id": 3,
+    "producto_id": 36,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 113.85,
+    "precio_venta": 253
+  },
+  {
+    "id": 37,
+    "tienda_id": 1,
+    "producto_id": 37,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 186.3,
+    "precio_venta": 414
+  },
+  {
+    "id": 38,
+    "tienda_id": 2,
+    "producto_id": 38,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 39,
+    "tienda_id": 3,
+    "producto_id": 39,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 40,
+    "tienda_id": 1,
+    "producto_id": 40,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 191.7,
+    "precio_venta": 426
+  },
+  {
+    "id": 41,
+    "tienda_id": 2,
+    "producto_id": 41,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 181.35,
+    "precio_venta": 403
+  },
+  {
+    "id": 42,
+    "tienda_id": 3,
+    "producto_id": 42,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 171,
+    "precio_venta": 380
+  },
+  {
+    "id": 43,
+    "tienda_id": 1,
+    "producto_id": 43,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 80.55,
+    "precio_venta": 179
+  },
+  {
+    "id": 44,
+    "tienda_id": 2,
+    "producto_id": 44,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 45,
+    "tienda_id": 3,
+    "producto_id": 45,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 305.55,
+    "precio_venta": 679
+  },
+  {
+    "id": 46,
+    "tienda_id": 1,
+    "producto_id": 46,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 150.3,
+    "precio_venta": 334
+  },
+  {
+    "id": 47,
+    "tienda_id": 2,
+    "producto_id": 47,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 175.95,
+    "precio_venta": 391
+  },
+  {
+    "id": 48,
+    "tienda_id": 3,
+    "producto_id": 48,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 202.05,
+    "precio_venta": 449
+  },
+  {
+    "id": 49,
+    "tienda_id": 1,
+    "producto_id": 49,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 189,
+    "precio_venta": 420
+  },
+  {
+    "id": 50,
+    "tienda_id": 2,
+    "producto_id": 50,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 51,
+    "tienda_id": 3,
+    "producto_id": 51,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 106.2,
+    "precio_venta": 236
+  },
+  {
+    "id": 52,
+    "tienda_id": 1,
+    "producto_id": 52,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 189,
+    "precio_venta": 420
+  },
+  {
+    "id": 53,
+    "tienda_id": 2,
+    "producto_id": 53,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 54,
+    "tienda_id": 3,
+    "producto_id": 54,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 55,
+    "tienda_id": 1,
+    "producto_id": 55,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 189,
+    "precio_venta": 420
+  },
+  {
+    "id": 56,
+    "tienda_id": 2,
+    "producto_id": 56,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 57,
+    "tienda_id": 3,
+    "producto_id": 57,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 58,
+    "tienda_id": 1,
+    "producto_id": 58,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 59,
+    "tienda_id": 2,
+    "producto_id": 59,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 95.85,
+    "precio_venta": 213
+  },
+  {
+    "id": 60,
+    "tienda_id": 3,
+    "producto_id": 60,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 147.6,
+    "precio_venta": 328
+  },
+  {
+    "id": 61,
+    "tienda_id": 1,
+    "producto_id": 61,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 92.25,
+    "precio_venta": 205
+  },
+  {
+    "id": 62,
+    "tienda_id": 2,
+    "producto_id": 62,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 92.25,
+    "precio_venta": 205
+  },
+  {
+    "id": 63,
+    "tienda_id": 3,
+    "producto_id": 63,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 92.25,
+    "precio_venta": 205
+  },
+  {
+    "id": 64,
+    "tienda_id": 1,
+    "producto_id": 64,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 65,
+    "tienda_id": 2,
+    "producto_id": 65,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 66,
+    "tienda_id": 3,
+    "producto_id": 66,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 67,
+    "tienda_id": 1,
+    "producto_id": 67,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 68,
+    "tienda_id": 2,
+    "producto_id": 68,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 189,
+    "precio_venta": 420
+  },
+  {
+    "id": 69,
+    "tienda_id": 3,
+    "producto_id": 69,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 70,
+    "tienda_id": 1,
+    "producto_id": 70,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 71,
+    "tienda_id": 2,
+    "producto_id": 71,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 72,
+    "tienda_id": 3,
+    "producto_id": 72,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 73,
+    "tienda_id": 1,
+    "producto_id": 73,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 67.5,
+    "precio_venta": 150
+  },
+  {
+    "id": 74,
+    "tienda_id": 2,
+    "producto_id": 74,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 51.75,
+    "precio_venta": 115
+  },
+  {
+    "id": 75,
+    "tienda_id": 3,
+    "producto_id": 75,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 76.95,
+    "precio_venta": 171
+  },
+  {
+    "id": 76,
+    "tienda_id": 1,
+    "producto_id": 76,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 81.9,
+    "precio_venta": 182
+  },
+  {
+    "id": 77,
+    "tienda_id": 2,
+    "producto_id": 77,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 87.3,
+    "precio_venta": 194
+  },
+  {
+    "id": 78,
+    "tienda_id": 3,
+    "producto_id": 78,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 79,
+    "tienda_id": 1,
+    "producto_id": 79,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 92.25,
+    "precio_venta": 205
+  },
+  {
+    "id": 80,
+    "tienda_id": 2,
+    "producto_id": 80,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 81,
+    "tienda_id": 3,
+    "producto_id": 81,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 82,
+    "tienda_id": 1,
+    "producto_id": 82,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 106.2,
+    "precio_venta": 236
+  },
+  {
+    "id": 83,
+    "tienda_id": 2,
+    "producto_id": 83,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 84,
+    "tienda_id": 3,
+    "producto_id": 84,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 44.1,
+    "precio_venta": 98
+  },
+  {
+    "id": 85,
+    "tienda_id": 1,
+    "producto_id": 85,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 57.15,
+    "precio_venta": 127
+  },
+  {
+    "id": 86,
+    "tienda_id": 2,
+    "producto_id": 86,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 87,
+    "tienda_id": 3,
+    "producto_id": 87,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 88,
+    "tienda_id": 1,
+    "producto_id": 88,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 89,
+    "tienda_id": 2,
+    "producto_id": 89,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 116.55,
+    "precio_venta": 259
+  },
+  {
+    "id": 90,
+    "tienda_id": 3,
+    "producto_id": 90,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 91,
+    "tienda_id": 1,
+    "producto_id": 91,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 92,
+    "tienda_id": 2,
+    "producto_id": 92,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 116.55,
+    "precio_venta": 259
+  },
+  {
+    "id": 93,
+    "tienda_id": 3,
+    "producto_id": 93,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 117,
+    "precio_venta": 260
+  },
+  {
+    "id": 94,
+    "tienda_id": 1,
+    "producto_id": 94,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 95.85,
+    "precio_venta": 213
+  },
+  {
+    "id": 95,
+    "tienda_id": 2,
+    "producto_id": 95,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 114.75,
+    "precio_venta": 255
+  },
+  {
+    "id": 96,
+    "tienda_id": 3,
+    "producto_id": 96,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 97,
+    "tienda_id": 1,
+    "producto_id": 97,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 133.2,
+    "precio_venta": 296
+  },
+  {
+    "id": 98,
+    "tienda_id": 2,
+    "producto_id": 98,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 143.55,
+    "precio_venta": 319
+  },
+  {
+    "id": 99,
+    "tienda_id": 3,
+    "producto_id": 99,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 153.9,
+    "precio_venta": 342
+  },
+  {
+    "id": 100,
+    "tienda_id": 1,
+    "producto_id": 100,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 164.25,
+    "precio_venta": 365
+  },
+  {
+    "id": 101,
+    "tienda_id": 2,
+    "producto_id": 101,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 102,
+    "tienda_id": 3,
+    "producto_id": 102,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 103,
+    "tienda_id": 1,
+    "producto_id": 103,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 104,
+    "tienda_id": 2,
+    "producto_id": 104,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 105,
+    "tienda_id": 3,
+    "producto_id": 105,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 106,
+    "tienda_id": 1,
+    "producto_id": 106,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 107,
+    "tienda_id": 2,
+    "producto_id": 107,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 45,
+    "precio_venta": 100
+  },
+  {
+    "id": 108,
+    "tienda_id": 3,
+    "producto_id": 108,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 150.3,
+    "precio_venta": 334
+  },
+  {
+    "id": 109,
+    "tienda_id": 1,
+    "producto_id": 109,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 110,
+    "tienda_id": 2,
+    "producto_id": 110,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 67.5,
+    "precio_venta": 150
+  },
+  {
+    "id": 111,
+    "tienda_id": 3,
+    "producto_id": 111,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 112,
+    "tienda_id": 1,
+    "producto_id": 112,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 113,
+    "tienda_id": 2,
+    "producto_id": 113,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 90.9,
+    "precio_venta": 202
+  },
+  {
+    "id": 114,
+    "tienda_id": 3,
+    "producto_id": 114,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 64.8,
+    "precio_venta": 144
+  },
+  {
+    "id": 115,
+    "tienda_id": 1,
+    "producto_id": 115,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 116,
+    "tienda_id": 2,
+    "producto_id": 116,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 80.55,
+    "precio_venta": 179
+  },
+  {
+    "id": 117,
+    "tienda_id": 3,
+    "producto_id": 117,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 95.85,
+    "precio_venta": 213
+  },
+  {
+    "id": 118,
+    "tienda_id": 1,
+    "producto_id": 118,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 106.2,
+    "precio_venta": 236
+  },
+  {
+    "id": 119,
+    "tienda_id": 2,
+    "producto_id": 119,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 120,
+    "tienda_id": 3,
+    "producto_id": 120,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 62.1,
+    "precio_venta": 138
+  },
+  {
+    "id": 121,
+    "tienda_id": 1,
+    "producto_id": 121,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 122,
+    "tienda_id": 2,
+    "producto_id": 122,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 123,
+    "tienda_id": 3,
+    "producto_id": 123,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 80.55,
+    "precio_venta": 179
+  },
+  {
+    "id": 124,
+    "tienda_id": 1,
+    "producto_id": 124,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 85.5,
+    "precio_venta": 190
+  },
+  {
+    "id": 125,
+    "tienda_id": 2,
+    "producto_id": 125,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 46.8,
+    "precio_venta": 104
+  },
+  {
+    "id": 126,
+    "tienda_id": 3,
+    "producto_id": 126,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 127,
+    "tienda_id": 1,
+    "producto_id": 127,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 128,
+    "tienda_id": 2,
+    "producto_id": 128,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 129,
+    "tienda_id": 3,
+    "producto_id": 129,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 130,
+    "tienda_id": 1,
+    "producto_id": 130,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 85.5,
+    "precio_venta": 190
+  },
+  {
+    "id": 131,
+    "tienda_id": 2,
+    "producto_id": 131,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 132.3,
+    "precio_venta": 294
+  },
+  {
+    "id": 132,
+    "tienda_id": 3,
+    "producto_id": 132,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 160.65,
+    "precio_venta": 357
+  },
+  {
+    "id": 133,
+    "tienda_id": 1,
+    "producto_id": 133,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 212.4,
+    "precio_venta": 472
+  },
+  {
+    "id": 134,
+    "tienda_id": 2,
+    "producto_id": 134,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 227.7,
+    "precio_venta": 506
+  },
+  {
+    "id": 135,
+    "tienda_id": 3,
+    "producto_id": 135,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 230.4,
+    "precio_venta": 512
+  },
+  {
+    "id": 136,
+    "tienda_id": 1,
+    "producto_id": 136,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 240.75,
+    "precio_venta": 535
+  },
+  {
+    "id": 137,
+    "tienda_id": 2,
+    "producto_id": 137,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 264.15,
+    "precio_venta": 587
+  },
+  {
+    "id": 138,
+    "tienda_id": 3,
+    "producto_id": 138,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 23.4,
+    "precio_venta": 52
+  },
+  {
+    "id": 139,
+    "tienda_id": 1,
+    "producto_id": 139,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 31.05,
+    "precio_venta": 69
+  },
+  {
+    "id": 140,
+    "tienda_id": 2,
+    "producto_id": 140,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 39.15,
+    "precio_venta": 87
+  },
+  {
+    "id": 141,
+    "tienda_id": 3,
+    "producto_id": 141,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 46.8,
+    "precio_venta": 104
+  },
+  {
+    "id": 142,
+    "tienda_id": 1,
+    "producto_id": 142,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 85.5,
+    "precio_venta": 190
+  },
+  {
+    "id": 143,
+    "tienda_id": 2,
+    "producto_id": 143,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 80.55,
+    "precio_venta": 179
+  },
+  {
+    "id": 144,
+    "tienda_id": 3,
+    "producto_id": 144,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 145,
+    "tienda_id": 1,
+    "producto_id": 145,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 126.9,
+    "precio_venta": 282
+  },
+  {
+    "id": 146,
+    "tienda_id": 2,
+    "producto_id": 146,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 147,
+    "tienda_id": 3,
+    "producto_id": 147,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 93.15,
+    "precio_venta": 207
+  },
+  {
+    "id": 148,
+    "tienda_id": 1,
+    "producto_id": 148,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 41.4,
+    "precio_venta": 92
+  },
+  {
+    "id": 149,
+    "tienda_id": 2,
+    "producto_id": 149,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 46.8,
+    "precio_venta": 104
+  },
+  {
+    "id": 150,
+    "tienda_id": 3,
+    "producto_id": 150,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 44.1,
+    "precio_venta": 98
+  },
+  {
+    "id": 151,
+    "tienda_id": 1,
+    "producto_id": 151,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 49.5,
+    "precio_venta": 110
+  },
+  {
+    "id": 152,
+    "tienda_id": 2,
+    "producto_id": 152,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 153,
+    "tienda_id": 3,
+    "producto_id": 153,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 154,
+    "tienda_id": 1,
+    "producto_id": 154,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 44.1,
+    "precio_venta": 98
+  },
+  {
+    "id": 155,
+    "tienda_id": 2,
+    "producto_id": 155,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 49.5,
+    "precio_venta": 110
+  },
+  {
+    "id": 156,
+    "tienda_id": 3,
+    "producto_id": 156,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 49.5,
+    "precio_venta": 110
+  },
+  {
+    "id": 157,
+    "tienda_id": 1,
+    "producto_id": 157,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 49.5,
+    "precio_venta": 110
+  },
+  {
+    "id": 158,
+    "tienda_id": 2,
+    "producto_id": 158,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 62.1,
+    "precio_venta": 138
+  },
+  {
+    "id": 159,
+    "tienda_id": 3,
+    "producto_id": 159,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 41.4,
+    "precio_venta": 92
+  },
+  {
+    "id": 160,
+    "tienda_id": 1,
+    "producto_id": 160,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 46.8,
+    "precio_venta": 104
+  },
+  {
+    "id": 161,
+    "tienda_id": 2,
+    "producto_id": 161,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 57.15,
+    "precio_venta": 127
+  },
+  {
+    "id": 162,
+    "tienda_id": 3,
+    "producto_id": 162,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 207,
+    "precio_venta": 460
+  },
+  {
+    "id": 163,
+    "tienda_id": 1,
+    "producto_id": 163,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 222.75,
+    "precio_venta": 495
+  },
+  {
+    "id": 164,
+    "tienda_id": 2,
+    "producto_id": 164,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 238.05,
+    "precio_venta": 529
+  },
+  {
+    "id": 165,
+    "tienda_id": 3,
+    "producto_id": 165,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 253.8,
+    "precio_venta": 564
+  },
+  {
+    "id": 166,
+    "tienda_id": 1,
+    "producto_id": 166,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 289.8,
+    "precio_venta": 644
+  },
+  {
+    "id": 167,
+    "tienda_id": 2,
+    "producto_id": 167,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 240.75,
+    "precio_venta": 535
+  },
+  {
+    "id": 168,
+    "tienda_id": 3,
+    "producto_id": 168,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 186.3,
+    "precio_venta": 414
+  },
+  {
+    "id": 169,
+    "tienda_id": 1,
+    "producto_id": 169,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 212.4,
+    "precio_venta": 472
+  },
+  {
+    "id": 170,
+    "tienda_id": 2,
+    "producto_id": 170,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 230.4,
+    "precio_venta": 512
+  },
+  {
+    "id": 171,
+    "tienda_id": 3,
+    "producto_id": 171,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 271.8,
+    "precio_venta": 604
+  },
+  {
+    "id": 172,
+    "tienda_id": 1,
+    "producto_id": 172,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 274.5,
+    "precio_venta": 610
+  },
+  {
+    "id": 173,
+    "tienda_id": 2,
+    "producto_id": 173,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 313.2,
+    "precio_venta": 696
+  },
+  {
+    "id": 174,
+    "tienda_id": 3,
+    "producto_id": 174,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 24.75,
+    "precio_venta": 55
+  },
+  {
+    "id": 175,
+    "tienda_id": 1,
+    "producto_id": 175,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 36,
+    "precio_venta": 80
+  },
+  {
+    "id": 176,
+    "tienda_id": 2,
+    "producto_id": 176,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 70.2,
+    "precio_venta": 156
+  },
+  {
+    "id": 177,
+    "tienda_id": 3,
+    "producto_id": 177,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 126.9,
+    "precio_venta": 282
+  },
+  {
+    "id": 178,
+    "tienda_id": 1,
+    "producto_id": 178,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 199.35,
+    "precio_venta": 443
+  },
+  {
+    "id": 179,
+    "tienda_id": 2,
+    "producto_id": 179,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 11.25,
+    "precio_venta": 25
+  },
+  {
+    "id": 180,
+    "tienda_id": 3,
+    "producto_id": 180,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 5.85,
+    "precio_venta": 13
+  },
+  {
+    "id": 181,
+    "tienda_id": 1,
+    "producto_id": 181,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 1.35,
+    "precio_venta": 3
+  },
+  {
+    "id": 182,
+    "tienda_id": 2,
+    "producto_id": 182,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 108.9,
+    "precio_venta": 242
+  },
+  {
+    "id": 183,
+    "tienda_id": 3,
+    "producto_id": 183,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 51.75,
+    "precio_venta": 115
+  },
+  {
+    "id": 184,
+    "tienda_id": 1,
+    "producto_id": 184,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 57.15,
+    "precio_venta": 127
+  },
+  {
+    "id": 185,
+    "tienda_id": 2,
+    "producto_id": 185,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 77.85,
+    "precio_venta": 173
+  },
+  {
+    "id": 186,
+    "tienda_id": 3,
+    "producto_id": 186,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 63.45,
+    "precio_venta": 141
+  },
+  {
+    "id": 187,
+    "tienda_id": 1,
+    "producto_id": 187,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 62.1,
+    "precio_venta": 138
+  },
+  {
+    "id": 188,
+    "tienda_id": 2,
+    "producto_id": 188,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 54.45,
+    "precio_venta": 121
+  },
+  {
+    "id": 189,
+    "tienda_id": 3,
+    "producto_id": 189,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 190,
+    "tienda_id": 1,
+    "producto_id": 190,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.85,
+    "precio_venta": 133
+  },
+  {
+    "id": 191,
+    "tienda_id": 2,
+    "producto_id": 191,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 192,
+    "tienda_id": 3,
+    "producto_id": 192,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 66.15,
+    "precio_venta": 147
+  },
+  {
+    "id": 193,
+    "tienda_id": 1,
+    "producto_id": 193,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 62.1,
+    "precio_venta": 138
+  },
+  {
+    "id": 194,
+    "tienda_id": 2,
+    "producto_id": 194,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 125.55,
+    "precio_venta": 279
+  },
+  {
+    "id": 195,
+    "tienda_id": 3,
+    "producto_id": 195,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 196,
+    "tienda_id": 1,
+    "producto_id": 196,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 81.9,
+    "precio_venta": 182
+  },
+  {
+    "id": 197,
+    "tienda_id": 2,
+    "producto_id": 197,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 102.6,
+    "precio_venta": 228
+  },
+  {
+    "id": 198,
+    "tienda_id": 3,
+    "producto_id": 198,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 126.9,
+    "precio_venta": 282
+  },
+  {
+    "id": 199,
+    "tienda_id": 1,
+    "producto_id": 199,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 99.45,
+    "precio_venta": 221
+  },
+  {
+    "id": 200,
+    "tienda_id": 2,
+    "producto_id": 200,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 99.45,
+    "precio_venta": 221
+  },
+  {
+    "id": 201,
+    "tienda_id": 3,
+    "producto_id": 201,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 108,
+    "precio_venta": 240
+  },
+  {
+    "id": 202,
+    "tienda_id": 1,
+    "producto_id": 202,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 88.2,
+    "precio_venta": 196
+  },
+  {
+    "id": 203,
+    "tienda_id": 2,
+    "producto_id": 203,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 116.55,
+    "precio_venta": 259
+  },
+  {
+    "id": 204,
+    "tienda_id": 3,
+    "producto_id": 204,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 89.55,
+    "precio_venta": 199
+  },
+  {
+    "id": 205,
+    "tienda_id": 1,
+    "producto_id": 205,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 133.65,
+    "precio_venta": 297
+  },
+  {
+    "id": 206,
+    "tienda_id": 2,
+    "producto_id": 206,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 74.7,
+    "precio_venta": 166
+  },
+  {
+    "id": 207,
+    "tienda_id": 3,
+    "producto_id": 207,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 89.55,
+    "precio_venta": 199
+  },
+  {
+    "id": 208,
+    "tienda_id": 1,
+    "producto_id": 208,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 99.45,
+    "precio_venta": 221
+  },
+  {
+    "id": 209,
+    "tienda_id": 2,
+    "producto_id": 209,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 136.8,
+    "precio_venta": 304
+  },
+  {
+    "id": 210,
+    "tienda_id": 3,
+    "producto_id": 210,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 150.3,
+    "precio_venta": 334
+  },
+  {
+    "id": 211,
+    "tienda_id": 1,
+    "producto_id": 211,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 118.35,
+    "precio_venta": 263
+  },
+  {
+    "id": 212,
+    "tienda_id": 2,
+    "producto_id": 212,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 166.95,
+    "precio_venta": 371
+  },
+  {
+    "id": 213,
+    "tienda_id": 3,
+    "producto_id": 213,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 233.1,
+    "precio_venta": 518
+  },
+  {
+    "id": 214,
+    "tienda_id": 1,
+    "producto_id": 214,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 264.15,
+    "precio_venta": 587
+  },
+  {
+    "id": 215,
+    "tienda_id": 2,
+    "producto_id": 215,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 297.45,
+    "precio_venta": 661
+  },
+  {
+    "id": 216,
+    "tienda_id": 3,
+    "producto_id": 216,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 120.6,
+    "precio_venta": 268
+  },
+  {
+    "id": 217,
+    "tienda_id": 1,
+    "producto_id": 217,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 157.95,
+    "precio_venta": 351
+  },
+  {
+    "id": 218,
+    "tienda_id": 2,
+    "producto_id": 218,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 196.65,
+    "precio_venta": 437
+  },
+  {
+    "id": 219,
+    "tienda_id": 3,
+    "producto_id": 219,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 233.1,
+    "precio_venta": 518
+  },
+  {
+    "id": 220,
+    "tienda_id": 1,
+    "producto_id": 220,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 270.9,
+    "precio_venta": 602
+  },
+  {
+    "id": 221,
+    "tienda_id": 2,
+    "producto_id": 221,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 125.55,
+    "precio_venta": 279
+  },
+  {
+    "id": 222,
+    "tienda_id": 3,
+    "producto_id": 222,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 165.6,
+    "precio_venta": 368
+  },
+  {
+    "id": 223,
+    "tienda_id": 1,
+    "producto_id": 223,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 206.1,
+    "precio_venta": 458
+  },
+  {
+    "id": 224,
+    "tienda_id": 2,
+    "producto_id": 224,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 123.3,
+    "precio_venta": 274
+  },
+  {
+    "id": 225,
+    "tienda_id": 3,
+    "producto_id": 225,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 175.05,
+    "precio_venta": 389
+  },
+  {
+    "id": 226,
+    "tienda_id": 1,
+    "producto_id": 226,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 244.35,
+    "precio_venta": 543
+  },
+  {
+    "id": 227,
+    "tienda_id": 2,
+    "producto_id": 227,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 277.65,
+    "precio_venta": 617
+  },
+  {
+    "id": 228,
+    "tienda_id": 3,
+    "producto_id": 228,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 313.65,
+    "precio_venta": 697
+  },
+  {
+    "id": 229,
+    "tienda_id": 1,
+    "producto_id": 229,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 112.05,
+    "precio_venta": 249
+  },
+  {
+    "id": 230,
+    "tienda_id": 2,
+    "producto_id": 230,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 162.9,
+    "precio_venta": 362
+  },
+  {
+    "id": 231,
+    "tienda_id": 3,
+    "producto_id": 231,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 234,
+    "precio_venta": 520
+  },
+  {
+    "id": 232,
+    "tienda_id": 1,
+    "producto_id": 232,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 323.1,
+    "precio_venta": 718
+  },
+  {
+    "id": 233,
+    "tienda_id": 2,
+    "producto_id": 233,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 375.75,
+    "precio_venta": 835
+  },
+  {
+    "id": 234,
+    "tienda_id": 3,
+    "producto_id": 234,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 432,
+    "precio_venta": 960
+  },
+  {
+    "id": 235,
+    "tienda_id": 1,
+    "producto_id": 235,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 312.75,
+    "precio_venta": 695
+  },
+  {
+    "id": 236,
+    "tienda_id": 2,
+    "producto_id": 236,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 264.15,
+    "precio_venta": 587
+  },
+  {
+    "id": 237,
+    "tienda_id": 3,
+    "producto_id": 237,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 226.35,
+    "precio_venta": 503
+  },
+  {
+    "id": 238,
+    "tienda_id": 1,
+    "producto_id": 238,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 184.05,
+    "precio_venta": 409
+  },
+  {
+    "id": 239,
+    "tienda_id": 2,
+    "producto_id": 239,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 78.75,
+    "precio_venta": 175
+  },
+  {
+    "id": 240,
+    "tienda_id": 3,
+    "producto_id": 240,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 202.95,
+    "precio_venta": 451
+  },
+  {
+    "id": 241,
+    "tienda_id": 1,
+    "producto_id": 241,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 232.2,
+    "precio_venta": 516
+  },
+  {
+    "id": 242,
+    "tienda_id": 2,
+    "producto_id": 242,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 185.4,
+    "precio_venta": 412
+  },
+  {
+    "id": 243,
+    "tienda_id": 3,
+    "producto_id": 243,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 134.55,
+    "precio_venta": 299
+  },
+  {
+    "id": 244,
+    "tienda_id": 1,
+    "producto_id": 244,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 151.65,
+    "precio_venta": 337
+  },
+  {
+    "id": 245,
+    "tienda_id": 2,
+    "producto_id": 245,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 170.1,
+    "precio_venta": 378
+  },
+  {
+    "id": 246,
+    "tienda_id": 3,
+    "producto_id": 246,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 187.65,
+    "precio_venta": 417
+  },
+  {
+    "id": 247,
+    "tienda_id": 1,
+    "producto_id": 247,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 106.2,
+    "precio_venta": 236
+  },
+  {
+    "id": 248,
+    "tienda_id": 2,
+    "producto_id": 248,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 78.75,
+    "precio_venta": 175
+  },
+  {
+    "id": 249,
+    "tienda_id": 3,
+    "producto_id": 249,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 163.8,
+    "precio_venta": 364
+  },
+  {
+    "id": 250,
+    "tienda_id": 1,
+    "producto_id": 250,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 170.1,
+    "precio_venta": 378
+  },
+  {
+    "id": 251,
+    "tienda_id": 2,
+    "producto_id": 251,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 191.7,
+    "precio_venta": 426
+  },
+  {
+    "id": 252,
+    "tienda_id": 3,
+    "producto_id": 252,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 120.15,
+    "precio_venta": 267
+  },
+  {
+    "id": 253,
+    "tienda_id": 1,
+    "producto_id": 253,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 144.9,
+    "precio_venta": 322
+  },
+  {
+    "id": 254,
+    "tienda_id": 2,
+    "producto_id": 254,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 75.15,
+    "precio_venta": 167
+  },
+  {
+    "id": 255,
+    "tienda_id": 3,
+    "producto_id": 255,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.4,
+    "precio_venta": 132
+  },
+  {
+    "id": 256,
+    "tienda_id": 1,
+    "producto_id": 256,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 89.55,
+    "precio_venta": 199
+  },
+  {
+    "id": 257,
+    "tienda_id": 2,
+    "producto_id": 257,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 46.35,
+    "precio_venta": 103
+  },
+  {
+    "id": 258,
+    "tienda_id": 3,
+    "producto_id": 258,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 59.4,
+    "precio_venta": 132
+  },
+  {
+    "id": 259,
+    "tienda_id": 1,
+    "producto_id": 259,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 89.55,
+    "precio_venta": 199
+  },
+  {
+    "id": 260,
+    "tienda_id": 2,
+    "producto_id": 260,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 121.5,
+    "precio_venta": 270
+  },
+  {
+    "id": 261,
+    "tienda_id": 3,
+    "producto_id": 261,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 72,
+    "precio_venta": 160
+  },
+  {
+    "id": 262,
+    "tienda_id": 1,
+    "producto_id": 262,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 89.55,
+    "precio_venta": 199
+  },
+  {
+    "id": 263,
+    "tienda_id": 2,
+    "producto_id": 263,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 142.2,
+    "precio_venta": 316
+  },
+  {
+    "id": 264,
+    "tienda_id": 3,
+    "producto_id": 264,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 94.5,
+    "precio_venta": 210
+  },
+  {
+    "id": 265,
+    "tienda_id": 1,
+    "producto_id": 265,
+    "cantidad_disponible": 1,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 82.8,
+    "precio_venta": 184
+  },
+  {
+    "id": 266,
+    "tienda_id": 2,
+    "producto_id": 266,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 148.05,
+    "precio_venta": 329
+  },
+  {
+    "id": 267,
+    "tienda_id": 3,
+    "producto_id": 267,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 75.6,
+    "precio_venta": 168
+  },
+  {
+    "id": 268,
+    "tienda_id": 1,
+    "producto_id": 268,
+    "cantidad_disponible": 2,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 59.4,
+    "precio_venta": 132
+  },
+  {
+    "id": 269,
+    "tienda_id": 2,
+    "producto_id": 269,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 69.75,
+    "precio_venta": 155
+  },
+  {
+    "id": 270,
+    "tienda_id": 3,
+    "producto_id": 270,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 94.05,
+    "precio_venta": 209
+  },
+  {
+    "id": 271,
+    "tienda_id": 1,
+    "producto_id": 271,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 0,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 71.55,
+    "precio_venta": 159
+  },
+  {
+    "id": 272,
+    "tienda_id": 2,
+    "producto_id": 272,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 84.6,
+    "precio_venta": 188
+  },
+  {
+    "id": 273,
+    "tienda_id": 3,
+    "producto_id": 273,
+    "cantidad_disponible": 4,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 121.5,
+    "precio_venta": 270
+  },
+  {
+    "id": 274,
+    "tienda_id": 1,
+    "producto_id": 274,
+    "cantidad_disponible": 5,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 97.2,
+    "precio_venta": 216
+  },
+  {
+    "id": 275,
+    "tienda_id": 2,
+    "producto_id": 275,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 139.95,
+    "precio_venta": 311
+  },
+  {
+    "id": 276,
+    "tienda_id": 3,
+    "producto_id": 276,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 130.95,
+    "precio_venta": 291
+  },
+  {
+    "id": 277,
+    "tienda_id": 1,
+    "producto_id": 277,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 87.75,
+    "precio_venta": 195
+  },
+  {
+    "id": 278,
+    "tienda_id": 2,
+    "producto_id": 278,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 81.45,
+    "precio_venta": 181
+  },
+  {
+    "id": 279,
+    "tienda_id": 3,
+    "producto_id": 279,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 76.95,
+    "precio_venta": 171
+  },
+  {
+    "id": 280,
+    "tienda_id": 1,
+    "producto_id": 280,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 97.65,
+    "precio_venta": 217
+  },
+  {
+    "id": 281,
+    "tienda_id": 2,
+    "producto_id": 281,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 165.15,
+    "precio_venta": 367
+  },
+  {
+    "id": 282,
+    "tienda_id": 3,
+    "producto_id": 282,
+    "cantidad_disponible": 11,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 139.5,
+    "precio_venta": 310
+  },
+  {
+    "id": 283,
+    "tienda_id": 1,
+    "producto_id": 283,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 213.75,
+    "precio_venta": 475
+  },
+  {
+    "id": 284,
+    "tienda_id": 2,
+    "producto_id": 284,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 184.05,
+    "precio_venta": 409
+  },
+  {
+    "id": 285,
+    "tienda_id": 3,
+    "producto_id": 285,
+    "cantidad_disponible": 8,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 101.7,
+    "precio_venta": 226
+  },
+  {
+    "id": 286,
+    "tienda_id": 1,
+    "producto_id": 286,
+    "cantidad_disponible": 3,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 168.3,
+    "precio_venta": 374
+  },
+  {
+    "id": 287,
+    "tienda_id": 2,
+    "producto_id": 287,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 166.95,
+    "precio_venta": 371
+  },
+  {
+    "id": 288,
+    "tienda_id": 3,
+    "producto_id": 288,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "artesania",
+    "costo_unitario": 142.65,
+    "precio_venta": 317
+  },
+  {
+    "id": 289,
+    "tienda_id": 1,
+    "producto_id": 289,
+    "cantidad_disponible": 9,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 148.05,
+    "precio_venta": 329
+  },
+  {
+    "id": 290,
+    "tienda_id": 2,
+    "producto_id": 290,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 1,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 186.3,
+    "precio_venta": 414
+  },
+  {
+    "id": 291,
+    "tienda_id": 3,
+    "producto_id": 291,
+    "cantidad_disponible": 10,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 186.3,
+    "precio_venta": 414
+  },
+  {
+    "id": 292,
+    "tienda_id": 1,
+    "producto_id": 292,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 177.3,
+    "precio_venta": 394
+  },
+  {
+    "id": 293,
+    "tienda_id": 2,
+    "producto_id": 293,
+    "cantidad_disponible": 12,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 94.5,
+    "precio_venta": 210
+  },
+  {
+    "id": 294,
+    "tienda_id": 3,
+    "producto_id": 294,
+    "cantidad_disponible": 14,
+    "cantidad_reservada": 0,
+    "origen_stock": "artesania",
+    "costo_unitario": 112.95,
+    "precio_venta": 251
+  },
+  {
+    "id": 295,
+    "tienda_id": 1,
+    "producto_id": 295,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 72.45,
+    "precio_venta": 161
+  },
+  {
+    "id": 296,
+    "tienda_id": 2,
+    "producto_id": 296,
+    "cantidad_disponible": 15,
+    "cantidad_reservada": 2,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 114.75,
+    "precio_venta": 255
+  },
+  {
+    "id": 297,
+    "tienda_id": 3,
+    "producto_id": 297,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 72.45,
+    "precio_venta": 161
+  },
+  {
+    "id": 298,
+    "tienda_id": 1,
+    "producto_id": 298,
+    "cantidad_disponible": 13,
+    "cantidad_reservada": 1,
+    "origen_stock": "embarque_taller",
+    "costo_unitario": 71.1,
+    "precio_venta": 158
+  },
+  {
+    "id": 299,
+    "tienda_id": 2,
+    "producto_id": 299,
+    "cantidad_disponible": 6,
+    "cantidad_reservada": 0,
+    "origen_stock": "compra_externa",
+    "costo_unitario": 68.4,
+    "precio_venta": 152
+  },
+  {
+    "id": 300,
+    "tienda_id": 3,
+    "producto_id": 300,
+    "cantidad_disponible": 7,
+    "cantidad_reservada": 2,
+    "origen_stock": "artesania",
+    "costo_unitario": 97.65,
+    "precio_venta": 217
+  }
+]

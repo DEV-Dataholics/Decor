@@ -1,0 +1,13 @@
+# ── api/.htaccess ──────────────────────────────────────────────
+# Permite todo acceso a los archivos PHP de la API.
+# La seguridad se maneja en cada endpoint con session_start() + comprobación de rol.
+
+# Sin listado de directorios
+Options -Indexes
+
+# Headers de seguridad
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

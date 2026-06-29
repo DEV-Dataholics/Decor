@@ -1,0 +1,700 @@
+[
+  {
+    "id": 3001,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-10T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 1785,
+    "iva": 285.6,
+    "total": 2070.6,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "CASA CRISTAL",
+    "items": [
+      {
+        "id": 1,
+        "producto_id": 142,
+        "producto_nombre": "48\" ROSETTA BENCH",
+        "codigo_sku": "DCR-0142",
+        "cantidad": 3,
+        "precio_unitario": 190,
+        "subtotal": 570
+      },
+      {
+        "id": 2,
+        "producto_id": 213,
+        "producto_nombre": "4-DOOR SLATTE SIDEBOARD",
+        "codigo_sku": "DCR-0213",
+        "cantidad": 2,
+        "precio_unitario": 518,
+        "subtotal": 1036
+      },
+      {
+        "id": 3,
+        "producto_id": 116,
+        "producto_nombre": "30\" TARAHUMARA BOOKCASE",
+        "codigo_sku": "DCR-0116",
+        "cantidad": 1,
+        "precio_unitario": 179,
+        "subtotal": 179
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3002,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-10T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 1748,
+    "iva": 279.68,
+    "total": 2027.68,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 11,
+        "producto_id": 204,
+        "producto_nombre": "SINGLE CD W/IRON DOOR",
+        "codigo_sku": "DCR-0204",
+        "cantidad": 1,
+        "precio_unitario": 199,
+        "subtotal": 199
+      },
+      {
+        "id": 12,
+        "producto_id": 80,
+        "producto_nombre": "CROSS TALL DOUBLE JELLY",
+        "codigo_sku": "DCR-0080",
+        "cantidad": 2,
+        "precio_unitario": 299,
+        "subtotal": 598
+      },
+      {
+        "id": 13,
+        "producto_id": 249,
+        "producto_nombre": "BUFFET W/DRWS.",
+        "codigo_sku": "DCR-0249",
+        "cantidad": 1,
+        "precio_unitario": 364,
+        "subtotal": 364
+      },
+      {
+        "id": 14,
+        "producto_id": 214,
+        "producto_nombre": "5-DOOR SLATTE SIDEBOARD",
+        "codigo_sku": "DCR-0214",
+        "cantidad": 1,
+        "precio_unitario": 587,
+        "subtotal": 587
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3003,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-09T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 398,
+    "iva": 63.68,
+    "total": 461.68,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "SAN ANGELO",
+    "items": [
+      {
+        "id": 21,
+        "producto_id": 262,
+        "producto_nombre": "FANCY TIN TALL JELLY",
+        "codigo_sku": "DCR-0262",
+        "cantidad": 2,
+        "precio_unitario": 199,
+        "subtotal": 398
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3004,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-09T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 1167,
+    "iva": 186.72,
+    "total": 1353.72,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 31,
+        "producto_id": 140,
+        "producto_nombre": "BUTT BENCH 3-SEAT",
+        "codigo_sku": "DCR-0140",
+        "cantidad": 3,
+        "precio_unitario": 87,
+        "subtotal": 261
+      },
+      {
+        "id": 32,
+        "producto_id": 113,
+        "producto_nombre": "48\" CURIO BOOKCASE",
+        "codigo_sku": "DCR-0113",
+        "cantidad": 3,
+        "precio_unitario": 202,
+        "subtotal": 606
+      },
+      {
+        "id": 33,
+        "producto_id": 101,
+        "producto_nombre": "72\" OX YOKE SOFA TABLE ( NO TILE)",
+        "codigo_sku": "DCR-0101",
+        "cantidad": 3,
+        "precio_unitario": 100,
+        "subtotal": 300
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3005,
+    "tienda_id": 3,
+    "fecha_venta": "2026-06-09T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 1354,
+    "iva": 216.64,
+    "total": 1570.64,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 41,
+        "producto_id": 80,
+        "producto_nombre": "CROSS TALL DOUBLE JELLY",
+        "codigo_sku": "DCR-0080",
+        "cantidad": 2,
+        "precio_unitario": 299,
+        "subtotal": 598
+      },
+      {
+        "id": 42,
+        "producto_id": 69,
+        "producto_nombre": "PLAIN TALL JELLY",
+        "codigo_sku": "DCR-0069",
+        "cantidad": 2,
+        "precio_unitario": 156,
+        "subtotal": 312
+      },
+      {
+        "id": 43,
+        "producto_id": 103,
+        "producto_nombre": "TARAHUMARA SOFA TABLE 48\"",
+        "codigo_sku": "DCR-0103",
+        "cantidad": 3,
+        "precio_unitario": 100,
+        "subtotal": 300
+      },
+      {
+        "id": 44,
+        "producto_id": 90,
+        "producto_nombre": "HALFMOON SOFA TABLE",
+        "codigo_sku": "DCR-0090",
+        "cantidad": 1,
+        "precio_unitario": 144,
+        "subtotal": 144
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3006,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-09T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 720,
+    "iva": 115.2,
+    "total": 835.2,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 51,
+        "producto_id": 269,
+        "producto_nombre": "RUSTIC TIN TALL JELLY",
+        "codigo_sku": "DCR-0269",
+        "cantidad": 2,
+        "precio_unitario": 155,
+        "subtotal": 310
+      },
+      {
+        "id": 52,
+        "producto_id": 79,
+        "producto_nombre": "SHORT PLAIN DOUBLE JELLY",
+        "codigo_sku": "DCR-0079",
+        "cantidad": 2,
+        "precio_unitario": 205,
+        "subtotal": 410
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3007,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-08T03:16:53.030Z",
+    "estatus": "confirmada",
+    "subtotal": 472,
+    "iva": 75.52,
+    "total": 547.52,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 61,
+        "producto_id": 247,
+        "producto_nombre": "PUEBLA BUFFET W/IRONBASE",
+        "codigo_sku": "DCR-0247",
+        "cantidad": 2,
+        "precio_unitario": 236,
+        "subtotal": 472
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3008,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-08T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 1796,
+    "iva": 287.36,
+    "total": 2083.36,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 71,
+        "producto_id": 168,
+        "producto_nombre": "TERRACOTA KITCHEN ISLAND 4-TILE",
+        "codigo_sku": "DCR-0168",
+        "cantidad": 2,
+        "precio_unitario": 414,
+        "subtotal": 828
+      },
+      {
+        "id": 72,
+        "producto_id": 199,
+        "producto_nombre": "TRASTERITO",
+        "codigo_sku": "DCR-0199",
+        "cantidad": 3,
+        "precio_unitario": 221,
+        "subtotal": 663
+      },
+      {
+        "id": 73,
+        "producto_id": 109,
+        "producto_nombre": "18\" CURIO BOOKCASE",
+        "codigo_sku": "DCR-0109",
+        "cantidad": 2,
+        "precio_unitario": 133,
+        "subtotal": 266
+      },
+      {
+        "id": 74,
+        "producto_id": 180,
+        "producto_nombre": "BATEAS",
+        "codigo_sku": "DCR-0180",
+        "cantidad": 3,
+        "precio_unitario": 13,
+        "subtotal": 39
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3009,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-07T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 334,
+    "iva": 53.44,
+    "total": 387.44,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 81,
+        "producto_id": 108,
+        "producto_nombre": "CHIHUAHUA BOOKCASE",
+        "codigo_sku": "DCR-0108",
+        "cantidad": 1,
+        "precio_unitario": 334,
+        "subtotal": 334
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3010,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-07T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 2478,
+    "iva": 396.48,
+    "total": 2874.48,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 91,
+        "producto_id": 137,
+        "producto_nombre": "PANEL DRESSER 60\" 7-DWRS W/TIN",
+        "codigo_sku": "DCR-0137",
+        "cantidad": 1,
+        "precio_unitario": 587,
+        "subtotal": 587
+      },
+      {
+        "id": 92,
+        "producto_id": 232,
+        "producto_nombre": "4-DOOR SLATTE SIDEBOARD W/COOPER",
+        "codigo_sku": "DCR-0232",
+        "cantidad": 1,
+        "precio_unitario": 718,
+        "subtotal": 718
+      },
+      {
+        "id": 93,
+        "producto_id": 22,
+        "producto_nombre": "SANTA FE HUTCH BOTTOM ONLY 60\"",
+        "codigo_sku": "DCR-0022",
+        "cantidad": 3,
+        "precio_unitario": 391,
+        "subtotal": 1173
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3011,
+    "tienda_id": 3,
+    "fecha_venta": "2026-06-07T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 1867,
+    "iva": 298.72,
+    "total": 2165.72,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 101,
+        "producto_id": 257,
+        "producto_nombre": "48\" CHILI JELLY",
+        "codigo_sku": "DCR-0257",
+        "cantidad": 2,
+        "precio_unitario": 103,
+        "subtotal": 206
+      },
+      {
+        "id": 102,
+        "producto_id": 50,
+        "producto_nombre": "TALL DOUBLE JELLY W/FANCY TIN",
+        "codigo_sku": "DCR-0050",
+        "cantidad": 3,
+        "precio_unitario": 317,
+        "subtotal": 951
+      },
+      {
+        "id": 103,
+        "producto_id": 148,
+        "producto_nombre": "TAOS CHAIR",
+        "codigo_sku": "DCR-0148",
+        "cantidad": 3,
+        "precio_unitario": 92,
+        "subtotal": 276
+      },
+      {
+        "id": 104,
+        "producto_id": 300,
+        "producto_nombre": "OX YOKE SLATTE END TABLE",
+        "codigo_sku": "DCR-0300",
+        "cantidad": 2,
+        "precio_unitario": 217,
+        "subtotal": 434
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3012,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-07T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 499,
+    "iva": 79.84,
+    "total": 578.84,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 111,
+        "producto_id": 151,
+        "producto_nombre": "ROSETTA ARM CHAIR",
+        "codigo_sku": "DCR-0151",
+        "cantidad": 2,
+        "precio_unitario": 110,
+        "subtotal": 220
+      },
+      {
+        "id": 112,
+        "producto_id": 194,
+        "producto_nombre": "FANCY TIN NIGHTSTAND 6 DRWS.",
+        "codigo_sku": "DCR-0194",
+        "cantidad": 1,
+        "precio_unitario": 279,
+        "subtotal": 279
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3013,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-06T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 875,
+    "iva": 140,
+    "total": 1015,
+    "metodo_pago": "transferencia",
+    "cliente_nombre": "PEPE MTZ",
+    "items": [
+      {
+        "id": 121,
+        "producto_id": 153,
+        "producto_nombre": "OX YOKE CHAIR W/LEATHER",
+        "codigo_sku": "DCR-0153",
+        "cantidad": 2,
+        "precio_unitario": 133,
+        "subtotal": 266
+      },
+      {
+        "id": 122,
+        "producto_id": 271,
+        "producto_nombre": "48\" WESTERN JELLY",
+        "codigo_sku": "DCR-0271",
+        "cantidad": 3,
+        "precio_unitario": 159,
+        "subtotal": 477
+      },
+      {
+        "id": 123,
+        "producto_id": 255,
+        "producto_nombre": "CHIHUAHUA JELLY",
+        "codigo_sku": "DCR-0255",
+        "cantidad": 1,
+        "precio_unitario": 132,
+        "subtotal": 132
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3014,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-06T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 1423,
+    "iva": 227.68,
+    "total": 1650.68,
+    "metodo_pago": "tarjeta",
+    "cliente_nombre": "CASA CRISTAL",
+    "items": [
+      {
+        "id": 131,
+        "producto_id": 217,
+        "producto_nombre": "3-DOOR TILE SIDEBOARD",
+        "codigo_sku": "DCR-0217",
+        "cantidad": 2,
+        "precio_unitario": 351,
+        "subtotal": 702
+      },
+      {
+        "id": 132,
+        "producto_id": 116,
+        "producto_nombre": "30\" TARAHUMARA BOOKCASE",
+        "codigo_sku": "DCR-0116",
+        "cantidad": 2,
+        "precio_unitario": 179,
+        "subtotal": 358
+      },
+      {
+        "id": 133,
+        "producto_id": 188,
+        "producto_nombre": "GLASS NIGHTSTAND",
+        "codigo_sku": "DCR-0188",
+        "cantidad": 3,
+        "precio_unitario": 121,
+        "subtotal": 363
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3015,
+    "tienda_id": 3,
+    "fecha_venta": "2026-06-06T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 364,
+    "iva": 58.24,
+    "total": 422.24,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 141,
+        "producto_id": 76,
+        "producto_nombre": "JARILLA JELLY 48\"",
+        "codigo_sku": "DCR-0076",
+        "cantidad": 2,
+        "precio_unitario": 182,
+        "subtotal": 364
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3016,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-05T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 1112,
+    "iva": 177.92,
+    "total": 1289.92,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "PEPE MTZ",
+    "items": [
+      {
+        "id": 151,
+        "producto_id": 122,
+        "producto_nombre": "36\" CURIO BOOKCASE 60 H",
+        "codigo_sku": "DCR-0122",
+        "cantidad": 3,
+        "precio_unitario": 167,
+        "subtotal": 501
+      },
+      {
+        "id": 152,
+        "producto_id": 216,
+        "producto_nombre": "2-DOOR TILE SIDEBOARD",
+        "codigo_sku": "DCR-0216",
+        "cantidad": 2,
+        "precio_unitario": 268,
+        "subtotal": 536
+      },
+      {
+        "id": 153,
+        "producto_id": 179,
+        "producto_nombre": "LG BATEAS",
+        "codigo_sku": "DCR-0179",
+        "cantidad": 3,
+        "precio_unitario": 25,
+        "subtotal": 75
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3017,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-05T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 167,
+    "iva": 26.72,
+    "total": 193.72,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "CASA CRISTAL",
+    "items": [
+      {
+        "id": 161,
+        "producto_id": 129,
+        "producto_nombre": "42\" CURIO BOOKCASE 48 H",
+        "codigo_sku": "DCR-0129",
+        "cantidad": 1,
+        "precio_unitario": 167,
+        "subtotal": 167
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3018,
+    "tienda_id": 1,
+    "fecha_venta": "2026-06-04T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 2108,
+    "iva": 337.28,
+    "total": 2445.28,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 171,
+        "producto_id": 82,
+        "producto_nombre": "NAIL COFFEE TABLE",
+        "codigo_sku": "DCR-0082",
+        "cantidad": 3,
+        "precio_unitario": 236,
+        "subtotal": 708
+      },
+      {
+        "id": 172,
+        "producto_id": 41,
+        "producto_nombre": "3-TILE BUFFET",
+        "codigo_sku": "DCR-0041",
+        "cantidad": 2,
+        "precio_unitario": 403,
+        "subtotal": 806
+      },
+      {
+        "id": 173,
+        "producto_id": 205,
+        "producto_nombre": "DOUBLE CD W/IRON DOOR",
+        "codigo_sku": "DCR-0205",
+        "cantidad": 2,
+        "precio_unitario": 297,
+        "subtotal": 594
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  },
+  {
+    "id": 3019,
+    "tienda_id": 2,
+    "fecha_venta": "2026-06-04T03:16:53.031Z",
+    "estatus": "confirmada",
+    "subtotal": 452,
+    "iva": 72.32,
+    "total": 524.32,
+    "metodo_pago": "efectivo",
+    "cliente_nombre": "Público General",
+    "items": [
+      {
+        "id": 181,
+        "producto_id": 75,
+        "producto_nombre": "JARILLA JELLY 36\"",
+        "codigo_sku": "DCR-0075",
+        "cantidad": 2,
+        "precio_unitario": 171,
+        "subtotal": 342
+      },
+      {
+        "id": 182,
+        "producto_id": 157,
+        "producto_nombre": "TARAHUMARA BARSTOOL",
+        "codigo_sku": "DCR-0157",
+        "cantidad": 1,
+        "precio_unitario": 110,
+        "subtotal": 110
+      }
+    ],
+    "cajero": "Laura Mendoza"
+  }
+]
