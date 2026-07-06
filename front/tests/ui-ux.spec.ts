@@ -5,17 +5,19 @@ test.describe('UI/UX Pruebas', () => {
   test.beforeEach(async ({ page }) => {
     // Limpiar localStorage antes de cada prueba para tener un estado limpio.
     await page.addInitScript(() => {
-      Object.keys(localStorage).forEach(k => k.startsWith('decor_demo_') && localStorage.removeItem(k));
+      Object.keys(localStorage).forEach(k => k.startsWith('decor_prod_') && localStorage.removeItem(k));
     });
     await page.goto('login');
   });
 
   test('Validación de inicio de sesión y navegación del menú lateral', async ({ page }) => {
-    // Login usando acceso rápido
-    await page.locator('button', { hasText: 'Sergio / Norma' }).click();
+    // Login manual
+    await page.getByPlaceholder('Correo electrónico').fill('admin@decor.mx');
+    await page.getByPlaceholder('Contraseña').fill('demo');
+    await page.getByRole('button', { name: 'Ingresar al Sistema' }).click();
 
     // Esperar a que cargue el Dashboard
-    await expect(page.locator('text=Órdenes Activas')).toBeVisible();
+    await expect(page.locator('text="Órdenes Activas"')).toBeVisible();
 
     // Navegar a Pedidos
     await page.getByRole('link', { name: 'Pedidos' }).click();
@@ -31,8 +33,10 @@ test.describe('UI/UX Pruebas', () => {
   });
 
   test('Validación de Botón de Nueva Orden (Formulario)', async ({ page }) => {
-    // Login usando acceso rápido
-    await page.locator('button', { hasText: 'Sergio / Norma' }).click();
+    // Login manual
+    await page.getByPlaceholder('Correo electrónico').fill('admin@decor.mx');
+    await page.getByPlaceholder('Contraseña').fill('demo');
+    await page.getByRole('button', { name: 'Ingresar al Sistema' }).click();
 
     // Ir a Pedidos
     await page.getByRole('link', { name: 'Pedidos' }).click();

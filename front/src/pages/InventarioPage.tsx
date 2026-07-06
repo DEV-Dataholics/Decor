@@ -7,15 +7,57 @@ import { QRCodeSVG } from 'qrcode.react';
 
 type Tab = 'tienda' | 'materia_prima' | 'terminados';
 
+import type { Embarque, EmbarqueItem } from '../store/useStore';
+
 export default function InventarioPage() {
-  const { inventario, materiaPrima, terminados, updateMateriaPrima, tiendas, productos, embarques, ventas } = useDecor();
-  const [tab, setTab] = useState<Tab>('terminados');
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
+  const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
+  const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
+
+  const [tab, setTab] = useState<Tab>(isGerenteTienda ? 'tienda' : 'terminados');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Drill-down states for Tienda
-  const [selectedTiendaId, setSelectedTiendaId] = useState<number | null>(null);
+  const [selectedTiendaId, setSelectedTiendaId] = useState<number | null>(isGerenteTienda ? posTiendaId : null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [printQRs, setPrintQRs] = useState<{ nombre: string, qrs: string[], tiendaNombre: string } | null>(null);
+
+  // States for Shop Receiving Flow
+  const [activeRecepcionEmb, setActiveRecepcionEmb] = useState<Embarque | null>(null);
+  const [recepcionItems, setRecepcionItems] = useState<EmbarqueItem[]>([]);
+
+  const targetTiendaId = isGerenteTienda ? posTiendaId : selectedTiendaId;
+
+  // Embarques en tránsito o en sucursal destinados a esta tienda
+  const embarquesEnCamino = useMemo(() => {
+    if (!targetTiendaId) return [];
+    return embarques.filter(e => {
+      // Inferir tienda destino: primero del campo padre, luego de los items como fallback
+      const tiendaDestino = e.tienda_destino_id
+        || e.items.find(i => i.tienda_destino_id > 0)?.tienda_destino_id
+        || 0;
+      return tiendaDestino === targetTiendaId &&
+        (e.estatus === 'en_transito' || e.estatus === 'en_sucursal');
+    });
+  }, [embarques, targetTiendaId]);
+
+  const handleOpenRecepcion = (emb: Embarque) => {
+    setActiveRecepcionEmb(emb);
+    setRecepcionItems(emb.items.map(item => ({
+      ...item,
+      estado_recepcion: (item.estado_recepcion || 'ok') as any
+    })));
+  };
+
+  const handleUpdateItemStatus = (qr: string, status: 'ok' | 'dañado' | 'faltante') => {
+    setRecepcionItems(prev => prev.map(i => i.qr_code === qr ? { ...i, estado_recepcion: status } : i));
+  };
+
+  const handleConfirmarRecepcionClick = () => {
+    if (!activeRecepcionEmb) return;
+    confirmarRecepcion(activeRecepcionEmb.id, recepcionItems);
+    setActiveRecepcionEmb(null);
+  };
   const averyPrintRef = useRef<HTMLDivElement>(null);
   const [printAveryData, setPrintAveryData] = useState<{ ordenTitle: string, itemsList: typeof terminados } | null>(null);
 
@@ -51,6 +93,102 @@ export default function InventarioPage() {
     }
 
     setPrintQRs({ nombre: productName, qrs: qrList, tiendaNombre: tName });
+  };
+
+  const handlePrintLote = () => {
+    if (!printQRs) return;
+    const w = window.open('', '_blank');
+    if (!w) return;
+
+    const css = `
+      @page { margin: 0; size: 5.72cm 3.18cm; }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: white;
+        color: black;
+      }
+      .label-page {
+        width: 5.72cm;
+        height: 3.18cm;
+        padding: 0.15cm;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        page-break-after: always;
+        break-after: page;
+      }
+      .qr-container {
+        width: 2.3cm;
+        height: 2.3cm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .qr-container svg {
+        width: 100%;
+        height: 100%;
+      }
+      .details {
+        margin-left: 0.15cm;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex-grow: 1;
+        overflow: hidden;
+      }
+      .title {
+        font-size: 8px;
+        font-weight: 900;
+        text-transform: uppercase;
+        margin: 0 0 1px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        font-size: 6.5px;
+        margin: 0 0 1px 0;
+        line-height: 1.1;
+      }
+      .sku {
+        font-family: monospace;
+        font-size: 6.5px;
+        font-weight: bold;
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+
+    const modalContainers = document.querySelectorAll('.print-only-container .qr-label-svg-container');
+    let labelsHtml = '';
+
+    printQRs.qrs.forEach((qr, idx) => {
+      const svgHtml = modalContainers[idx]?.innerHTML || '';
+      labelsHtml += `
+        <div class="label-page">
+          <div class="qr-container">
+            ${svgHtml}
+          </div>
+          <div class="details">
+            <h1 class="title">${printQRs.nombre}</h1>
+            <p class="meta"><strong>Origen:</strong> Stock Tienda</p>
+            <p class="meta"><strong>Destino:</strong> ${printQRs.tiendaNombre}</p>
+            <div class="sku">${qr}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    w.document.write(`<html><head><title>Etiquetas Lote</title><style>${css}</style></head><body>
+      ${labelsHtml}
+      <script>window.onload=function(){setTimeout(window.print, 250);}</script>
+    </body></html>`);
+    w.document.close();
   };
 
   const handlePrintOrdenCompleta = (ordenTitle: string, itemsList: typeof terminados) => {
@@ -195,8 +333,7 @@ export default function InventarioPage() {
   };
 
   // -- Materia Prima Tab --
-  const mpSorted = useMemo(() =>
-    [...materiaPrima].sort((a, b) => (a.cantidad / a.minimo) - (b.cantidad / b.minimo)), [materiaPrima]);
+  const mpSorted = useMemo(() => [...materiaPrima], [materiaPrima]);
 
   // -- Tienda Tab Drill-down --
   const tiendaData = useMemo(() => {
@@ -228,7 +365,7 @@ export default function InventarioPage() {
       const cat = p?.type || 'Otros';
       if (cat === selectedCategory) {
         if (!prods.has(i.producto_id)) prods.set(i.producto_id, { 
-          producto: p || { id: i.producto_id, name: i.producto_nombre, type: 'Otros', prices: { '1': i.precio_venta } }, 
+          producto: (p || { id: i.producto_id, name: (i as any).producto_nombre || 'Mueble', type: 'Otros', prices: { '1': i.precio_venta }, sku: '', dimensions: '', finishes: [], image_url: '' }) as any, 
           total: 0, 
           price: i.precio_venta 
         });
@@ -267,18 +404,25 @@ export default function InventarioPage() {
     { key: 'terminados' as Tab, label: 'Terminados sin Embarcar', icon: <Package size={14} />, count: terminados.length },
     { key: 'tienda' as Tab, label: 'Tienda', icon: <Store size={14} />, count: inventario.reduce((acc, curr) => acc + curr.cantidad_disponible, 0) },
     { key: 'materia_prima' as Tab, label: 'Materia Prima', icon: <TreePine size={14} />, count: materiaPrima.length },
-  ];
+  ].filter(t => {
+    if (isGerenteTienda) {
+      return t.key === 'tienda';
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-5">
       {/* Tabs */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); setSearchTerm(''); }} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${tab === t.key ? 'bg-amber-500/15 text-amber-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}>
-            {t.icon} {t.label} <span className="text-[10px] opacity-60">({t.count})</span>
-          </button>
-        ))}
-      </div>
+      {!isGerenteTienda && (
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => { setTab(t.key); setSearchTerm(''); }} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${tab === t.key ? 'bg-amber-500/15 text-amber-400' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}>
+              {t.icon} {t.label} <span className="text-[10px] opacity-60">({t.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Materia Prima */}
       {tab === 'materia_prima' && (
@@ -372,10 +516,48 @@ export default function InventarioPage() {
       {/* Tienda */}
       {tab === 'tienda' && (
         <div className="space-y-4">
+          {/* Embarques Pendientes de Recibir en esta Tienda */}
+          {embarquesEnCamino.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+              <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                📦 {embarquesEnCamino.length} {embarquesEnCamino.length === 1 ? 'Embarque Pendiente' : 'Embarques Pendientes'} de Recibir
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {embarquesEnCamino.map(emb => (
+                  <div key={emb.id} className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3.5 flex justify-between items-center gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-zinc-200">Embarque #{emb.id}</p>
+                      <p className="text-[10px] text-zinc-400 truncate">Destino: {tiendas.find(t => t.id === (emb.tienda_destino_id || emb.items.find(i => i.tienda_destino_id > 0)?.tienda_destino_id))?.nombre} · {emb.items.length} piezas</p>
+                      <span className={`inline-block text-[9px] font-black px-1.5 py-0.5 rounded mt-1.5 uppercase ${
+                        emb.estatus === 'en_sucursal' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {emb.estatus === 'en_sucursal' ? 'Llegó (Confirmar Recibo)' : 'En Tránsito'}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => handleOpenRecepcion(emb)}
+                      className="btn-primary py-2 px-4 text-xs font-bold shrink-0"
+                    >
+                      Recibir Pedido
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400 bg-zinc-800/30 px-4 py-2.5 rounded-lg border border-zinc-700/30">
-            <button onClick={() => { setSelectedTiendaId(null); setSelectedCategory(null); }} className={`hover:text-amber-400 ${!selectedTiendaId ? 'text-amber-400' : ''}`}>Todas las Tiendas</button>
-            {selectedTiendaId && (
+            {!isGerenteTienda ? (
+              <button onClick={() => { setSelectedTiendaId(null); setSelectedCategory(null); }} className={`hover:text-amber-400 ${!selectedTiendaId ? 'text-amber-400' : ''}`}>Todas las Tiendas</button>
+            ) : (
+              <span className="text-zinc-300">
+                {posTiendaId ? tiendas.find(t => t.id === posTiendaId)?.nombre : 'Seleccionar Tienda'}
+              </span>
+            )}
+            
+            {/* Si es gerente y posTiendaId es null, pero ya seleccionó una, mostrar su nombre */}
+            {isGerenteTienda && !posTiendaId && selectedTiendaId && (
               <>
                 <span className="text-zinc-600">/</span>
                 <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
@@ -383,6 +565,17 @@ export default function InventarioPage() {
                 </button>
               </>
             )}
+
+            {/* Para administradores o encargado de taller */}
+            {!isGerenteTienda && selectedTiendaId && (
+              <>
+                <span className="text-zinc-600">/</span>
+                <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
+                  {tiendas.find(t => t.id === selectedTiendaId)?.nombre}
+                </button>
+              </>
+            )}
+
             {selectedCategory && (
               <>
                 <span className="text-zinc-600">/</span>
@@ -448,7 +641,7 @@ export default function InventarioPage() {
             </div>
             <div className="p-4 border-t border-zinc-700/50 flex justify-end gap-3 bg-zinc-800/90 rounded-b-2xl">
               <button onClick={() => setPrintQRs(null)} className="btn-ghost">Cancelar</button>
-              <button onClick={() => window.print()} className="btn-primary"><Printer size={16} /> Imprimir {printQRs.qrs.length} Etiquetas</button>
+              <button onClick={handlePrintLote} className="btn-primary flex items-center gap-1.5"><Printer size={16} /> Imprimir {printQRs.qrs.length} Etiquetas</button>
             </div>
           </div>
         </div>
@@ -497,6 +690,79 @@ export default function InventarioPage() {
           ))}
         </div>
       </div>
+      {/* Modal de Recepción Táctil de Embarque */}
+      {activeRecepcionEmb && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-zinc-700/50 flex justify-between items-center bg-zinc-800/90 rounded-t-2xl">
+              <div>
+                <h3 className="font-bold text-zinc-100 flex items-center gap-2">
+                  📦 Recibir Mercancía: Embarque #{activeRecepcionEmb.id}
+                </h3>
+                <p className="text-[10px] text-zinc-400">Verifica la calidad y piezas físicas al ingresar a tienda</p>
+              </div>
+              <button onClick={() => setActiveRecepcionEmb(null)} className="text-zinc-500 hover:text-zinc-300">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              {recepcionItems.map((item) => (
+                <div key={item.qr_code} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-zinc-200">{item.producto_nombre}</p>
+                    <p className="text-[9px] font-mono text-zinc-500">{item.qr_code}</p>
+                  </div>
+                  
+                  {/* Selector Táctil */}
+                  <div className="flex gap-1.5 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800/80">
+                    <button
+                      onClick={() => handleUpdateItemStatus(item.qr_code, 'ok')}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                        item.estado_recepcion === 'ok' 
+                          ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10 font-black' 
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      ✓ OK
+                    </button>
+                    <button
+                      onClick={() => handleUpdateItemStatus(item.qr_code, 'dañado')}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                        item.estado_recepcion === 'dañado' 
+                          ? 'bg-red-500 text-white shadow-lg shadow-red-500/10 font-black' 
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      ⚠️ Dañado
+                    </button>
+                    <button
+                      onClick={() => handleUpdateItemStatus(item.qr_code, 'faltante')}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                        item.estado_recepcion === 'faltante' 
+                          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/10 font-black' 
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      ✖ Faltante
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-zinc-700/50 flex justify-end gap-3 bg-zinc-800/90 rounded-b-2xl">
+              <button onClick={() => setActiveRecepcionEmb(null)} className="btn-ghost">Cancelar</button>
+              <button 
+                onClick={handleConfirmarRecepcionClick}
+                className="btn-primary px-6 py-2 text-xs font-bold"
+              >
+                ✓ Confirmar Recepción de Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

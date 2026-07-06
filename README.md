@@ -25,6 +25,7 @@ El sistema ha superado la fase de prototipado con datos demo. Actualmente, **tod
 |---|---|---|
 | **Frontend** | React + TypeScript + Vite | SPA Moderna y Reactiva |
 | **Styling** | Vanilla CSS + Tailwind | Diseño Premium / Glassmorphism |
+| **Pruebas (E2E)**| Playwright | 5 Suites de Pruebas Automatizadas |
 | **API Backend** | PHP 8.x (Vanilla / PDO) | Endpoints RESTful |
 | **Base de Datos** | MySQL (Laragon) | Esquema Relacional Estricto |
 
@@ -38,6 +39,7 @@ sistema_decor/
 │   │   ├── api/        # Cliente de API centralizado
 │   │   ├── features/   # Módulos: pos, inventario, produccion, pedidos
 │   │   └── App.tsx     # Orquestador de vistas y Dashboard
+│   └── tests/          # Pruebas automatizadas de Playwright (E2E)
 ├── api/                # Backend PHP (Endpoints Reales)
 │   ├── dashboard/      # stats.php (Estadísticas dinámicas)
 │   ├── inventario/     # list_tienda.php (Stock real)
@@ -73,6 +75,14 @@ Para futuros ajustes o soporte, el agente debe considerar los siguientes puntos:
 ---
 
 ## 📝 Log de Cambios Recientes
+
+### [2026-07-06] — Doble Asignación, Reportes POS y Stress-Test Tool ✅
+*   **Doble Asignación en Taller:** Modificación del store y vistas de producción para asignar un Carpintero (fase de Producción) y un Pintor (fase de Acabados) a la misma orden con tarifas sugeridas independientes.
+*   **Prenómina e Integración Financiera:** Adaptación del módulo de personal para acreditar nóminas por etapa e integración de costos en los márgenes de pedidos y gráficas de carga del Dashboard.
+*   **Reporte de Ventas por Sucursal:** Panel en la base de la SPA con filtros de fecha y sucursal, KPIs dinámicos, Top 5 artículos rotativos y generación de PDF.
+*   **Buscador en Logística:** Incorporación de filtros de fecha y tienda de destino en la sección de Embarques.
+*   **Simulador de Rendimiento:** Integración de herramienta en Configuración para inyectar 1 año de datos ficticios en localStorage y probar estrés de renders cliente-servidor.
+*   **Corrección Financiera (Doble Contabilización):** Ajuste de la fórmula del gráfico de rentabilidad de productos en el Dashboard para usar el costo estándar del catálogo, eliminando el saldo negativo redundante.
 
 ### [2026-04-28] — Fase de "Limpieza Profunda" y Salida a Producción ✅
 *   **Reset Transaccional:** Ejecución de auditoría en DB para vaciar tablas operativas preservando catálogos.

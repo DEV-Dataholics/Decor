@@ -49,10 +49,31 @@ Si deseas realizar cambios en la interfaz o ver las actualizaciones en tiempo re
 > Para que el Frontend se comunique con la API de Laragon, asegúrate de que Laragon esté encendido y que la URL en `front/src/api/index.ts` (o el archivo de configuración de API) apunte correctamente a `http://localhost/sistema_decor/api`.
 
 ---
+ 
+### Paso 5: Pruebas End-to-End (E2E) con Playwright
+El proyecto cuenta con un set completo de pruebas automatizadas que validan la lógica de negocio, pruebas de estrés, QRs y flujos de UI.
+
+Para ejecutar las pruebas:
+1. Asegúrate de tener el servidor de desarrollo corriendo (`npm run dev` en `front/`).
+2. Abre otra terminal en la carpeta `front/`.
+3. Instala los navegadores de Playwright (solo la primera vez):
+   ```bash
+   npx playwright install
+   ```
+4. Ejecuta las pruebas:
+   ```bash
+   npx playwright test
+   ```
+5. Para ver las pruebas en modo interactivo (UI):
+   ```bash
+   npx playwright test --ui
+   ```
+
+---
 
 ### ✅ Listo
-Ya deberías poder ver el sistema. 
+Ya deberías poder ver y probar el sistema. 
 - **URL Producción Local:** `http://localhost/sistema_decor` (requiere `npm run build`)
-- **URL Desarrollo:** `http://localhost:5173`
+- **URL Desarrollo:** `http://localhost:5173/decor/`
 - **Usuario:** `admin@decor.mx`
-- **Password:** `password`
+- **Password:** `demo` (o `password` en la base de datos SQL real)

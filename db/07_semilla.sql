@@ -1,4 +1,4 @@
-decor_muebleria-- ============================================================
+-- ============================================================
 --  db/07_semilla.sql
 --  Datos iniciales del sistema para arrancar operaciones.
 --  EJECUTAR DESPUÉS de todos los scripts de esquema (00-06).

@@ -16,20 +16,219 @@ export default function ConfiguracionPage() {
     acabados, addAcabado, updateAcabado, deleteAcabado,
     tiendas, addTienda, updateTienda, deleteTienda,
     clientes, addCliente, updateCliente, deleteCliente,
-    resetDemo, productos, materiaPrima 
+    productos, materiaPrima, resetDemo
   } = useDecor();
   
   const [tab, setTab] = useState<ActiveTab>('acabados');
   const [editingId, setEditingId] = useState<number | string | null>(null);
+  const [generando, setGenerando] = useState(false);
+
+  const generarDatosSimulacion = () => {
+    setGenerando(true);
+    setTimeout(() => {
+      try {
+        const activeProducts = productos.length > 0 ? productos : [];
+        if (activeProducts.length === 0) {
+          alert('No hay productos en el catálogo para simular ventas.');
+          setGenerando(false);
+          return;
+        }
+        
+        const activeClientes = clientes.length > 0 ? clientes : [];
+        const activeTiendas = tiendas.length > 0 ? tiendas : [];
+        const activeEmpleados = [
+          'Víctor Manuel López', 
+          'José García Ramírez', 
+          'Miguel Hernández Soto', 
+          'Carlos Martínez Ruiz', 
+          'Roberto Sánchez Díaz', 
+          'Fernando Torres Luna', 
+          'Alberto Morales Cruz', 
+          'Pedro Jiménez Flores'
+        ];
+
+        const generatedPedidos = [];
+        const generatedWorkOrders = [];
+        const generatedTerminados = [];
+        const generatedVentas = [];
+
+        const hoy = new Date();
+        
+        // Simular 400 pedidos
+        for (let i = 0; i < 400; i++) {
+          const diasAtras = Math.floor(Math.random() * 365);
+          const fecha = new Date();
+          fecha.setDate(hoy.getDate() - diasAtras);
+          const fechaCortaStr = fecha.toISOString().split('T')[0];
+
+          const pId = 2000 + i;
+          const cli = activeClientes[Math.floor(Math.random() * activeClientes.length)] || { id: 1, nombre: 'Distribuidora Decor' };
+          
+          const qtyItems = Math.floor(Math.random() * 3) + 1;
+          const items = [];
+          let total = 0;
+          let totalItems = 0;
+
+          for (let j = 0; j < qtyItems; j++) {
+            const prod = activeProducts[Math.floor(Math.random() * activeProducts.length)];
+            const qty = Math.floor(Math.random() * 4) + 1;
+            const price = Object.values(prod.prices)[0] || 150;
+            const sub = qty * price;
+            total += sub;
+            totalItems += qty;
+
+            const acabado = acabados[Math.floor(Math.random() * acabados.length)] || 'Santa Fe';
+
+            items.push({
+              id: Date.now() + Math.random(),
+              producto_id: prod.id,
+              producto_nombre: prod.name,
+              codigo_sku: prod.sku,
+              cantidad: qty,
+              precio_unitario: price,
+              subtotal: sub,
+              tipo_pedido: 'linea',
+              acabado: acabado
+            });
+
+            const isCompleted = diasAtras > 30;
+            const woEstatus = isCompleted ? 'listo_embarque' : ['pendiente', 'en_produccion', 'acabados'][Math.floor(Math.random() * 3)];
+            
+            const carpinteroName = activeEmpleados[Math.floor(Math.random() * 4)];
+            const pintorName = activeEmpleados[4 + Math.floor(Math.random() * 2)];
+            
+            const costUnitario = prod.costo_produccion || Math.round(price * 0.25);
+
+            const wo: any = {
+              id: Date.now() + Math.random() + Math.random(),
+              orden_id: pId,
+              producto_id: prod.id,
+              producto_nombre: prod.name,
+              codigo_sku: prod.sku,
+              cantidad: qty,
+              estatus: woEstatus,
+              fecha_asignacion: fechaCortaStr,
+              acabado_nombre: acabado,
+              cliente_nombre: cli.nombre,
+            };
+
+            if (woEstatus !== 'pendiente') {
+              wo.empleado_id = 2; 
+              wo.empleado_nombre = carpinteroName;
+              wo.costo_mano_obra_unitario = costUnitario;
+              wo.costo_mano_obra = costUnitario * qty;
+            }
+
+            if (woEstatus === 'acabados' || woEstatus === 'listo_embarque') {
+              wo.empleado_acabado_id = 5; 
+              wo.empleado_acabado_nombre = pintorName;
+              wo.costo_acabado_unitario = 320;
+              wo.costo_acabado = 320 * qty;
+            }
+
+            if (woEstatus === 'listo_embarque') {
+              const diasFabricacion = Math.floor(Math.random() * 5) + 2;
+              const fechaTermino = new Date(fecha);
+              fechaTermino.setDate(fecha.getDate() + diasFabricacion);
+              wo.fecha_termino = fechaTermino.toISOString().split('T')[0];
+
+              for (let k = 0; k < qty; k++) {
+                generatedTerminados.push({
+                  id: Date.now() + Math.random(),
+                  qr_code: `DCR-${fechaTermino.getTime()}-${wo.id}-${k}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+                  producto_id: prod.id,
+                  producto_nombre: prod.name,
+                  codigo_sku: prod.sku,
+                  orden_id: pId,
+                  cliente_nombre: cli.nombre,
+                  acabado: acabado,
+                  fecha_listo: wo.fecha_termino,
+                  precio_estimado: price
+                });
+              }
+            }
+
+            generatedWorkOrders.push(wo);
+          }
+
+          generatedPedidos.push({
+            id: pId,
+            fecha_creacion: fechaCortaStr,
+            estatus: diasAtras > 30 ? 'entregado' : 'produccion',
+            tipo_orden: 'cliente_mayorista',
+            cliente_id: cli.id,
+            cliente_nombre: cli.nombre,
+            cliente_email: cli.email || 'mayorista@decor.com',
+            total: total,
+            total_items: totalItems,
+            items: items,
+            notas: 'Simulado para stress test'
+          });
+        }
+
+        // Simular 1500 ventas POS
+        for (let i = 0; i < 1500; i++) {
+          const diasAtras = Math.floor(Math.random() * 365);
+          const fecha = new Date();
+          fecha.setDate(hoy.getDate() - diasAtras);
+          const fechaStr = fecha.toISOString();
+
+          const tienda = activeTiendas[Math.floor(Math.random() * activeTiendas.length)] || { id: 1, nombre: 'Sucursal Norte' };
+          const qtyItems = Math.floor(Math.random() * 2) + 1;
+          const items = [];
+          let total = 0;
+
+          for (let j = 0; j < qtyItems; j++) {
+            const prod = activeProducts[Math.floor(Math.random() * activeProducts.length)];
+            const qty = Math.floor(Math.random() * 2) + 1;
+            const price = Object.values(prod.prices)[0] || 150;
+            const sub = qty * price;
+            total += sub;
+
+            items.push({
+              id: Date.now() + Math.random(),
+              producto_id: prod.id,
+              producto_nombre: prod.name,
+              codigo_sku: prod.sku,
+              qr_code: `DCR-POS-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+              precio_unitario: price
+            });
+          }
+
+          generatedVentas.push({
+            id: 3000 + i,
+            tienda_id: tienda.id,
+            fecha_venta: fechaStr,
+            total: total,
+            items: items
+          });
+        }
+
+        localStorage.setItem('decor_prod_pedidos', JSON.stringify(generatedPedidos));
+        localStorage.setItem('decor_prod_workOrders', JSON.stringify(generatedWorkOrders));
+        localStorage.setItem('decor_prod_terminados', JSON.stringify(generatedTerminados));
+        localStorage.setItem('decor_prod_ventas', JSON.stringify(generatedVentas));
+        
+        alert(`¡Simulación exitosa! Se han inyectado:
+- ${generatedPedidos.length} Pedidos de mayoreo.
+- ${generatedWorkOrders.length} Órdenes de trabajo.
+- ${generatedTerminados.length} Piezas en almacén listo.
+- ${generatedVentas.length} Tickets de Venta POS de sucursales.`);
+        window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
+      } catch (err) {
+        alert('Error en simulación: ' + err);
+      } finally {
+        setGenerando(false);
+      }
+    }, 100);
+  };
   
   // Form states
   const [acabadoName, setAcabadoName] = useState('');
   const [tiendaForm, setTiendaForm] = useState({ nombre: '', ciudad: '', direccion: '', telefono: '', activa: true });
   const [clienteForm, setClienteForm] = useState({ nombre: '', email: '', telefono: '', direccion: '', ciudad: '', limite_credito: 0, saldo_pendiente: 0, tipo: 'Mayorista', credito_activo: true });
 
-  const handleReset = () => {
-    if (confirm('¿Restaurar TODOS los datos de la demo al estado inicial? Esta acción no se puede deshacer.')) resetDemo();
-  };
+
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -193,16 +392,38 @@ export default function ConfiguracionPage() {
           <div className="glass-card p-5 space-y-3">
             <h3 className="text-sm font-bold text-zinc-200">Información del Sistema</h3>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Versión</span><span className="text-zinc-300 font-mono">Demo v3.1 — Configurador</span></div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Modo</span><span className="text-amber-400 font-bold">Standalone (sin backend)</span></div>
+              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Versión</span><span className="text-zinc-300 font-mono">v1.0.0 — Producción</span></div>
+              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Modo</span><span className="text-amber-400 font-bold">Local (Producción)</span></div>
               <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Productos</span><span className="text-zinc-300 font-bold">{productos.length}</span></div>
               <div className="flex justify-between py-1"><span className="text-zinc-500">Materias Primas</span><span className="text-zinc-300 font-bold">{materiaPrima.length} tipos</span></div>
             </div>
           </div>
-          <div className="glass-card p-5 space-y-3 border-red-500/20">
-            <h3 className="text-sm font-bold text-red-400 flex items-center gap-2"><RotateCcw size={16} /> Zona de Peligro</h3>
-            <p className="text-xs text-zinc-500">Restaurar todos los datos a su estado inicial. Se perderán órdenes, embarques y cambios de configuración de esta sesión.</p>
-            <button onClick={handleReset} className="btn-danger w-full justify-center"><RotateCcw size={14} /> Restaurar Datos de Fábrica</button>
+
+          <div className="glass-card p-5 space-y-4 border-amber-500/10">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-200">Pruebas de Estrés y Rendimiento</h3>
+              <p className="text-[10px] text-zinc-500 mt-1">Genera un volumen masivo de datos para probar la fluidez del cliente frente a 1 año de operación real simulada.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={generarDatosSimulacion}
+                disabled={generando}
+                className="btn-primary text-xs py-2 w-full justify-center disabled:opacity-50"
+              >
+                {generando ? 'Generando datos...' : '⚡ Simular 1 Año de Operación'}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('¿Restablecer todos los datos al estado demo original? Esto borrará las ventas y órdenes simuladas.')) {
+                    resetDemo();
+                    window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
+                  }
+                }}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <RotateCcw size={12} /> Restablecer Demo de Fábrica
+              </button>
+            </div>
           </div>
         </div>
       )}

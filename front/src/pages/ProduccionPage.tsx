@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Clock, Play, Paintbrush, Package, Search, X, Wrench } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Clock, Play, Paintbrush, Package, Search, X, Wrench, ChevronLeft, ChevronRight, Printer, CheckCircle } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import QRLabel from '../components/QRLabel';
+import { QRCodeSVG } from 'qrcode.react';
 import type { WOStatus } from '../store/useStore';
 
 const STATUS_CONFIG: Record<WOStatus, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
@@ -14,17 +15,37 @@ const STATUS_CONFIG: Record<WOStatus, { label: string; bg: string; text: string;
 const KANBAN_COLS: WOStatus[] = ['pendiente', 'en_produccion', 'acabados', 'listo_embarque'];
 
 export default function ProduccionPage() {
-  const { workOrders, moveWorkOrder, terminados, empleados, productos, updateProducto } = useDecor();
+  const { workOrders, moveWorkOrder, terminados, empleados, productos, updateProducto, pedidos, clientes, tiendas } = useDecor();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('lista');
-  const [showQR, setShowQR] = useState<string | null>(null);
+  const [printGridData, setPrintGridData] = useState<{ ordenId: number, itemsList: typeof terminados } | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
+
+  const gridPrintRef = useRef<HTMLDivElement>(null);
 
   // Assignment Modal State
   const [assignmentModalWo, setAssignmentModalWo] = useState<any | null>(null);
   const [selectedEmpleadoId, setSelectedEmpleadoId] = useState<number | null>(null);
   const [tarifaUnitaria, setTarifaUnitaria] = useState<number>(0);
   const [customMontoPago, setCustomMontoPago] = useState<number>(0);
+  const [cantidadAsignar, setCantidadAsignar] = useState<number>(0);
+  const [targetAssignmentStatus, setTargetAssignmentStatus] = useState<WOStatus>('en_produccion');
+
+  const handleEmployeeChange = (empId: number) => {
+    setSelectedEmpleadoId(empId);
+    const emp = empleados.find(e => e.id === empId);
+    if (!emp || !assignmentModalWo) return;
+    
+    let rate = 0;
+    if (targetAssignmentStatus === 'acabados') {
+      rate = emp.tarifa_base || 0;
+    } else {
+      const prod = productos.find(p => p.id === assignmentModalWo.producto_id);
+      rate = prod?.costo_produccion || 0;
+    }
+    setTarifaUnitaria(rate);
+    setCustomMontoPago(Number((rate * cantidadAsignar).toFixed(2)));
+  };
 
   const filtered = useMemo(() => workOrders.filter(wo =>
     !search || wo.producto_nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -78,57 +99,280 @@ export default function ProduccionPage() {
   };
 
   const handleMove = (id: number, newStatus: WOStatus) => {
-    if (newStatus === 'en_produccion') {
+    if (newStatus === 'en_produccion' || newStatus === 'acabados') {
       const wo = workOrders.find(w => w.id === id);
       if (wo) {
         setAssignmentModalWo(wo);
+        setTargetAssignmentStatus(newStatus);
         const activeEmployees = empleados.filter(e => e.activo);
-        const matchedEmp = activeEmployees.find(e => 
-          e.especialidades.some(s => wo.producto_nombre.toLowerCase().includes(s.toLowerCase())) || 
-          e.rol.toLowerCase() === (wo.producto_nombre.toLowerCase().includes('pintar') || wo.producto_nombre.toLowerCase().includes('acabado') ? 'pintor' : 'carpintero')
-        ) || activeEmployees[0];
+        
+        const isAcabado = newStatus === 'acabados';
+        const matchedEmp = activeEmployees.find(e => {
+          if (isAcabado) {
+            return e.rol.toLowerCase() === 'pintor' || e.especialidades.some(s => s.toLowerCase() === 'acabados');
+          } else {
+            return e.rol.toLowerCase() === 'carpintero' || e.especialidades.some(s => wo.producto_nombre.toLowerCase().includes(s.toLowerCase()));
+          }
+        }) || activeEmployees[0];
         
         setSelectedEmpleadoId(matchedEmp ? matchedEmp.id : null);
         
-        const prod = productos.find(p => p.id === wo.producto_id);
-        const costPerPiece = prod?.costo_produccion || 0;
-        setTarifaUnitaria(costPerPiece);
-        setCustomMontoPago(Number((costPerPiece * wo.cantidad).toFixed(2)));
+        let suggestedTarifa = 0;
+        if (isAcabado) {
+          suggestedTarifa = matchedEmp?.tarifa_base || 0;
+        } else {
+          const prod = productos.find(p => p.id === wo.producto_id);
+          suggestedTarifa = prod?.costo_produccion || 0;
+        }
+        
+        setTarifaUnitaria(suggestedTarifa);
+        setCustomMontoPago(Number((suggestedTarifa * wo.cantidad).toFixed(2)));
+        setCantidadAsignar(wo.cantidad);
         return;
       }
     }
 
     moveWorkOrder(id, newStatus);
-    if (newStatus === 'listo_embarque') {
-      // Show QR modal for the newly generated QR
-      setTimeout(() => {
-        const t = terminados.find(t => t.producto_id === workOrders.find(wo => wo.id === id)?.producto_id);
-        if (t) setShowQR(t.qr_code);
-      }, 100);
-    }
   };
 
   const handleConfirmAssignment = () => {
-    if (!assignmentModalWo || !selectedEmpleadoId || tarifaUnitaria <= 0) return;
+    if (!assignmentModalWo || !selectedEmpleadoId || tarifaUnitaria <= 0 || cantidadAsignar <= 0) return;
     const emp = empleados.find(e => e.id === selectedEmpleadoId);
     if (!emp) return;
 
-    const prod = productos.find(p => p.id === assignmentModalWo.producto_id);
-    if (prod && prod.costo_produccion !== tarifaUnitaria) {
-      updateProducto(prod.id, { costo_produccion: tarifaUnitaria });
+    if (targetAssignmentStatus === 'en_produccion') {
+      const prod = productos.find(p => p.id === assignmentModalWo.producto_id);
+      if (prod && prod.costo_produccion !== tarifaUnitaria) {
+        updateProducto(prod.id, { costo_produccion: tarifaUnitaria });
+      }
     }
 
-    moveWorkOrder(assignmentModalWo.id, 'en_produccion', {
+    moveWorkOrder(assignmentModalWo.id, targetAssignmentStatus, {
       empleado_id: emp.id,
       empleado_nombre: emp.nombre,
-      costo_mano_obra: Number(customMontoPago)
+      costo_mano_obra: Number(customMontoPago),
+      cantidad_asignada: cantidadAsignar,
+      costo_mano_obra_unitario: tarifaUnitaria
     });
 
     setAssignmentModalWo(null);
   };
 
-  // Find QR data for modal
-  const qrTerminado = showQR ? terminados.find(t => t.qr_code === showQR) : null;
+  const getPrintablePiecesForOrder = (ordenId: number) => {
+    const finished = terminados.filter(t => t.orden_id === ordenId);
+    if (finished.length > 0) return finished;
+
+    const orderWOs = workOrders.filter(wo => wo.orden_id === ordenId);
+    const generated: typeof terminados = [];
+    let idCounter = Date.now();
+    orderWOs.forEach(wo => {
+      const prod = productos.find(p => p.id === wo.producto_id);
+      const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
+      for (let j = 0; j < wo.cantidad; j++) {
+        generated.push({
+          id: idCounter++,
+          qr_code: `DCR-TEMP-${Date.now()}-${wo.id}-${j}`,
+          producto_id: wo.producto_id,
+          producto_nombre: wo.producto_nombre,
+          codigo_sku: wo.codigo_sku,
+          orden_id: wo.orden_id,
+          cliente_nombre: wo.cliente_nombre || 'Cliente',
+          acabado: wo.acabado_nombre || 'Natural',
+          fecha_listo: new Date().toISOString().split('T')[0],
+          precio_estimado: price
+        });
+      }
+    });
+    return generated;
+  };
+
+  const printOrderTicket = (ordenId: number) => {
+    const pedido = pedidos.find(p => p.id === ordenId);
+    if (!pedido) return;
+
+    const isTiendaOrder = pedido.tipo_orden === 'resurtido_tienda' || tiendas.some(t => t.id === pedido.cliente_id && t.nombre === pedido.cliente_nombre);
+    const cliente = clientes.find(c => c.id === pedido.cliente_id);
+    const tienda = tiendas.find(t => t.id === pedido.cliente_id);
+    const destinoCiudad = isTiendaOrder ? tienda?.ciudad : cliente?.ciudad;
+    const destinoTel = isTiendaOrder ? '' : cliente?.telefono;
+    
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Imprimir Orden #${pedido.id}</title>
+          <style>
+            @page { margin: 0; size: 80mm auto; }
+            body { font-family: 'Courier New', Courier, monospace; font-size: 11px; width: 80mm; padding: 4mm; margin: 0; color: black; background: white; box-sizing: border-box; }
+            .header { text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 5px; font-style: italic; }
+            .invoice-no { text-align: right; font-weight: bold; margin-bottom: 10px; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
+            th, td { text-align: left; padding: 4px 1px; font-size: 10px; vertical-align: top; word-wrap: break-word; }
+            th { border-bottom: 1px solid black; border-top: 1px solid black; font-weight: bold; }
+            .right { text-align: right; }
+            .center { text-align: center; }
+            .totals { display: flex; flex-direction: column; align-items: flex-end; width: 100%; }
+            .totals-row { display: flex; justify-content: space-between; width: 60%; margin-bottom: 2px; font-size: 10px; }
+            .totals-row span:first-child { text-align: right; padding-right: 10px; flex-grow: 1; }
+            .totals-row span:last-child { width: 50px; text-align: right; }
+            .bold { font-weight: bold; }
+            .total-final { border-top: 1px solid black; border-bottom: 1px solid black; padding: 3px 0; font-size: 11px; margin-top: 2px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">SILVA WOOD FACTORY</div>
+          <div class="invoice-no">Invoice No &nbsp;&nbsp;&nbsp; #${pedido.id}</div>
+          <div style="display: flex; gap: 5px; font-size: 10px; margin-bottom: 5px;">
+            <div style="width: 60%;">
+              <div><strong style="display:inline-block; width:50px;">Customer</strong> ${pedido.cliente_nombre}</div>
+              <div><strong style="display:inline-block; width:50px;">City</strong> ${destinoCiudad || '-'}</div>
+            </div>
+            <div style="width: 40%; border-left: 1px solid black; padding-left: 5px;">
+              <div><strong>Date</strong> ${pedido.fecha_creacion}</div>
+              <div><strong>Phone</strong> ${destinoTel || '-'}</div>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th style="width: 20%">CODE</th><th class="center" style="width: 12%">Qty</th><th style="width: 48%">Description</th><th class="right" style="width: 20%">TOTAL</th></tr></thead>
+            <tbody>
+              ${pedido.items.map(item => `<tr><td>${item.codigo_sku || '-'}</td><td class="center">${item.cantidad}</td><td>${item.producto_nombre}${item.acabado ? `<br/><small>${item.acabado}</small>` : ''}</td><td class="right">${(item.precio_unitario * item.cantidad).toFixed(2)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-row"><span>Subtotal</span><span>${pedido.total.toFixed(2)}</span></div>
+            <div class="totals-row bold total-final"><span>TOTAL</span><span>${pedido.total.toFixed(2)}</span></div>
+          </div>
+          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); };</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintEtiquetasGrid = (ordenId: number) => {
+    const printableItems = getPrintablePiecesForOrder(ordenId);
+    if (printableItems.length === 0) return;
+
+    setPrintGridData({ ordenId, itemsList: printableItems });
+
+    // Aumentamos a 350ms para asegurar que React complete el render del DOM de QRs oculto
+    setTimeout(() => {
+      const w = window.open('', '_blank');
+      if (!w) {
+        setPrintGridData(null);
+        return;
+      }
+
+      const qrHtmlContent = gridPrintRef.current?.innerHTML || '';
+
+      const css = `
+        @page {
+          size: letter;
+          margin: 0;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          background: white;
+          color: black;
+          font-family: Arial, Helvetica, sans-serif;
+        }
+        .avery-page {
+          width: 8.5in;
+          height: 11in;
+          box-sizing: border-box;
+          padding-top: 0.5in;
+          padding-bottom: 0.5in;
+          padding-left: 0.5in;
+          padding-right: 0.5in;
+          page-break-after: always;
+          break-after: page;
+          display: grid;
+          grid-template-columns: 2.25in 2.25in 2.25in;
+          grid-template-rows: 1.25in 1.25in 1.25in 1.25in 1.25in 1.25in 1.25in 1.25in;
+          column-gap: 0.375in;
+          row-gap: 0in;
+          overflow: hidden;
+        }
+        .label-card {
+          width: 2.25in;
+          height: 1.25in;
+          box-sizing: border-box;
+          padding: 0.1in 0.15in;
+          display: flex;
+          align-items: center;
+          border: 1px dashed #e4e4e7;
+          overflow: hidden;
+        }
+        .qr-container {
+          width: 0.95in;
+          height: 0.95in;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .qr-container svg {
+          width: 100%;
+          height: 100%;
+        }
+        .info-container {
+          margin-left: 0.1in;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          flex-grow: 1;
+          overflow: hidden;
+        }
+        .info-title {
+          font-size: 8px;
+          font-weight: 900;
+          text-transform: uppercase;
+          margin: 0 0 2px 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .info-subtitle {
+          font-size: 6.5px;
+          margin: 0 0 1px 0;
+          line-height: 1.1;
+        }
+        .info-qr-text {
+          font-family: monospace;
+          font-size: 5.5px;
+          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      `;
+
+      w.document.write(`
+        <html>
+          <head>
+            <title>Imprimir Etiquetas en Lote - Orden #${ordenId}</title>
+            <style>${css}</style>
+          </head>
+          <body>
+            ${qrHtmlContent}
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 250);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      w.document.close();
+      setPrintGridData(null);
+    }, 150);
+  };
 
   return (
     <div className="space-y-5">
@@ -175,27 +419,48 @@ export default function ProduccionPage() {
           const clientName = items[0]?.cliente_nombre || 'Desconocido';
           
           return (
-            <div key={ordenId} className={`glass-card overflow-hidden transition-all ${isNueva ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : ''}`}>
-              <button 
+            <div key={ordenId} className={`glass-card overflow-hidden transition-all ${isNueva ? 'border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.15)]' : ''}`}>
+              <div 
                 onClick={() => toggleOrder(ordenId)}
-                className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${isNueva ? 'bg-red-500/10 hover:bg-red-500/20' : 'hover:bg-zinc-800/30'}`}
+                className={`w-full px-5 py-4 flex items-center justify-between transition-colors cursor-pointer ${isNueva ? 'bg-orange-500/10 hover:bg-orange-500/20' : 'hover:bg-[#FAF6EE]/50'}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${isNueva ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                  <div className={`p-2 rounded-lg ${isNueva ? 'bg-orange-500/20 text-orange-600' : 'bg-[#c2703e]/15 text-[#c2703e]'}`}>
                     <Package size={20} />
                   </div>
                   <div className="text-left">
-                    <h3 className={`font-bold ${isNueva ? 'text-red-100' : 'text-zinc-100'}`}>Orden #{ordenId}</h3>
-                    <p className={`text-xs ${isNueva ? 'text-red-300' : 'text-zinc-500'}`}>{clientName} · {items.length} piezas</p>
+                    <h3 className={`font-bold ${isNueva ? 'text-[#4a2818]' : 'text-[#4a2818]'}`}>Orden #{ordenId}</h3>
+                    <p className={`text-xs ${isNueva ? 'text-orange-700' : 'text-zinc-550'}`}>{clientName} · {items.reduce((sum, wo) => sum + (wo.cantidad || 1), 0)} piezas</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {isNueva && <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)] tracking-wider">🔥 NUEVO</span>}
-                  <div className={`text-xs font-bold px-3 py-1 rounded-full ${isNueva ? 'bg-red-900/50 text-red-300' : 'bg-zinc-800 text-zinc-500'}`}>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  {isNueva && <span className="bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.4)] tracking-wider">🔥 NUEVO</span>}
+                  
+                  {/* Botones de impresión rápida */}
+                  <button
+                    onClick={() => printOrderTicket(ordenId)}
+                    className="px-2.5 py-1.5 bg-zinc-800 hover:bg-[#c2703e]/10 hover:text-[#c2703e] text-zinc-300 rounded-lg border border-zinc-700/50 transition-all flex items-center gap-1 text-[10px] font-bold"
+                    title="Imprimir Ticket de Pedido (80mm)"
+                  >
+                    <Printer size={12} /> Ticket
+                  </button>
+                  
+                  <button
+                    onClick={() => handlePrintEtiquetasGrid(ordenId)}
+                    className="px-2.5 py-1.5 bg-zinc-800 hover:bg-emerald-500/10 hover:text-emerald-400 text-zinc-300 rounded-lg border border-zinc-700/50 transition-all flex items-center gap-1 text-[10px] font-bold"
+                    title="Imprimir Etiquetas Adhesivas (Grid Carta 2.25x1.25)"
+                  >
+                    <Printer size={12} /> Etiquetas
+                  </button>
+
+                  <button 
+                    onClick={() => toggleOrder(ordenId)}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer transition-colors ${isNueva ? 'bg-orange-200/60 text-orange-800' : 'bg-[#FAF6EE] text-[#4a2818]/60 border border-[#e8dfcb]'}`}
+                  >
                     {isExpanded ? 'Ocultar' : 'Expandir'}
-                  </div>
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="border-t border-zinc-700/30 bg-zinc-900/30 p-4">
@@ -222,11 +487,15 @@ export default function ProduccionPage() {
                                   <p className="text-[9px] text-zinc-500">{wo.codigo_sku} · Qty: {wo.cantidad}</p>
                                   <div className="flex justify-between items-center text-[9px]">
                                     <span className="text-amber-400 font-medium">{wo.acabado_nombre}</span>
-                                    {wo.empleado_nombre && <span className="text-emerald-400 font-bold">💰 ${wo.costo_mano_obra}</span>}
                                   </div>
-                                  {wo.empleado_nombre && (
-                                    <p className="text-[8px] text-zinc-500 italic truncate mt-0.5">👤 {wo.empleado_nombre}</p>
-                                  )}
+                                  <div className="flex flex-col text-[8px] text-zinc-500 space-y-0.5 mt-1 border-t border-zinc-800/30 pt-1">
+                                    {wo.empleado_nombre && (
+                                      <p className="truncate">👤 🔨 {wo.empleado_nombre} (<span className="text-emerald-400 font-bold">${wo.costo_mano_obra}</span>)</p>
+                                    )}
+                                    {wo.empleado_acabado_nombre && (
+                                      <p className="truncate">👤 🎨 {wo.empleado_acabado_nombre} (<span className="text-emerald-400 font-bold">${wo.costo_acabado}</span>)</p>
+                                    )}
+                                  </div>
                                   {getNextStatus(wo.estatus) && (
                                     <button
                                       onClick={() => handleMove(wo.id, getNextStatus(wo.estatus)!)}
@@ -258,9 +527,14 @@ export default function ProduccionPage() {
                           <div key={wo.id} className="grid grid-cols-12 gap-2 px-4 py-2 border-b border-zinc-800/30 hover:bg-zinc-800/40 transition-colors items-center">
                             <div className="col-span-4">
                               <p className="text-[11px] font-semibold text-zinc-200 truncate">{wo.producto_nombre}</p>
-                              <p className="text-[9px] text-zinc-600">
-                                {wo.codigo_sku}
-                                {wo.empleado_nombre && <span className="text-zinc-500 font-medium"> · 👤 {wo.empleado_nombre} (${wo.costo_mano_obra})</span>}
+                              <p className="text-[9px] text-zinc-650 flex flex-wrap gap-x-2 mt-0.5">
+                                <span className="font-mono text-zinc-600">{wo.codigo_sku}</span>
+                                {wo.empleado_nombre && (
+                                  <span className="text-zinc-500 font-medium">🔨 {wo.empleado_nombre} (${wo.costo_mano_obra})</span>
+                                )}
+                                {wo.empleado_acabado_nombre && (
+                                  <span className="text-zinc-500 font-medium">🎨 {wo.empleado_acabado_nombre} (${wo.costo_acabado})</span>
+                                )}
                               </p>
                             </div>
                             <div className="col-span-2 text-[10px] text-amber-400">{wo.acabado_nombre}</div>
@@ -282,28 +556,6 @@ export default function ProduccionPage() {
         })}
       </div>
 
-      {/* QR Modal */}
-      {showQR && qrTerminado && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card w-full max-w-sm p-6 animate-scale-in text-center space-y-4">
-            <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
-              <Package size={28} />
-            </div>
-            <h3 className="text-lg font-bold text-zinc-100">¡Pieza Listo!</h3>
-            <p className="text-xs text-zinc-500">Etiqueta QR generada para esta pieza</p>
-            <QRLabel
-              qrCode={qrTerminado.qr_code}
-              productoNombre={qrTerminado.producto_nombre}
-              ordenId={qrTerminado.orden_id}
-              clienteNombre={qrTerminado.cliente_nombre}
-              acabado={qrTerminado.acabado}
-              size={120}
-            />
-            <button onClick={() => setShowQR(null)} className="btn-primary w-full justify-center">Cerrar</button>
-          </div>
-        </div>
-      )}
-
       {/* Assignment Modal */}
       {assignmentModalWo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -312,8 +564,12 @@ export default function ProduccionPage() {
               <Wrench size={22} />
             </div>
             <div>
-              <h3 className="text-base font-black text-zinc-100">Iniciar Producción</h3>
-              <p className="text-xs text-zinc-500">Asigna un empleado y define el pago por este trabajo.</p>
+              <h3 className="text-base font-black text-zinc-100">
+                {targetAssignmentStatus === 'acabados' ? '🎨 Asignar Acabados y Pintura' : '🔨 Iniciar Producción (Carpintería)'}
+              </h3>
+              <p className="text-xs text-zinc-500">
+                {targetAssignmentStatus === 'acabados' ? 'Asigna un pintor y define el pago de acabados.' : 'Asigna un carpintero y define el pago por fabricación.'}
+              </p>
             </div>
             
             <div className="bg-zinc-800/40 rounded-xl p-3 text-xs space-y-2 border border-zinc-700/20">
@@ -327,7 +583,7 @@ export default function ProduccionPage() {
                 <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Seleccionar Empleado</label>
                 <select 
                   value={selectedEmpleadoId || ''} 
-                  onChange={e => setSelectedEmpleadoId(Number(e.target.value))}
+                  onChange={e => handleEmployeeChange(Number(e.target.value))}
                   className="input-dark w-full"
                 >
                   <option value="" disabled>Seleccione un trabajador...</option>
@@ -337,6 +593,27 @@ export default function ProduccionPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Cantidad a Asignar</label>
+                <input 
+                  type="number" 
+                  value={cantidadAsignar || ''}
+                  onChange={e => {
+                    const val = Math.min(assignmentModalWo.cantidad, Math.max(1, Number(e.target.value)));
+                    setCantidadAsignar(val);
+                    setCustomMontoPago(Number((tarifaUnitaria * val).toFixed(2)));
+                  }}
+                  onFocus={e => e.target.select()}
+                  className="input-dark w-full font-bold text-zinc-300"
+                  min="1"
+                  max={assignmentModalWo.cantidad}
+                  step="1"
+                />
+                <p className="text-[9px] text-zinc-500 mt-1">
+                  Lote disponible: {assignmentModalWo.cantidad} {assignmentModalWo.cantidad === 1 ? 'pieza' : 'piezas'}.
+                </p>
               </div>
 
               {tarifaUnitaria === 0 && (
@@ -354,7 +631,7 @@ export default function ProduccionPage() {
                     onChange={e => {
                       const val = Number(e.target.value);
                       setTarifaUnitaria(val);
-                      setCustomMontoPago(Number((val * assignmentModalWo.cantidad).toFixed(2)));
+                      setCustomMontoPago(Number((val * cantidadAsignar).toFixed(2)));
                     }}
                     onFocus={e => e.target.select()}
                     className="input-dark w-full font-bold text-amber-400"
@@ -371,8 +648,8 @@ export default function ProduccionPage() {
                     onChange={e => {
                       const val = Number(e.target.value);
                       setCustomMontoPago(val);
-                      if (assignmentModalWo.cantidad > 0) {
-                        setTarifaUnitaria(Number((val / assignmentModalWo.cantidad).toFixed(2)));
+                      if (cantidadAsignar > 0) {
+                        setTarifaUnitaria(Number((val / cantidadAsignar).toFixed(2)));
                       }
                     }}
                     onFocus={e => e.target.select()}
@@ -384,7 +661,7 @@ export default function ProduccionPage() {
                 </div>
               </div>
               <p className="text-[9px] text-zinc-500">
-                Los campos están vinculados. Modificar cualquiera calculará el otro para un lote de {assignmentModalWo.cantidad} {assignmentModalWo.cantidad === 1 ? 'pieza' : 'piezas'}.
+                Los campos están vinculados. Modificar cualquiera calculará el otro para la cantidad de {cantidadAsignar} {cantidadAsignar === 1 ? 'pieza' : 'piezas'}.
               </p>
             </div>
 
@@ -401,6 +678,33 @@ export default function ProduccionPage() {
           </div>
         </div>
       )}
+      {/* Contenedor oculto para renderizar los QRs del grid síncronamente antes de imprimir */}
+      <div style={{ display: 'none' }} ref={gridPrintRef}>
+        {printGridData && (() => {
+          const labelGroups = [];
+          for (let i = 0; i < printGridData.itemsList.length; i += 24) {
+            labelGroups.push(printGridData.itemsList.slice(i, i + 24));
+          }
+          return labelGroups.map((group, pageIndex) => (
+            <div key={pageIndex} className="avery-page">
+              {group.map(item => (
+                <div key={item.id} className="label-card">
+                  <div className="qr-container">
+                    <QRCodeSVG value={item.qr_code} size={80} level="M" />
+                  </div>
+                  <div className="info-container">
+                    <h1 className="info-title">{item.producto_nombre}</h1>
+                    <p className="info-subtitle"><strong>Ord:</strong> #{item.orden_id}</p>
+                    <p className="info-subtitle"><strong>Destino:</strong> {item.cliente_nombre}</p>
+                    <p className="info-subtitle"><strong>Acabado:</strong> {item.acabado}</p>
+                    <p className="info-qr-text">{item.qr_code}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ));
+        })()}
+      </div>
     </div>
   );
 }

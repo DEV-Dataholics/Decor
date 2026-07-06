@@ -1,9 +1,0 @@
-[
-  { "id": 1, "nombre": "Pino", "unidad": "pacas", "cantidad": 14, "minimo": 5, "color": "#d4a574" },
-  { "id": 2, "nombre": "Encino", "unidad": "pacas", "cantidad": 8, "minimo": 3, "color": "#8b6914" },
-  { "id": 3, "nombre": "Alder", "unidad": "pacas", "cantidad": 3, "minimo": 4, "color": "#c4956a" },
-  { "id": 4, "nombre": "Mezquite", "unidad": "pacas", "cantidad": 6, "minimo": 2, "color": "#6b3a2a" },
-  { "id": 5, "nombre": "Madera Reciclada", "unidad": "pacas", "cantidad": 10, "minimo": 3, "color": "#9e8c7a" },
-  { "id": 6, "nombre": "Madera Fashion", "unidad": "pacas", "cantidad": 4, "minimo": 2, "color": "#a0522d" },
-  { "id": 7, "nombre": "Triplay", "unidad": "hojas", "cantidad": 15, "minimo": 5, "color": "#deb887" }
-]

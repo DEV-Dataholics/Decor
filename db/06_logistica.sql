@@ -63,6 +63,8 @@ CREATE TABLE embarque_items (
   etiqueta_generada   TINYINT(1)    NOT NULL DEFAULT 0,
   embarcado           TINYINT(1)    NOT NULL DEFAULT 0,
   -- Recepción en tienda
+  cantidad_danada     DECIMAL(8,2)  NOT NULL DEFAULT 0.00
+    COMMENT 'Cantidad de piezas recibidas con daños físicos o de calidad',
   recibido_en_tienda  TINYINT(1)    NOT NULL DEFAULT 0,
   cantidad_recibida   DECIMAL(8,2)  NOT NULL DEFAULT 0.00,
   diferencia          DECIMAL(8,2)  GENERATED ALWAYS AS

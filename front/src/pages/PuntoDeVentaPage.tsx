@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { 
   ShoppingBag, CheckCircle2, XCircle, Search, Camera, X, 
   ArrowLeft, CreditCard, Wallet, Landmark, RefreshCw, 
-  Mail, ChevronRight, Store, ArrowRight, Printer 
+  Mail, ChevronRight, Store, ArrowRight, Printer,
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { useDecor } from '../store/StoreContext';
@@ -41,6 +42,27 @@ export default function PuntoDeVentaPage() {
   const [emailCliente, setEmailCliente] = useState('');
   const [emailEnviado, setEmailEnviado] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Escuchar cambios de pantalla completa (por si salen con ESC)
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error al activar pantalla completa: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   const inputRef = useRef<HTMLInputElement>(null);
   const startInputTime = useRef<number>(0);
@@ -415,18 +437,18 @@ export default function PuntoDeVentaPage() {
     const tiendasActivas = tiendas.filter(t => t.activa);
     return (
       <div className="max-w-md mx-auto p-4 my-10">
-        <div className="glass-card p-8 text-center space-y-6 border border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-          <div className="w-20 h-20 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+        <div className="clay-card-cream p-8 text-center space-y-6 rounded-2xl">
+          <div className="w-20 h-20 rounded-2xl bg-[#c2703e]/10 text-[#c2703e] flex items-center justify-center mx-auto shadow-sm">
             <Store size={44} />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-tight">Configuración de Caja</h2>
-            <p className="text-xs text-zinc-400">Selecciona la sucursal física en la que opera esta tablet</p>
+            <h2 className="text-2xl font-black text-[#4a2818] tracking-tight">Configuración de Caja</h2>
+            <p className="text-xs text-zinc-500">Selecciona la sucursal física en la que opera esta tablet</p>
           </div>
 
           <div className="space-y-4 text-left">
             <div>
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2">Sucursal</label>
+              <label className="text-[10px] font-black text-[#4a2818]/70 uppercase tracking-wider block mb-2">Sucursal</label>
               <select 
                 defaultValue="" 
                 onChange={e => {
@@ -436,9 +458,9 @@ export default function PuntoDeVentaPage() {
                     localStorage.setItem('decor_pos_tienda_id', id.toString());
                   }
                 }}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-amber-500/50 transition-colors"
+                className="w-full bg-white border border-[#e8dfcb] rounded-xl px-4 py-3 text-sm text-[#4a2818] focus:outline-none focus:border-[#c2703e]/55 transition-all shadow-sm"
               >
-                <option value="" disabled className="text-zinc-600">-- Selecciona una sucursal --</option>
+                <option value="" disabled className="text-zinc-400">-- Selecciona una sucursal --</option>
                 {tiendasActivas.map(t => (
                   <option key={t.id} value={t.id}>{t.nombre} ({t.ciudad})</option>
                 ))}
@@ -446,7 +468,7 @@ export default function PuntoDeVentaPage() {
             </div>
           </div>
 
-          <div className="text-xs text-zinc-600 border-t border-zinc-800/60 pt-4">
+          <div className="text-[11px] text-zinc-400 border-t border-[#e8dfcb] pt-4">
             * Este ajuste se guardará localmente en este dispositivo para futuras ventas.
           </div>
         </div>
@@ -459,63 +481,72 @@ export default function PuntoDeVentaPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* BARRA SUPERIOR DISCRETA DE CAJA */}
-      <div className="flex flex-col sm:flex-row justify-between items-center bg-zinc-900/40 border border-zinc-850 px-4 py-2.5 rounded-xl gap-2 backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Caja Activa:</span>
-          <span className="text-xs font-semibold text-zinc-100">{sucursalActiva?.nombre} ({sucursalActiva?.ciudad})</span>
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-[#f4eedf] border border-[#e8dfcb] px-5 py-3 rounded-2xl gap-3 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] font-bold text-[#5a6b5c] uppercase tracking-wider">Caja Activa:</span>
+          <span className="text-xs font-black text-[#4a2818]">{sucursalActiva?.nombre} ({sucursalActiva?.ciudad})</span>
         </div>
-        <button 
-          onClick={() => {
-            if (confirm('¿Seguro que deseas cambiar de sucursal? Se limpiará el carrito de la venta actual.')) {
-              localStorage.removeItem('decor_pos_tienda_id');
-              setTiendaId(null);
-              setCarrito([]);
-              setStep(1);
-            }
-          }}
-          className="text-[10px] text-zinc-500 hover:text-amber-400 font-bold transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-850"
-        >
-          <RefreshCw size={10} /> Cambiar Sucursal
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button 
+            onClick={toggleFullscreen}
+            className="text-[11px] text-[#4a2818] hover:text-[#c2703e] font-bold transition-all flex items-center gap-1.5 px-3.5 py-2 rounded-xl clay-btn-white border border-[#e8dfcb]/60 active:scale-95"
+          >
+            {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            {isFullscreen ? 'Salir de Pantalla Completa' : 'Pantalla Completa'}
+          </button>
+          <button 
+            onClick={() => {
+              if (confirm('¿Seguro que deseas cambiar de sucursal? Se limpiará el carrito de la venta actual.')) {
+                localStorage.removeItem('decor_pos_tienda_id');
+                setTiendaId(null);
+                setCarrito([]);
+                setStep(1);
+              }
+            }}
+            className="text-[11px] text-[#4a2818] hover:text-[#c2703e] font-bold transition-all flex items-center gap-1.5 px-3.5 py-2 rounded-xl clay-btn-white border border-[#e8dfcb]/60 active:scale-95"
+          >
+            <RefreshCw size={12} /> Cambiar Sucursal
+          </button>
+        </div>
       </div>
 
       {/* STEPPER SUPERIOR DEL WIZARD */}
-      <div className="glass-card py-4 px-6 md:px-12 flex justify-between items-center relative border border-zinc-800/40">
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-800 -translate-y-1/2 z-0 hidden sm:block" />
+      <div className="clay-card-cream py-5 px-6 md:px-12 flex justify-between items-center relative rounded-2xl">
+        <div className="absolute top-1/2 left-0 right-0 h-[3px] bg-[#e8dfcb] -translate-y-1/2 z-0 hidden sm:block" />
         
         {/* Step 1 */}
-        <div className="flex items-center gap-3 bg-zinc-950 px-4 py-1 z-10 rounded-full sm:rounded-none">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${step >= 1 ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-800 text-zinc-500'}`}>
+        <div className="flex items-center gap-3 bg-[#FAF6EE] border border-[#e8dfcb]/40 px-4 py-2 z-10 rounded-full shadow-sm">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs transition-all duration-300 shadow-sm ${step === 1 ? 'clay-btn-dark text-[#FAF6EE]' : 'clay-btn-white text-[#5a6b5c]'}`}>
             1
           </div>
-          <span className={`text-xs font-black tracking-wide hidden md:inline ${step === 1 ? 'text-amber-400' : 'text-zinc-500'}`}>Registro</span>
+          <span className={`text-xs font-black tracking-wide ${step === 1 ? 'text-[#c2703e]' : 'text-zinc-500'}`}>Registro</span>
         </div>
 
         {/* Step 2 */}
-        <div className="flex items-center gap-3 bg-zinc-950 px-4 py-1 z-10 rounded-full sm:rounded-none">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${step >= 2 ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-800 text-zinc-500'}`}>
+        <div className="flex items-center gap-3 bg-[#FAF6EE] border border-[#e8dfcb]/40 px-4 py-2 z-10 rounded-full shadow-sm">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs transition-all duration-300 shadow-sm ${step === 2 ? 'clay-btn-dark text-[#FAF6EE]' : 'clay-btn-white text-[#5a6b5c]'}`}>
             2
           </div>
-          <span className={`text-xs font-black tracking-wide hidden md:inline ${step === 2 ? 'text-amber-400' : 'text-zinc-500'}`}>Método de Pago</span>
+          <span className={`text-xs font-black tracking-wide ${step === 2 ? 'text-[#c2703e]' : 'text-zinc-500'}`}>Método de Pago</span>
         </div>
 
         {/* Step 3 */}
-        <div className="flex items-center gap-3 bg-zinc-950 px-4 py-1 z-10 rounded-full sm:rounded-none">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${step >= 3 ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-800 text-zinc-500'}`}>
+        <div className="flex items-center gap-3 bg-[#FAF6EE] border border-[#e8dfcb]/40 px-4 py-2 z-10 rounded-full shadow-sm">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs transition-all duration-300 shadow-sm ${step === 3 ? 'clay-btn-dark text-[#FAF6EE]' : 'clay-btn-white text-[#5a6b5c]'}`}>
             3
           </div>
-          <span className={`text-xs font-black tracking-wide hidden md:inline ${step === 3 ? 'text-amber-400' : 'text-zinc-500'}`}>Cierre</span>
+          <span className={`text-xs font-black tracking-wide ${step === 3 ? 'text-[#c2703e]' : 'text-zinc-500'}`}>Cierre</span>
         </div>
       </div>
 
       {/* ERROR FEEDBACK */}
       {result === 'error' && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 animate-scale-in flex items-center gap-3 shadow-lg shadow-red-500/5">
-          <XCircle size={22} className="text-red-400 shrink-0" />
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 animate-scale-in flex items-center gap-3 shadow-md">
+          <XCircle size={24} className="text-red-500 shrink-0" />
           <div className="text-left">
-            <p className="text-xs font-bold text-red-300">Error en Operación</p>
-            <p className="text-[10px] text-red-400">{errorMessage || 'QR no encontrado o producto agotado.'}</p>
+            <p className="text-xs font-black text-red-700">Error en Operación</p>
+            <p className="text-[11px] text-red-600 font-medium">{errorMessage || 'QR no encontrado o producto agotado.'}</p>
           </div>
         </div>
       )}
@@ -525,22 +556,22 @@ export default function PuntoDeVentaPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Captura (Lado Izquierdo) */}
-          <div className="lg:col-span-5 glass-card p-6 space-y-6 text-center border-amber-500/5">
+          <div className="lg:col-span-5 clay-card-cream p-6 space-y-6 text-center rounded-2xl">
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-zinc-200">Registro de Artículos</h3>
-              <p className="text-[10px] text-zinc-500">Usa la cámara táctil o introduce el SKU/QR manualmente</p>
+              <h3 className="text-base font-black text-[#4a2818]">Registro de Artículos</h3>
+              <p className="text-xs text-zinc-500">Usa la cámara táctil o introduce el SKU/QR manualmente</p>
             </div>
 
             {/* Selector de cámara */}
             {showCamera ? (
-              <div className="relative max-w-sm mx-auto overflow-hidden rounded-xl border-2 border-amber-500/50 shadow-2xl">
+              <div className="relative max-w-sm mx-auto overflow-hidden rounded-2xl border-2 border-[#c2703e]/50 shadow-lg">
                 <Scanner
                   onScan={(result) => {
                     if (result && result.length > 0) handleScan(result[0].rawValue);
                   }}
                   onError={(error) => console.error(error?.message)}
                 />
-                <button onClick={() => setShowCamera(false)} className="absolute top-2 right-2 p-2 bg-black/70 hover:bg-black/90 rounded-full text-white backdrop-blur-md transition-colors">
+                <button onClick={() => setShowCamera(false)} className="absolute top-2 right-2 p-2 bg-black/75 hover:bg-black/90 rounded-full text-white backdrop-blur-md transition-colors">
                   <X size={18} />
                 </button>
                 <div className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-white bg-black/60 p-1.5 backdrop-blur-md tracking-wide uppercase font-bold">
@@ -548,18 +579,21 @@ export default function PuntoDeVentaPage() {
                 </div>
               </div>
             ) : (
-              <button onClick={() => setShowCamera(true)} className="w-full max-w-xs mx-auto aspect-video bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-3 transition-all group shadow-inner">
-                <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-115 transition-transform shadow-inner">
-                  <Camera size={26} />
+              <button 
+                onClick={() => setShowCamera(true)} 
+                className="w-full max-w-xs mx-auto aspect-video clay-btn-white hover:bg-[#FAF6EE] rounded-2xl flex flex-col items-center justify-center gap-4 transition-all group border border-[#e8dfcb]"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-[#c2703e]/10 text-[#c2703e] flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                  <Camera size={32} className="stroke-[2]" />
                 </div>
-                <span className="text-xs font-bold text-zinc-300">Activar Cámara de la Tablet</span>
+                <span className="text-sm font-black text-[#4a2818] tracking-tight">Activar Cámara de la Tablet</span>
               </button>
             )}
 
             {/* Input manual con auto-focus continuo */}
-            <div className="relative max-w-xs mx-auto space-y-2">
+            <div className="relative max-w-xs mx-auto space-y-3.5">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c2703e]" size={18} />
                 <input
                   ref={inputRef}
                   value={qrInput}
@@ -571,83 +605,83 @@ export default function PuntoDeVentaPage() {
                     setQrInput(val);
                   }}
                   onKeyDown={e => e.key === 'Enter' && handleScan(qrInput)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-center font-mono text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-colors shadow-inner"
+                  className="w-full clay-input border border-[#e8dfcb] rounded-xl pl-11 pr-4 py-3.5 text-center font-mono text-xs text-[#4a2818] placeholder-zinc-400 focus:outline-none focus:border-[#c2703e]/50 focus:ring-2 focus:ring-[#c2703e]/15 transition-all"
                   placeholder="Escanea con pistola o escribe QR"
                   autoFocus
                 />
               </div>
-              <div className="flex justify-center items-center gap-1.5 text-[9px] text-zinc-550 font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+              <div className="flex justify-center items-center gap-1.5 text-[10px] text-[#5a6b5c] font-black uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-[#5a6b5c] animate-pulse" />
                 Escáner de pistola listo para capturar
               </div>
             </div>
 
             {/* Alerta de éxito de escaneo corta */}
             {result === 'success' && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 inline-flex items-center gap-2 animate-scale-in text-[10px] text-emerald-400 font-bold">
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 inline-flex items-center gap-2 animate-scale-in text-xs text-[#5a6b5c] font-black shadow-sm">
+                <CheckCircle2 size={16} className="text-[#5a6b5c] shrink-0" />
                 ¡Artículo agregado!
               </div>
             )}
           </div>
 
           {/* Carrito de Compras (Lado Derecho) */}
-          <div className="lg:col-span-7 glass-card overflow-hidden border-zinc-800/40 shadow-xl flex flex-col min-h-[400px]">
-            <div className="px-5 py-4 border-b border-zinc-800/60 bg-zinc-900/40 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-zinc-200 flex items-center gap-2">
-                <ShoppingBag size={16} className="text-amber-400" /> Carrito de Venta
+          <div className={`lg:col-span-7 clay-card-cream overflow-hidden shadow-lg flex flex-col min-h-[400px] rounded-2xl transition-all duration-350 ${result === 'success' ? 'ring-2 ring-emerald-500/50 shadow-emerald-500/10' : ''}`}>
+            <div className="px-5 py-4 border-b border-[#e8dfcb] bg-[#f4eedf]/40 flex justify-between items-center">
+              <h3 className="text-sm font-black text-[#4a2818] flex items-center gap-2">
+                <ShoppingBag size={18} className="text-[#c2703e]" /> Carrito de Venta
               </h3>
-              <span className="text-[10px] font-black uppercase bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full">
+              <span className="text-[10px] font-black uppercase bg-[#5a6b5c] text-white px-3.5 py-1.5 rounded-full shadow-sm">
                 {totalArticulos} artículos
               </span>
             </div>
 
             {carrito.length === 0 ? (
-              <div className="flex-1 p-10 flex flex-col items-center justify-center text-center space-y-3 text-zinc-550">
-                <ShoppingBag size={48} className="stroke-[1] opacity-40" />
-                <p className="text-xs font-semibold">El carrito está vacío</p>
-                <p className="text-[10px] max-w-xs">Usa el escáner para comenzar a agregar muebles al cobro de esta sucursal.</p>
+              <div className="flex-1 p-10 flex flex-col items-center justify-center text-center space-y-3 text-zinc-450">
+                <ShoppingBag size={56} className="stroke-[1] opacity-40 text-[#c2703e]" />
+                <p className="text-sm font-bold text-[#4a2818]">El carrito está vacío</p>
+                <p className="text-xs max-w-xs text-zinc-550">Usa el escáner para comenzar a agregar muebles al cobro de esta sucursal.</p>
               </div>
             ) : (
               <div className="flex-1 flex flex-col justify-between">
                 {/* Listado de items */}
-                <div className="divide-y divide-zinc-850 max-h-[350px] overflow-y-auto p-4 space-y-2.5">
-                  {carrito.map((item, i) => (
-                    <div key={item.productoId} className="flex justify-between items-center py-2.5 bg-zinc-900/20 px-3 rounded-xl border border-zinc-850/40">
+                <div className="divide-y divide-[#e8dfcb]/60 max-h-[350px] overflow-y-auto p-4 space-y-3">
+                  {carrito.map((item) => (
+                    <div key={item.productoId} className="flex justify-between items-center py-3.5 bg-white/65 px-4 rounded-2xl border border-[#e8dfcb]/50 shadow-sm transition-all duration-300 hover:shadow-md">
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-zinc-200">{item.nombre}</p>
-                        <p className="text-[9px] font-bold font-mono text-zinc-550 uppercase tracking-wider">SKU: {item.sku}</p>
+                        <p className="text-xs font-black text-[#4a2818]">{item.nombre}</p>
+                        <p className="text-[10px] font-bold font-mono text-zinc-400 uppercase tracking-wider">SKU: {item.sku}</p>
                       </div>
                       
                       {/* Controles táctiles gigantes */}
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+                      <div className="flex items-center gap-4 sm:gap-6">
+                        <div className="flex items-center bg-[#FAF6EE] border border-[#e8dfcb] rounded-2xl p-1 shadow-inner">
                           <button 
                             onClick={() => handleDecreaseQty(item.productoId)}
-                            className="w-10 h-10 rounded-lg bg-zinc-850 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center text-lg active:scale-95 transition-transform"
+                            className="w-12 h-12 rounded-xl clay-btn-white hover:bg-white text-[#4a2818] flex items-center justify-center text-xl font-bold active:scale-90 transition-transform border border-[#e8dfcb]"
                           >
                             -
                           </button>
-                          <span className="w-10 text-center text-xs font-black text-zinc-100">{item.qrs.length}</span>
+                          <span className="w-12 text-center text-sm font-black text-[#4a2818]">{item.qrs.length}</span>
                           <button 
                             onClick={() => handleIncreaseQty(item.productoId)}
-                            className="w-10 h-10 rounded-lg bg-zinc-850 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center text-lg active:scale-95 transition-transform"
+                            className="w-12 h-12 rounded-xl clay-btn-white hover:bg-white text-[#4a2818] flex items-center justify-center text-xl font-bold active:scale-90 transition-transform border border-[#e8dfcb]"
                           >
                             +
                           </button>
                         </div>
 
                         <div className="text-right w-24">
-                          <p className="text-xs font-black text-amber-400">${(item.precio * item.qrs.length).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-                          <p className="text-[9px] text-zinc-500">${item.precio.toLocaleString('es-MX')} c/u</p>
+                          <p className="text-sm font-black text-[#c2703e]">${(item.precio * item.qrs.length).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                          <p className="text-[10px] text-zinc-500">${item.precio.toLocaleString('es-MX')} c/u</p>
                         </div>
 
                         <button 
                           onClick={() => handleRemoveProduct(item.productoId)}
-                          className="text-zinc-650 hover:text-red-400 p-2 active:scale-90 transition-transform"
+                          className="text-zinc-400 hover:text-red-500 p-2.5 active:scale-90 transition-transform hover:bg-red-50 rounded-xl"
                           title="Eliminar de la lista"
                         >
-                          <X size={18} />
+                          <X size={20} className="stroke-[2.5]" />
                         </button>
                       </div>
                     </div>
@@ -655,16 +689,16 @@ export default function PuntoDeVentaPage() {
                 </div>
 
                 {/* Subtotal y botón de avanzar */}
-                <div className="p-5 border-t border-zinc-850 bg-zinc-900/40 flex justify-between items-center rounded-b-2xl">
+                <div className="p-5 border-t border-[#e8dfcb] bg-[#f4eedf]/40 flex justify-between items-center rounded-b-2xl">
                   <div>
-                    <span className="text-[10px] text-zinc-500 block mb-1 uppercase font-bold tracking-wider">Total a cobrar:</span>
-                    <span className="text-2xl font-black text-amber-400">${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-[10px] text-zinc-500 block mb-0.5 uppercase font-bold tracking-wider">Total a cobrar:</span>
+                    <span className="text-2xl font-black text-[#c2703e]">${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <button 
                     onClick={() => setStep(2)}
-                    className="btn-primary py-3 px-6 shadow-xl shadow-amber-500/10 text-xs font-black flex items-center gap-2"
+                    className="py-3.5 px-7 shadow-lg shadow-[#c2703e]/15 text-xs font-black flex items-center gap-2 bg-[#c2703e] hover:bg-[#c2703e]/90 text-white rounded-xl active:scale-[0.97] transition-all"
                   >
-                    Proceder al Pago <ArrowRight size={14} />
+                    Proceder al Pago <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -681,94 +715,94 @@ export default function PuntoDeVentaPage() {
           <div className="lg:col-span-5 space-y-6">
             
             {/* Total a pagar gigante */}
-            <div className="glass-card p-6 border-amber-500/5 text-center space-y-2">
+            <div className="clay-card-cream p-6 text-center space-y-2 rounded-2xl">
               <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block">Total a Cobrar</span>
-              <p className="text-4xl font-black text-amber-400 tracking-tight">${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-              <span className="text-[10px] bg-zinc-900 text-zinc-550 px-3 py-1 rounded-full inline-block font-mono">
+              <p className="text-4xl font-black text-[#c2703e] tracking-tight">${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+              <span className="text-xs bg-[#FAF6EE] border border-[#e8dfcb] text-[#4a2818] px-4 py-1.5 rounded-full inline-block font-mono font-bold shadow-sm">
                 {totalArticulos} artículos a liquidar
               </span>
             </div>
 
             {/* Selector de método de pago */}
-            <div className="glass-card p-5 space-y-4 border-zinc-850">
-              <h3 className="text-xs font-bold text-zinc-450 uppercase tracking-wider">Selecciona Método de Pago</h3>
+            <div className="clay-card-cream p-5 space-y-4 rounded-2xl">
+              <h3 className="text-xs font-black text-[#4a2818] uppercase tracking-wider">Selecciona Método de Pago</h3>
               <div className="space-y-3">
                 {/* Efectivo */}
                 <button
                   onClick={() => { setMetodoPago('efectivo'); handleNumpadClear(); }}
-                  className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'efectivo' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-300'}`}
+                  className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'efectivo' ? 'bg-emerald-50 border-emerald-500/40 text-[#5a6b5c] shadow-sm ring-1 ring-emerald-500/20' : 'bg-white border-[#e8dfcb] hover:border-zinc-400 text-[#4a2818]'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-lg ${metodoPago === 'efectivo' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                      <Wallet size={18} />
+                    <div className={`p-3 rounded-xl ${metodoPago === 'efectivo' ? 'bg-emerald-500/15 text-[#5a6b5c]' : 'bg-[#FAF6EE] text-zinc-500'}`}>
+                      <Wallet size={20} className="stroke-[2]" />
                     </div>
-                    <span className="text-xs font-black">Efectivo</span>
+                    <span className="text-sm font-black">Efectivo</span>
                   </div>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={18} className={metodoPago === 'efectivo' ? 'text-[#5a6b5c]' : 'text-zinc-400'} />
                 </button>
 
                 {/* Tarjeta */}
                 <button
                   onClick={() => { setMetodoPago('tarjeta'); setMontoRecibido(totalPagar.toString()); }}
-                  className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'tarjeta' ? 'bg-blue-500/10 border-blue-500/50 text-blue-400' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-300'}`}
+                  className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'tarjeta' ? 'bg-blue-50 border-blue-500/40 text-blue-700 shadow-sm ring-1 ring-blue-500/20' : 'bg-white border-[#e8dfcb] hover:border-zinc-400 text-[#4a2818]'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-lg ${metodoPago === 'tarjeta' ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                      <CreditCard size={18} />
+                    <div className={`p-3 rounded-xl ${metodoPago === 'tarjeta' ? 'bg-blue-500/15 text-blue-600' : 'bg-[#FAF6EE] text-zinc-500'}`}>
+                      <CreditCard size={20} className="stroke-[2]" />
                     </div>
-                    <span className="text-xs font-black">Tarjeta de Crédito / Débito</span>
+                    <span className="text-sm font-black">Tarjeta de Crédito / Débito</span>
                   </div>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={18} className={metodoPago === 'tarjeta' ? 'text-blue-600' : 'text-zinc-400'} />
                 </button>
 
                 {/* Transferencia */}
                 <button
                   onClick={() => { setMetodoPago('transferencia'); setMontoRecibido(totalPagar.toString()); }}
-                  className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'transferencia' ? 'bg-purple-500/10 border-purple-500/50 text-purple-400' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-300'}`}
+                  className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-98 ${metodoPago === 'transferencia' ? 'bg-purple-50 border-purple-500/40 text-purple-700 shadow-sm ring-1 ring-purple-500/20' : 'bg-white border-[#e8dfcb] hover:border-zinc-400 text-[#4a2818]'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-lg ${metodoPago === 'transferencia' ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                      <Landmark size={18} />
+                    <div className={`p-3 rounded-xl ${metodoPago === 'transferencia' ? 'bg-purple-500/15 text-purple-600' : 'bg-[#FAF6EE] text-zinc-500'}`}>
+                      <Landmark size={20} className="stroke-[2]" />
                     </div>
-                    <span className="text-xs font-black">Transferencia Interbancaria</span>
+                    <span className="text-sm font-black">Transferencia Interbancaria</span>
                   </div>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={18} className={metodoPago === 'transferencia' ? 'text-purple-600' : 'text-zinc-400'} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Panel Numérico o Instrucciones (Lado Derecho) */}
-          <div className="lg:col-span-7 glass-card p-6 border-zinc-850 shadow-xl min-h-[380px] flex flex-col justify-between">
+          <div className="lg:col-span-7 clay-card-cream p-6 shadow-xl min-h-[380px] flex flex-col justify-between rounded-2xl">
             {metodoPago === null ? (
-              <div className="flex-grow flex flex-col items-center justify-center text-center space-y-2 text-zinc-550">
-                <Wallet size={48} className="stroke-[1] opacity-40 animate-pulse" />
-                <p className="text-xs font-bold">Esperando selección de pago</p>
-                <p className="text-[10px] max-w-xs">Selecciona a la izquierda cómo liquidará la cuenta el cliente en el mostrador.</p>
+              <div className="flex-grow flex flex-col items-center justify-center text-center space-y-3 p-6 text-zinc-500">
+                <Wallet size={56} className="stroke-[1] opacity-40 text-[#c2703e]" />
+                <p className="text-sm font-bold text-[#4a2818]">Esperando selección de pago</p>
+                <p className="text-xs max-w-xs text-zinc-555">Selecciona a la izquierda cómo liquidará la cuenta el cliente en el mostrador.</p>
               </div>
             ) : metodoPago === 'efectivo' ? (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
                   {/* Cifras de cobro */}
-                  <div className="space-y-4 bg-zinc-950/60 p-4 rounded-xl border border-zinc-850/60">
+                  <div className="space-y-4 bg-white/75 p-5 rounded-2xl border border-[#e8dfcb]/60 shadow-sm">
                     <div>
-                      <span className="text-[9px] text-zinc-500 uppercase font-black tracking-wider block">Total a Cobrar</span>
-                      <span className="text-xl font-bold text-zinc-300">${totalPagar.toLocaleString('es-MX')}</span>
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider block">Total a Cobrar</span>
+                      <span className="text-xl font-black text-[#4a2818]">${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div>
-                      <span className="text-[9px] text-zinc-500 uppercase font-black tracking-wider block">Monto Recibido</span>
-                      <span className="text-2xl font-black text-zinc-100">${numMontoRecibido.toLocaleString('es-MX')}</span>
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-wider block">Monto Recibido</span>
+                      <span className="text-2xl font-black text-[#c2703e]">${numMontoRecibido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="border-t border-zinc-800/60 pt-2.5">
+                    <div className="border-t border-[#e8dfcb] pt-3">
                       {numMontoRecibido >= totalPagar ? (
                         <div>
-                          <span className="text-[9px] text-emerald-500 uppercase font-black tracking-wider block">Cambio a Entregar</span>
-                          <span className="text-2xl font-black text-emerald-400">${cambioEntregar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-[10px] text-[#5a6b5c] uppercase font-black tracking-wider block">Cambio a Entregar</span>
+                          <span className="text-3xl font-black text-[#5a6b5c]">${cambioEntregar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                         </div>
                       ) : (
                         <div>
-                          <span className="text-[9px] text-red-500 uppercase font-black tracking-wider block">Falta por Cobrar</span>
-                          <span className="text-2xl font-black text-red-400">${faltaCobrar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-[10px] text-red-500 uppercase font-black tracking-wider block">Falta por Cobrar</span>
+                          <span className="text-3xl font-black text-red-500">${faltaCobrar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                         </div>
                       )}
                     </div>
@@ -776,76 +810,89 @@ export default function PuntoDeVentaPage() {
 
                   {/* Teclado Billetes Rápidos */}
                   <div className="space-y-3">
-                    <span className="text-[9px] text-zinc-500 uppercase font-black tracking-wider block">Billetes Rápidos (MXN)</span>
+                    <span className="text-[10px] text-[#4a2818] uppercase font-black tracking-wider block">Billetes Rápidos (MXN)</span>
                     <div className="grid grid-cols-2 gap-2">
+                      {/* $50 - Rosa */}
                       <button 
                         onClick={() => handleQuickCash(50)} 
-                        className="py-3 px-4 rounded-xl bg-pink-900/20 hover:bg-pink-950/30 border border-pink-900/30 text-pink-400 font-black text-xs active:scale-95 transition-transform"
+                        className="py-3 px-4 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 font-black text-sm active:scale-95 transition-all shadow-sm"
                       >
                         $50.00
                       </button>
+                      {/* $100 - Rojo */}
                       <button 
                         onClick={() => handleQuickCash(100)} 
-                        className="py-3 px-4 rounded-xl bg-red-900/20 hover:bg-red-950/30 border border-red-900/30 text-red-400 font-black text-xs active:scale-95 transition-transform"
+                        className="py-3 px-4 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-black text-sm active:scale-95 transition-all shadow-sm"
                       >
                         $100.00
                       </button>
+                      {/* $200 - Verde */}
                       <button 
                         onClick={() => handleQuickCash(200)} 
-                        className="py-3 px-4 rounded-xl bg-emerald-900/20 hover:bg-emerald-950/30 border border-emerald-900/30 text-emerald-400 font-black text-xs active:scale-95 transition-transform"
+                        className="py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#5a6b5c] font-black text-sm active:scale-95 transition-all shadow-sm"
                       >
                         $200.00
                       </button>
+                      {/* $500 - Azul */}
                       <button 
                         onClick={() => handleQuickCash(500)} 
-                        className="py-3 px-4 rounded-xl bg-blue-900/20 hover:bg-blue-950/30 border border-blue-900/30 text-blue-400 font-black text-xs active:scale-95 transition-transform"
+                        className="py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 font-black text-sm active:scale-95 transition-all shadow-sm"
                       >
                         $500.00
                       </button>
                     </div>
-                    <button 
-                      onClick={() => handleQuickCash(totalPagar)} 
-                      className="w-full py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold text-xs active:scale-95 transition-transform"
-                    >
-                      Paga Exacto (${totalPagar.toLocaleString('es-MX')})
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* $1000 - Morado */}
+                      <button 
+                        onClick={() => handleQuickCash(1000)} 
+                        className="py-3 px-4 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-600 font-black text-sm active:scale-95 transition-all shadow-sm"
+                      >
+                        $1,000.00
+                      </button>
+                      <button 
+                        onClick={() => handleQuickCash(totalPagar)} 
+                        className="py-3 px-4 rounded-xl bg-[#c2703e]/10 hover:bg-[#c2703e]/20 border border-[#c2703e]/30 text-[#c2703e] font-black text-sm active:scale-95 transition-all shadow-sm"
+                      >
+                        Pago Exacto
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Teclado Numérico Numpad */}
-                <div className="max-w-xs mx-auto">
+                <div className="max-w-xs mx-auto mt-6">
                   <div className="grid grid-cols-3 gap-2">
                     {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(val => (
                       <button 
                         key={val} 
                         onClick={() => handleNumpadPress(val)}
-                        className="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl font-bold text-sm text-zinc-200 active:scale-95 transition-all"
+                        className="py-4 bg-white hover:bg-zinc-50 border border-[#e8dfcb] rounded-xl font-black text-base text-[#4a2818] active:scale-95 transition-all shadow-sm clay-btn-white"
                       >
                         {val}
                       </button>
                     ))}
                     <button 
                       onClick={() => handleNumpadPress('.')}
-                      className="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl font-bold text-sm text-zinc-200 active:scale-95 transition-all"
+                      className="py-4 bg-white hover:bg-zinc-50 border border-[#e8dfcb] rounded-xl font-black text-base text-[#4a2818] active:scale-95 transition-all shadow-sm clay-btn-white"
                     >
                       .
                     </button>
                     <button 
                       onClick={() => handleNumpadPress('0')}
-                      className="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl font-bold text-sm text-zinc-200 active:scale-95 transition-all"
+                      className="py-4 bg-white hover:bg-zinc-50 border border-[#e8dfcb] rounded-xl font-black text-base text-[#4a2818] active:scale-95 transition-all shadow-sm clay-btn-white"
                     >
                       0
                     </button>
                     <button 
                       onClick={handleNumpadDelete}
-                      className="py-3 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 rounded-xl font-bold text-xs text-amber-500 active:scale-95 transition-all"
+                      className="py-4 bg-white hover:bg-red-50 border border-[#e8dfcb] rounded-xl font-black text-base text-red-500 active:scale-95 transition-all shadow-sm clay-btn-white"
                     >
                       ⌫
                     </button>
                   </div>
                   <button 
                     onClick={handleNumpadClear}
-                    className="w-full mt-2 py-2 border border-zinc-800 text-[10px] text-zinc-500 hover:text-zinc-300 font-bold rounded-xl active:scale-95 transition-all"
+                    className="w-full mt-3 py-2.5 border border-[#e8dfcb] text-[11px] text-[#4a2818]/60 hover:text-[#4a2818] font-black uppercase tracking-wider rounded-xl active:scale-95 transition-all bg-white shadow-inner"
                   >
                     Limpiar Monto Recibido
                   </button>
@@ -853,40 +900,40 @@ export default function PuntoDeVentaPage() {
               </div>
             ) : (
               // Tarjeta o Transferencia
-              <div className="flex-grow flex flex-col items-center justify-center text-center space-y-4 p-4">
-                <div className={`p-4 rounded-full ${metodoPago === 'tarjeta' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>
-                  {metodoPago === 'tarjeta' ? <CreditCard size={36} /> : <Landmark size={36} />}
+              <div className="flex-grow flex flex-col items-center justify-center text-center space-y-4 p-6">
+                <div className={`p-4 rounded-2xl shadow-sm ${metodoPago === 'tarjeta' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
+                  {metodoPago === 'tarjeta' ? <CreditCard size={44} className="stroke-[1.5]" /> : <Landmark size={44} className="stroke-[1.5]" />}
                 </div>
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-zinc-200 uppercase tracking-wider">Instrucción para Cajero</h4>
-                  <p className="text-xs text-zinc-450 max-w-sm">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-black text-[#4a2818] uppercase tracking-wider">Instrucción para Cajero</h4>
+                  <p className="text-xs text-zinc-500 max-w-sm leading-relaxed">
                     {metodoPago === 'tarjeta' 
                       ? `Inserta la tarjeta del cliente en la Terminal Bancaria y procesa la transacción física por $${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })}.`
                       : `Verifica que se haya recibido la transferencia bancaria SPEI por la cantidad de $${totalPagar.toLocaleString('es-MX', { minimumFractionDigits: 2 })} en el portal bancario.`
                     }
                   </p>
                 </div>
-                <div className="bg-zinc-950/40 px-4 py-2 border border-zinc-850 rounded-lg text-[10px] text-zinc-550 font-bold uppercase tracking-wider">
+                <div className="bg-[#FAF6EE] px-4 py-2 border border-[#e8dfcb] rounded-xl text-[10px] text-[#5a6b5c] font-black uppercase tracking-wider shadow-sm">
                   Pago Autorizado Externamente
                 </div>
               </div>
             )}
 
             {/* Acciones de Flujo Inferior */}
-            <div className="border-t border-zinc-850 pt-4 mt-6 flex justify-between gap-4">
+            <div className="border-t border-[#e8dfcb] pt-4 mt-6 flex justify-between gap-4">
               <button 
                 onClick={() => setStep(1)}
-                className="px-5 py-3 rounded-xl border border-zinc-850 hover:bg-zinc-900 text-zinc-400 font-bold text-xs flex items-center gap-1.5"
+                className="px-5 py-3.5 rounded-xl border border-[#e8dfcb] hover:bg-[#FAF6EE] text-[#4a2818] font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all shadow-sm bg-white"
               >
-                <ArrowLeft size={14} /> Volver a Artículos
+                <ArrowLeft size={16} /> Volver a Artículos
               </button>
               
               <button 
                 onClick={handleCobrar}
                 disabled={!canConfirmPayment}
-                className={`flex-1 py-3 px-6 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all ${canConfirmPayment ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-emerald-500/10' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed shadow-none'}`}
+                className={`flex-1 py-3.5 px-6 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${canConfirmPayment ? 'bg-[#5a6b5c] text-white hover:bg-[#5a6b5c]/90 shadow-[#5a6b5c]/10' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed shadow-none'}`}
               >
-                Cobrar y Generar Ticket <CheckCircle2 size={14} />
+                Cobrar y Generar Ticket <CheckCircle2 size={16} />
               </button>
             </div>
           </div>
@@ -898,32 +945,32 @@ export default function PuntoDeVentaPage() {
         <div className="max-w-2xl mx-auto space-y-6 animate-fade-in text-center">
           
           {/* Banner animado de éxito */}
-          <div className="glass-card p-6 border-emerald-500/20 bg-emerald-500/5 space-y-3">
-            <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse">
-              <CheckCircle2 size={32} />
+          <div className="clay-card-cream p-6 border border-emerald-500/20 bg-emerald-50/45 space-y-3 rounded-2xl shadow-sm">
+            <div className="w-16 h-16 bg-emerald-500/10 text-[#5a6b5c] rounded-full flex items-center justify-center mx-auto shadow-sm animate-bounce">
+              <CheckCircle2 size={36} className="stroke-[2.5]" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-black text-emerald-300">¡Venta Procesada con Éxito!</h3>
-              <p className="text-[10px] text-emerald-400/80">El inventario físico ha sido actualizado. Ticket generado.</p>
+              <h3 className="text-lg font-black text-[#5a6b5c]">¡Venta Procesada con Éxito!</h3>
+              <p className="text-xs text-zinc-550">El inventario físico ha sido actualizado. Ticket generado.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start text-left">
             
             {/* Previsualización del Ticket (Lado Izquierdo) */}
-            <div className="glass-card p-5 bg-white text-zinc-950 border-none rounded-2xl shadow-xl flex flex-col font-mono text-[10px] space-y-3 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-200 flex overflow-hidden">
+            <div className="bg-white text-zinc-950 border border-zinc-200 rounded-2xl shadow-xl p-5 flex flex-col font-mono text-[10px] space-y-3 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-zinc-200 flex overflow-hidden">
                 {/* Efecto borde dentado del ticket */}
                 {Array.from({ length: 25 }).map((_, idx) => (
-                  <div key={idx} className="w-4 h-4 bg-zinc-950 -translate-y-2 rotate-45 shrink-0" />
+                  <div key={idx} className="w-4 h-4 bg-white -translate-y-2.5 rotate-45 shrink-0 border-r border-b border-zinc-200" />
                 ))}
               </div>
 
-              <div className="text-center pt-2">
+              <div className="text-center pt-3">
                 <h4 className="text-xs font-black uppercase">DECOR MUEBLERÍA</h4>
                 <p className="font-bold text-[9px]">{sucursalActiva?.nombre}</p>
-                <p className="text-[8px] text-zinc-550">{sucursalActiva?.direccion}</p>
-                <p className="text-[8px] text-zinc-550">RFC: DEC-000101-AAA</p>
+                <p className="text-[8px] text-zinc-500">{sucursalActiva?.direccion}</p>
+                <p className="text-[8px] text-zinc-500">RFC: DEC-000101-AAA</p>
               </div>
 
               <div className="border-b border-dashed border-zinc-300 my-1" />
@@ -964,7 +1011,7 @@ export default function PuntoDeVentaPage() {
 
               <div className="text-center pt-4 text-[8px] space-y-1">
                 <p className="font-bold">*** GRACIAS POR SU COMPRA ***</p>
-                <p className="text-zinc-650">Conserve este ticket para cualquier cambio.</p>
+                <p className="text-zinc-500">Conserve este ticket para cualquier cambio.</p>
               </div>
             </div>
 
@@ -972,16 +1019,16 @@ export default function PuntoDeVentaPage() {
             <div className="space-y-5">
               
               {/* Opción Email */}
-              <div className="glass-card p-5 border-zinc-850 space-y-4">
-                <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Mail size={14} className="text-amber-400" /> Enviar Ticket Digital
+              <div className="clay-card-cream p-5 space-y-4 rounded-2xl">
+                <h4 className="text-xs font-black text-[#4a2818] uppercase tracking-wider flex items-center gap-1.5">
+                  <Mail size={16} className="text-[#c2703e]" /> Enviar Ticket Digital
                 </h4>
                 
                 {emailEnviado ? (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center space-y-2 animate-scale-in">
-                    <CheckCircle2 size={24} className="text-emerald-400 mx-auto" />
-                    <p className="text-xs font-bold text-emerald-300">¡Correo Enviado!</p>
-                    <p className="text-[10px] text-emerald-450">El ticket de compra se envió a: <strong>{emailCliente}</strong></p>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center space-y-2 animate-scale-in">
+                    <CheckCircle2 size={28} className="text-[#5a6b5c] mx-auto" />
+                    <p className="text-xs font-bold text-[#5a6b5c]">¡Correo Enviado!</p>
+                    <p className="text-[10px] text-zinc-550">El ticket de compra se envió a: <strong>{emailCliente}</strong></p>
                   </div>
                 ) : (
                   <form onSubmit={handleSendEmail} className="space-y-3">
@@ -991,12 +1038,12 @@ export default function PuntoDeVentaPage() {
                       value={emailCliente}
                       onChange={e => setEmailCliente(e.target.value)}
                       placeholder="correo@cliente.com"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-amber-500/40 text-zinc-100"
+                      className="w-full clay-input border border-[#e8dfcb] rounded-xl px-4 py-3 text-xs text-[#4a2818] focus:outline-none focus:border-[#c2703e]/40"
                     />
                     <button 
                       type="submit" 
                       disabled={enviandoEmail}
-                      className="w-full btn-secondary py-2 text-xs font-bold flex justify-center items-center gap-2"
+                      className="w-full btn-secondary py-3 text-xs font-black flex justify-center items-center gap-2 bg-white text-[#4a2818] border border-[#e8dfcb] rounded-xl active:scale-95 transition-all"
                     >
                       {enviandoEmail ? 'Enviando...' : 'Enviar por Email'}
                     </button>
@@ -1008,14 +1055,14 @@ export default function PuntoDeVentaPage() {
               <div className="space-y-3">
                 <button 
                   onClick={printTicket}
-                  className="w-full btn-secondary py-3.5 rounded-xl border border-zinc-850 hover:bg-zinc-900 text-zinc-200 font-bold text-xs flex justify-center items-center gap-2 active:scale-98 transition-all"
+                  className="w-full py-3.5 rounded-xl border border-[#e8dfcb] hover:bg-[#FAF6EE] text-[#4a2818] font-bold text-xs flex justify-center items-center gap-2 active:scale-98 transition-all bg-white shadow-sm"
                 >
-                  <Printer size={16} className="text-zinc-400" /> Imprimir Ticket Físico (80mm)
+                  <Printer size={16} className="text-zinc-550" /> Imprimir Ticket Físico (80mm)
                 </button>
 
                 <button 
                   onClick={handleNewSale}
-                  className="w-full btn-primary py-4 rounded-xl shadow-xl shadow-amber-500/10 text-xs font-black flex justify-center items-center gap-2 active:scale-98 transition-all"
+                  className="w-full py-4 rounded-xl shadow-lg shadow-[#c2703e]/15 text-xs font-black flex justify-center items-center gap-2 active:scale-98 transition-all bg-[#c2703e] hover:bg-[#c2703e]/90 text-white"
                 >
                   Iniciar Nueva Venta <ChevronRight size={16} />
                 </button>

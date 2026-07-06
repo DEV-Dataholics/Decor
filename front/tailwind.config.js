@@ -7,21 +7,48 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       colors: {
+        zinc: {
+          50: '#1c1007',    // Darkest (almost black-brown)
+          100: '#2c190c',   // Very dark brown
+          200: '#3e2413',   // Dark brown
+          300: '#5c3d24',   // Medium-dark brown
+          400: '#7d5c3f',   // Medium brown
+          500: '#a37e58',   // Sand brown
+          600: '#c5a37f',   // Light sand
+          700: '#dfcaad',   // Very light sand
+          800: '#eddcc4',   // Cream border
+          900: '#f5eee0',   // Card background (warm cream)
+          950: '#FAF6EE',   // Body background (light plaster off-white)
+        },
+        amber: {
+          50: '#fdf7f3',
+          100: '#fbece2',
+          200: '#f7d2be',
+          300: '#f0b08e',
+          400: '#d4915f',   // Light terracotta (highly readable text)
+          500: '#c2703e',   // Terracotta accent
+          600: '#aa5b2c',
+          700: '#8e4922',
+          800: '#733b1a',
+          900: '#5c2f14',
+          950: '#381c0a',
+        },
         surface: {
-          DEFAULT: 'rgba(39, 39, 42, 0.5)',
-          solid: '#27272a',
-          hover: 'rgba(39, 39, 42, 0.7)',
-          border: 'rgba(63, 63, 70, 0.5)',
+          DEFAULT: 'rgba(45, 32, 21, 0.5)',
+          solid: '#2d2015',
+          hover: 'rgba(45, 32, 21, 0.7)',
+          border: 'rgba(65, 49, 35, 0.5)',
         },
         accent: {
-          DEFAULT: '#f59e0b',
-          hover: '#d97706',
-          light: '#fbbf24',
-          muted: 'rgba(245, 158, 11, 0.15)',
-          text: '#fcd34d',
+          DEFAULT: '#c2703e',
+          hover: '#a85b2e',
+          light: '#d4915f',
+          muted: 'rgba(194, 112, 62, 0.15)',
+          text: '#d4915f',
         },
         terracotta: {
           DEFAULT: '#c2703e',

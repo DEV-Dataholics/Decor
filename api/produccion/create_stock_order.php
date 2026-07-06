@@ -28,7 +28,7 @@ try {
     $pdo->beginTransaction();
 
     // 1. Obtener datos del producto
-    $stmtProd = $pdo->prepare("SELECT precio_costo_base, precio_venta_base FROM productos WHERE id = ?");
+    $stmtProd = $pdo->prepare("SELECT precio_costo_base, precio_venta_base, categoria_id FROM productos WHERE id = ?");
     $stmtProd->execute([$producto_id]);
     $prod = $stmtProd->fetch();
     if (!$prod) {
@@ -82,15 +82,32 @@ try {
     // Así que usamos el empleado_id de la sesión, o si es admin, el mismo empleado 1 por defecto.
     $asignado_por = $user['empleado_id'] ?? 1;
 
-    // 6. Crear Work Order(s)
-    // ¿Una WO por cantidad, o una WO para toda la cantidad? 
-    // work_orders apunta a un orden_item, que tiene cantidad.
-    // Así que una WO por item.
-    $stmtWo = $pdo->prepare("
-        INSERT INTO work_orders (orden_item_id, empleado_id, asignado_por, semana_nomina_id, fecha_asignacion, estatus, creado_por)
-        VALUES (?, ?, ?, ?, CURDATE(), 'pendiente', ?)
+    // 6. Obtener tarifa de mano de obra del empleado y lista de precios
+    $stmtEmp = $pdo->prepare("SELECT rol, tarifa_base FROM empleados WHERE id = ?");
+    $stmtEmp->execute([$empleado_id]);
+    $emp = $stmtEmp->fetch();
+    $rol = $emp ? $emp['rol'] : 'carpintero';
+    $tarifa_base_emp = $emp ? (float)$emp['tarifa_base'] : 0.00;
+
+    $stmtTarifa = $pdo->prepare("
+        SELECT precio_por_pieza 
+        FROM lista_precios_mano_obra 
+        WHERE rol = ? AND categoria_id = ? AND vigente_desde <= CURDATE() 
+        ORDER BY vigente_desde DESC 
+        LIMIT 1
     ");
-    $stmtWo->execute([$orden_item_id, $empleado_id, $asignado_por, $semana_id, $user['id']]);
+    $stmtTarifa->execute([$rol, $prod['categoria_id']]);
+    $tarifaRow = $stmtTarifa->fetch();
+    $costo_mano_obra_unitario = $tarifaRow ? (float)$tarifaRow['precio_por_pieza'] : $tarifa_base_emp;
+    $monto_pago = $cantidad * $costo_mano_obra_unitario;
+
+    // 7. Crear Work Order(s)
+    $stmtWo = $pdo->prepare("
+        INSERT INTO work_orders 
+        (orden_item_id, empleado_id, asignado_por, semana_nomina_id, fecha_asignacion, estatus, cantidad_asignada, costo_mano_obra_unitario, monto_pago, creado_por)
+        VALUES (?, ?, ?, ?, CURDATE(), 'pendiente', ?, ?, ?, ?)
+    ");
+    $stmtWo->execute([$orden_item_id, $empleado_id, $asignado_por, $semana_id, $cantidad, $costo_mano_obra_unitario, $monto_pago, $user['id']]);
 
     $pdo->commit();
     json_ok(['message' => 'Orden de producción creada correctamente', 'orden_id' => $orden_id]);

@@ -1,0 +1,5 @@
+.backup_zips/
+.gemini/
+node_modules/
+dist/
+*.log

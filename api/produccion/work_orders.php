@@ -25,13 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $sql = "
         SELECT wo.id, wo.estatus, wo.fecha_asignacion, wo.fecha_terminado,
                wo.monto_pago, wo.rechazos, wo.notas_calidad,
+               wo.cantidad_asignada AS cantidad, wo.costo_mano_obra_unitario,
                e.nombre  AS empleado_nombre, e.rol AS empleado_rol,
                p.nombre  AS producto_nombre, p.codigo_sku,
-               oi.cantidad, oi.acabado_id,
+               oi.acabado_id,
                o.id AS orden_id, c.nombre AS cliente_nombre,
                a.nombre AS acabado_nombre
         FROM work_orders wo
-        INNER JOIN empleados e      ON e.id  = wo.empleado_id
+        LEFT  JOIN empleados e      ON e.id  = wo.empleado_id
         INNER JOIN orden_items oi   ON oi.id = wo.orden_item_id
         INNER JOIN ordenes o        ON o.id  = oi.orden_id
         INNER JOIN productos p      ON p.id  = oi.producto_id
@@ -70,13 +71,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'iniciar') {
+        $empleado_id = (int)($data['empleado_id'] ?? 0);
+        $cantidad_a_asignar = (float)($data['cantidad_a_asignar'] ?? 0);
+        $costo_unitario = (float)($data['costo_mano_obra_unitario'] ?? 0);
+
+        if (!$empleado_id || $cantidad_a_asignar <= 0) {
+            json_error('empleado_id y cantidad_a_asignar son requeridos para iniciar', 422);
+        }
+
+        // Obtener la work_order original para verificar
+        $stmtWO = $pdo->prepare("SELECT orden_item_id, cantidad_asignada, estatus, creado_por, semana_nomina_id, asignado_por FROM work_orders WHERE id = ?");
+        $stmtWO->execute([$wo_id]);
+        $originalWO = $stmtWO->fetch();
+
+        if (!$originalWO) {
+            json_error('Work order no encontrada', 404);
+        }
+        if ($originalWO['estatus'] !== 'pendiente') {
+            json_error('La work order no está pendiente', 409);
+        }
+
+        $cantOriginal = (float)$originalWO['cantidad_asignada'];
+        if ($cantidad_a_asignar > $cantOriginal) {
+            json_error('La cantidad a asignar excede la cantidad disponible', 422);
+        }
+
+        $monto_pago = $cantidad_a_asignar * $costo_unitario;
+
+        if ($cantidad_a_asignar < $cantOriginal) {
+            // Asignación parcial:
+            // 1. Reducir cantidad en la original (se queda en 'pendiente')
+            $stmtReducir = $pdo->prepare("UPDATE work_orders SET cantidad_asignada = cantidad_asignada - ? WHERE id = ?");
+            $stmtReducir->execute([$cantidad_a_asignar, $wo_id]);
+
+            // 2. Crear una nueva work_order asignada y en progreso
+            $stmtInsert = $pdo->prepare("
+                INSERT INTO work_orders 
+                (orden_item_id, empleado_id, asignado_por, semana_nomina_id, fecha_asignacion, fecha_inicio_real, estatus, cantidad_asignada, costo_mano_obra_unitario, monto_pago, creado_por)
+                VALUES (?, ?, ?, ?, CURDATE(), CURDATE(), 'en_progreso', ?, ?, ?, ?)
+            ");
+            $stmtInsert->execute([
+                $originalWO['orden_item_id'],
+                $empleado_id,
+                $originalWO['asignado_por'] ?: ($user['empleado_id'] ?: 1),
+                $originalWO['semana_nomina_id'],
+                $cantidad_a_asignar,
+                $costo_unitario,
+                $monto_pago,
+                $user['id']
+            ]);
+            $nuevo_id = $pdo->lastInsertId();
+
+            json_ok(['message' => 'Asignación parcial creada', 'nuevo_id' => $nuevo_id, 'nuevo_estatus' => 'en_progreso']);
+            exit;
+        } else {
+            // Asignación completa: simplemente actualizamos la original a en_progreso con los datos del empleado
+            $stmtUpdate = $pdo->prepare("
+                UPDATE work_orders 
+                SET empleado_id = ?, 
+                    estatus = 'en_progreso', 
+                    fecha_inicio_real = CURDATE(), 
+                    cantidad_asignada = ?, 
+                    costo_mano_obra_unitario = ?, 
+                    monto_pago = ?, 
+                    actualizado_en = NOW()
+                WHERE id = ? AND estatus = 'pendiente'
+            ");
+            $stmtUpdate->execute([$empleado_id, $cantidad_a_asignar, $costo_unitario, $monto_pago, $wo_id]);
+            json_ok(['nuevo_estatus' => 'en_progreso']);
+            exit;
+        }
+    }
+
     $t = $validTransitions[$action];
     $extra = '';
     $extraParams = [];
 
-    if ($action === 'iniciar') {
-        $extra = ', fecha_inicio_real = CURDATE()';
-    } elseif ($action === 'terminar') {
+    if ($action === 'terminar') {
         $extra = ', fecha_terminado = NOW()';
     } elseif ($action === 'rechazar') {
         $extra = ', rechazos = rechazos + 1';

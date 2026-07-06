@@ -125,7 +125,11 @@ CREATE TABLE work_orders (
   estatus           ENUM(
     'pendiente','en_progreso','en_revision','terminado','pagado'
   ) NOT NULL DEFAULT 'pendiente',
-  -- Calculado al cerrar semana: precio_por_pieza de lista_precios_mano_obra
+  cantidad_asignada DECIMAL(8,2)      NOT NULL DEFAULT 1.00
+    COMMENT 'Cantidad de piezas asignadas de esta partida',
+  costo_mano_obra_unitario DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Tarifa unitaria pactada/fijada al asignar',
+  -- Calculado: cantidad_asignada * costo_mano_obra_unitario (actualizado al asignar/cerrar)
   monto_pago        DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
   notas_calidad     TEXT              NULL,
   -- Contador de rechazos: cuántas veces regresó al carpintero para corrección

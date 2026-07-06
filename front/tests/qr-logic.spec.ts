@@ -1,18 +1,26 @@
 import { test, expect } from '@playwright/test';
+import * as fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const inventarioPath = fileURLToPath(new URL('../src/data/inventario-inicial.json', import.meta.url));
+const inventarioData = JSON.parse(fs.readFileSync(inventarioPath, 'utf8'));
 
 test.describe('Flujo de QRs de Reposición y POS', () => {
 
   test.beforeEach(async ({ page }) => {
-    // Limpiar localStorage antes de la prueba para evitar estados sucios
-    await page.addInitScript(() => {
-      Object.keys(localStorage).forEach(k => k.startsWith('decor_demo_') && localStorage.removeItem(k));
+    // Limpiar localStorage antes de la prueba para evitar estados sucios y sembrar inventario
+    await page.addInitScript((invData) => {
+      Object.keys(localStorage).forEach(k => k.startsWith('decor_prod_') && localStorage.removeItem(k));
       localStorage.removeItem('decor_pos_tienda_id');
-    });
+      localStorage.setItem('decor_prod_inventario', JSON.stringify(invData));
+    }, inventarioData);
     await page.goto('login');
     
-    // Login rápido de administrador
-    await page.locator('button', { hasText: 'Sergio / Norma' }).click();
-    await expect(page.locator('text=Órdenes Activas')).toBeVisible();
+    // Login manual de administrador
+    await page.getByPlaceholder('Correo electrónico').fill('admin@decor.mx');
+    await page.getByPlaceholder('Contraseña').fill('demo');
+    await page.getByRole('button', { name: 'Ingresar al Sistema' }).click();
+    await expect(page.locator('text="Órdenes Activas"')).toBeVisible();
   });
 
   test('Generación de QR en Inventario -> Validación de tienda cruzada en POS -> Cobro Exitoso', async ({ page }) => {

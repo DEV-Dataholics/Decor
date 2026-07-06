@@ -14,6 +14,22 @@ export default function EmbarquesPage() {
   const [rutaPersonalizada, setRutaPersonalizada] = useState('');
   const [newTransportista, setNewTransportista] = useState('');
   const [newPlacas, setNewPlacas] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [filtroTiendaId, setFiltroTiendaId] = useState<string | number>('todas');
+
+  const embarquesFiltrados = useMemo(() => {
+    return embarques.filter(emb => {
+      if (filtroFecha && emb.fecha_embarque !== filtroFecha) {
+        return false;
+      }
+      if (filtroTiendaId !== 'todas') {
+        const destId = Number(filtroTiendaId);
+        const matchesTienda = emb.tienda_destino_id === destId || emb.items.some(item => item.tienda_destino_id === destId);
+        if (!matchesTienda) return false;
+      }
+      return true;
+    });
+  }, [embarques, filtroFecha, filtroTiendaId]);
 
   const rutaCalculada = useMemo(() => {
     const clientesSet = new Set<string>();
@@ -58,6 +74,7 @@ export default function EmbarquesPage() {
       estatus: 'preparando',
       items,
       cliente_nombre: '',
+      tienda_destino_id: items.find(i => i.tienda_destino_id > 0)?.tienda_destino_id || 0,
     });
     setShowNew(false);
     setSelectedTerminados(new Set());
@@ -139,6 +156,46 @@ export default function EmbarquesPage() {
         ))}
       </div>
 
+      {/* Buscador de Embarques */}
+      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center gap-2">
+          <Truck size={16} className="text-zinc-400" />
+          <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Filtrar Embarques</h4>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase">Fecha:</span>
+            <input 
+              type="date" 
+              value={filtroFecha} 
+              onChange={e => setFiltroFecha(e.target.value)} 
+              className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-[11px] font-bold text-zinc-300 focus:outline-none focus:border-amber-500/50"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase">Sucursal Destino:</span>
+            <select
+              value={filtroTiendaId}
+              onChange={e => setFiltroTiendaId(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 text-[11px] font-bold text-zinc-300 focus:outline-none focus:border-amber-500/50"
+            >
+              <option value="todas">Todas las Sucursales</option>
+              {tiendas.map(t => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          </div>
+          {(filtroFecha || filtroTiendaId !== 'todas') && (
+            <button
+              onClick={() => { setFiltroFecha(''); setFiltroTiendaId('todas'); }}
+              className="text-[10px] font-bold text-[#c2703e] hover:text-[#c2703e]/80 transition-colors uppercase cursor-pointer"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         {terminados.length > 0 && (
@@ -149,7 +206,7 @@ export default function EmbarquesPage() {
 
       {/* Shipment list */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {embarques.map(emb => {
+        {embarquesFiltrados.map(emb => {
           const curIdx = STATUS_TIMELINE.indexOf(emb.estatus);
           const next = nextStatus(emb.estatus);
           return (
@@ -202,7 +259,13 @@ export default function EmbarquesPage() {
             </div>
           );
         })}
-        {embarques.length === 0 && <p className="col-span-2 text-center text-sm text-zinc-600 py-8">Sin embarques registrados. Crea uno desde piezas terminadas.</p>}
+        {embarquesFiltrados.length === 0 && (
+          <p className="col-span-2 text-center text-sm text-zinc-600 py-8">
+            {embarques.length === 0 
+              ? "Sin embarques registrados. Crea uno desde piezas terminadas."
+              : "No se encontraron embarques con los filtros de búsqueda aplicados."}
+          </p>
+        )}
       </div>
 
       {/* New Shipment Modal */}
@@ -299,12 +362,8 @@ export default function EmbarquesPage() {
 
       {/* Delivery Report Modal */}
       {showReporte !== null && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="glass-card w-full max-w-2xl max-h-[85vh] overflow-y-auto animate-scale-in">
-            <div className="px-6 py-4 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-800/90 backdrop-blur-sm z-10">
-              <h3 className="font-bold text-zinc-100 flex items-center gap-2"><CheckCircle2 size={18} className="text-emerald-400" /> Reporte de Entrega</h3>
-              <button onClick={() => setShowReporte(null)} className="text-zinc-500 hover:text-zinc-300"><X size={18} /></button>
-            </div>
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col">
             {(() => {
               const emb = embarques.find(e => e.id === showReporte);
               if (!emb) return null;
@@ -314,50 +373,84 @@ export default function EmbarquesPage() {
               const faltanteCount = emb.items.filter(i => i.estado_recepcion === 'faltante').length;
               
               return (
-                <div className="p-6 space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex-1 glass-card p-3 text-center border-emerald-500/30">
-                      <p className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Entregadas OK</p>
-                      <p className="text-xl font-bold text-emerald-400">{okCount}</p>
+                <>
+                  <div className="p-4 border-b border-zinc-700/50 flex justify-between items-center bg-zinc-800/90 rounded-t-2xl">
+                    <div>
+                      <h3 className="font-bold text-zinc-100 flex items-center gap-2">
+                        📋 Reporte de Entrega: Embarque #{emb.id}
+                      </h3>
+                      <p className="text-[10px] text-zinc-400">Resumen y estado de recepción reportado por la sucursal</p>
                     </div>
-                    <div className="flex-1 glass-card p-3 text-center border-red-500/30">
-                      <p className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Dañadas</p>
-                      <p className="text-xl font-bold text-red-400">{danadoCount}</p>
-                    </div>
-                    <div className="flex-1 glass-card p-3 text-center border-orange-500/30">
-                      <p className="text-[10px] uppercase text-zinc-500 font-bold mb-1">Faltantes</p>
-                      <p className="text-xl font-bold text-orange-400">{faltanteCount}</p>
-                    </div>
+                    <button onClick={() => setShowReporte(null)} className="text-zinc-500 hover:text-zinc-300">
+                      <X size={18} />
+                    </button>
                   </div>
-                  
-                  <h4 className="text-xs font-bold text-zinc-300 uppercase mt-4">Detalle de Piezas</h4>
-                  <div className="space-y-2">
-                    {emb.items.map((item) => (
-                      <div key={item.id} className={`flex items-center gap-4 p-3 rounded-xl border ${
-                        item.estado_recepcion === 'ok' ? 'bg-emerald-500/5 border-emerald-500/20' : 
-                        item.estado_recepcion === 'dañado' ? 'bg-red-500/5 border-red-500/20' : 
-                        item.estado_recepcion === 'faltante' ? 'bg-orange-500/5 border-orange-500/20' : 
-                        'bg-zinc-800/40 border-zinc-700/50'
-                      }`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-zinc-200">{item.producto_nombre}</p>
-                          <p className="text-[9px] font-mono text-zinc-500">{item.qr_code}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          item.estado_recepcion === 'ok' ? 'bg-emerald-500/20 text-emerald-400' :
-                          item.estado_recepcion === 'dañado' ? 'bg-red-500/20 text-red-400' :
-                          item.estado_recepcion === 'faltante' ? 'bg-orange-500/20 text-orange-400' :
-                          'bg-zinc-500/20 text-zinc-400'
-                        }`}>
-                          {item.estado_recepcion || 'Sin Reporte'}
-                        </span>
+
+                  <div className="p-4 overflow-y-auto flex-1 space-y-4">
+                    {/* Indicadores de Resumen */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-zinc-900/60 border border-emerald-500/20 rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Entregadas OK</p>
+                        <p className="text-lg font-black text-emerald-400">{okCount}</p>
                       </div>
-                    ))}
+                      <div className="bg-zinc-900/60 border border-red-500/20 rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Dañadas</p>
+                        <p className="text-lg font-black text-red-400">{danadoCount}</p>
+                      </div>
+                      <div className="bg-zinc-900/60 border border-orange-500/20 rounded-xl p-3 text-center">
+                        <p className="text-[9px] uppercase text-zinc-500 font-bold mb-1">Faltantes</p>
+                        <p className="text-lg font-black text-orange-400">{faltanteCount}</p>
+                      </div>
+                    </div>
+
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mt-2">Detalle de Piezas</h4>
+                    <div className="space-y-3">
+                      {emb.items.map((item) => (
+                        <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-zinc-200">{item.producto_nombre}</p>
+                            <p className="text-[9px] font-mono text-zinc-500">{item.qr_code}</p>
+                          </div>
+                          
+                          {/* Visualizador de Estado Consistente */}
+                          <div className="flex gap-1.5 shrink-0 bg-zinc-950 p-1 rounded-lg border border-zinc-800/80">
+                            <span
+                              className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                                item.estado_recepcion === 'ok' 
+                                  ? 'bg-emerald-500 text-black font-black' 
+                                  : 'text-zinc-500 select-none'
+                              }`}
+                            >
+                              ✓ OK
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                                item.estado_recepcion === 'dañado' 
+                                  ? 'bg-red-500 text-white font-black' 
+                                  : 'text-zinc-500 select-none'
+                              }`}
+                            >
+                              ⚠️ Dañado
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-all ${
+                                item.estado_recepcion === 'faltante' 
+                                  ? 'bg-orange-500 text-white font-black' 
+                                  : 'text-zinc-500 select-none'
+                              }`}
+                            >
+                              ✖ Faltante
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="pt-3">
-                    <button onClick={() => setShowReporte(null)} className="w-full btn-ghost justify-center">Cerrar</button>
+
+                  <div className="p-4 border-t border-zinc-700/50 flex justify-end bg-zinc-800/90 rounded-b-2xl">
+                    <button onClick={() => setShowReporte(null)} className="btn-ghost px-6">Cerrar Reporte</button>
                   </div>
-                </div>
+                </>
               );
             })()}
           </div>

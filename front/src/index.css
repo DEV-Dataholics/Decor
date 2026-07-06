@@ -18,12 +18,12 @@
   }
 
   body {
-    background: #09090b;
-    color: #e4e4e7;
+    background: #FAF6EE;
+    color: #2c190c;
     min-height: 100vh;
   }
 
-  /* Custom Scrollbar - Dark Theme */
+  /* Custom Scrollbar - Warm Theme */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -32,48 +32,77 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(113, 113, 122, 0.4);
+    background: rgba(92, 61, 36, 0.2);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(113, 113, 122, 0.6);
+    background: rgba(92, 61, 36, 0.4);
   }
 
   /* Selection */
   ::selection {
-    background: rgba(245, 158, 11, 0.3);
-    color: #fcd34d;
+    background: rgba(194, 112, 62, 0.25);
+    color: #2c190c;
   }
 }
 
 @layer components {
+  /* Claymorphism Styles */
+  .clay-card-cream {
+    background-color: #f6efe2;
+    box-shadow: 8px 8px 24px rgba(74, 40, 24, 0.08), 
+                inset 3px 3px 6px rgba(255, 255, 255, 0.95), 
+                inset -3px -3px 6px rgba(160, 120, 90, 0.2);
+  }
+
+  .clay-btn-white {
+    background-color: #fbfaf7;
+    box-shadow: 4px 4px 12px rgba(74, 40, 24, 0.05), 
+                inset 2px 2px 4px rgba(255, 255, 255, 0.95), 
+                inset -2px -2px 4px rgba(160, 120, 90, 0.12);
+  }
+
+  .clay-btn-dark {
+    background-color: #4a2818;
+    box-shadow: 4px 4px 12px rgba(74, 40, 24, 0.25), 
+                inset 2px 2px 5px rgba(255, 255, 255, 0.22), 
+                inset -2px -2px 5px rgba(0, 0, 0, 0.45);
+  }
+
+  .clay-input {
+    background-color: #ffffff;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.04),
+                inset -2px -2px 5px rgba(255, 255, 255, 0.8),
+                0 2px 4px rgba(0, 0, 0, 0.01);
+  }
+
   /* Glass Surface Card */
   .glass-card {
-    @apply bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl;
+    @apply bg-zinc-900/60 border border-zinc-800/50 rounded-2xl;
   }
 
   /* Subtle glow effect for accent elements */
   .glow-amber {
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.15), 0 0 40px rgba(245, 158, 11, 0.05);
+    box-shadow: 0 0 20px rgba(194, 112, 62, 0.1), 0 0 40px rgba(194, 112, 62, 0.03);
   }
 
   /* Input base style */
   .input-dark {
-    @apply w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 text-sm text-zinc-100 
+    @apply w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 
     placeholder:text-zinc-500 outline-none transition-all duration-200
-    focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 focus:bg-zinc-800;
+    focus:border-accent/50 focus:ring-2 focus:ring-accent/20;
   }
 
   /* Button base */
   .btn-primary {
-    @apply bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold px-5 py-2.5 rounded-xl 
-    transition-all duration-200 flex items-center gap-2 text-sm shadow-lg shadow-amber-500/20
+    @apply bg-accent hover:bg-accent/90 text-zinc-100 font-semibold px-5 py-2.5 rounded-xl 
+    transition-all duration-200 flex items-center gap-2 text-sm shadow-lg shadow-accent/15
     active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply bg-zinc-700/50 hover:bg-zinc-700 text-zinc-200 font-medium px-4 py-2.5 rounded-xl 
-    border border-zinc-600/50 transition-all duration-200 flex items-center gap-2 text-sm
+    @apply bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-medium px-4 py-2.5 rounded-xl 
+    border border-zinc-800 transition-all duration-200 flex items-center gap-2 text-sm
     active:scale-[0.98];
   }
 

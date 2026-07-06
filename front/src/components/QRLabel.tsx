@@ -22,28 +22,30 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
     const svgHtml = qrRef.current?.innerHTML || '';
     
     const css = `
-      @page { margin: 0; size: auto; }
+      @page { margin: 0; size: 5.72cm 3.18cm; }
       body {
         font-family: Arial, Helvetica, sans-serif;
         margin: 0;
-        padding: 10mm;
+        padding: 0;
         box-sizing: border-box;
         background: white;
         color: black;
+        width: 5.72cm;
+        height: 3.18cm;
+        overflow: hidden;
       }
       .label {
-        width: 6.6cm;
-        height: 2.5cm;
-        padding: 0.2cm;
+        width: 5.72cm;
+        height: 3.18cm;
+        padding: 0.15cm;
         box-sizing: border-box;
         display: flex;
         align-items: center;
-        border: 1px dashed #ccc;
         page-break-inside: avoid;
       }
       .qr-container {
-        width: 2.1cm;
-        height: 2.1cm;
+        width: 2.3cm;
+        height: 2.3cm;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -54,7 +56,7 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
         height: 100%;
       }
       .details {
-        margin-left: 0.2cm;
+        margin-left: 0.15cm;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -62,23 +64,27 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
         overflow: hidden;
       }
       .title {
-        font-size: 10px;
+        font-size: 8px;
         font-weight: 900;
         text-transform: uppercase;
-        margin: 0 0 2px 0;
+        margin: 0 0 1px 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .meta {
-        font-size: 8px;
+        font-size: 6.5px;
         margin: 0 0 1px 0;
+        line-height: 1.1;
       }
       .sku {
         font-family: monospace;
-        font-size: 8px;
+        font-size: 6.5px;
         font-weight: bold;
-        margin-top: 2px;
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     `;
 
@@ -102,7 +108,7 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div ref={qrRef} className="bg-white p-2 rounded-lg">
+      <div ref={qrRef} className="bg-white p-2 rounded-lg qr-label-svg-container">
         <QRCodeSVG value={qrCode} size={size} level="M" />
       </div>
       <p className="text-[10px] font-mono text-zinc-400 text-center break-words w-full" style={{ maxWidth: size + 20 }}>{qrCode}</p>

@@ -4,12 +4,14 @@ test.describe('Lógica de Negocio (Ciclo Completo)', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
-      Object.keys(localStorage).forEach(k => k.startsWith('decor_demo_') && localStorage.removeItem(k));
+      Object.keys(localStorage).forEach(k => k.startsWith('decor_prod_') && localStorage.removeItem(k));
     });
     await page.goto('login');
     
-    // Login usando acceso rápido
-    await page.locator('button', { hasText: 'Sergio / Norma' }).click();
+    // Login manual
+    await page.getByPlaceholder('Correo electrónico').fill('admin@decor.mx');
+    await page.getByPlaceholder('Contraseña').fill('demo');
+    await page.getByRole('button', { name: 'Ingresar al Sistema' }).click();
   });
 
   test('Flujo de Creación de Orden -> Producción -> Embarque -> POS', async ({ page }) => {
@@ -63,7 +65,7 @@ test.describe('Lógica de Negocio (Ciclo Completo)', () => {
     await selectTrabajador.selectOption({ index: 1 }); // Selecciona un carpintero activo
     
     // Rellenar la tarifa de mano de obra
-    const tarifaInput = page.locator('input[type="number"]').first();
+    const tarifaInput = page.locator('input[placeholder="0.00"]').first();
     await tarifaInput.fill('150');
     
     await page.getByRole('button', { name: /Asignar/i }).click();
@@ -71,6 +73,13 @@ test.describe('Lógica de Negocio (Ciclo Completo)', () => {
 
     await miOrden.getByRole('button', { name: '🎨 A Acabados' }).first().click();
     await page.waitForTimeout(500);
+
+    // Seleccionar pintor y confirmar tarifa de acabados
+    await selectTrabajador.selectOption({ index: 2 }); // Selecciona un pintor activo
+    await tarifaInput.fill('320');
+    await page.getByRole('button', { name: /Asignar/i }).click();
+    await page.waitForTimeout(500);
+
     await miOrden.getByRole('button', { name: '✓ Listo' }).first().click();
     
     // Esperamos un momento para que se cree el producto terminado
@@ -99,36 +108,38 @@ test.describe('Lógica de Negocio (Ciclo Completo)', () => {
     await primerEmbarqueCard.getByRole('button', { name: 'Embarcado' }).click();
     await page.waitForTimeout(500);
 
-    // 4. RECEPCIÓN (Reparto / Entrega)
+    // 4. RECEPCIÓN (Reparto / Entrega por el Chofer)
     await page.getByRole('link', { name: 'Reparto', exact: true }).click();
     
-    // Abrir ruta
-    await page.getByRole('button', { name: /Abrir Ruta/i }).first().click();
+    // Abrir detalles de ruta
+    await page.getByRole('button', { name: /Ver Detalles/i }).first().click();
 
     // El Chofer inicia la ruta (cambia a En Tránsito)
     await page.getByRole('button', { name: /Iniciar Viaje/i }).click({ force: true });
     await page.waitForTimeout(500);
     
-    // Abrir la parada de la sucursal (usualmente el nombre de la tienda del cliente)
-    await page.locator('.glass-card', { hasText: 'Sucursal Matriz (Centro)' }).first().click();
+    // El Chofer finaliza la entrega al llegar a la sucursal
+    await page.getByRole('button', { name: /Finalizar Entrega/i }).click();
+    await page.waitForTimeout(500);
     
-    // Marcar item como OK
-    await page.getByRole('button', { name: 'Escanear (OK)' }).first().click();
-    
-    // Volver a paradas
-    await page.getByRole('button', { name: /Volver a Paradas/i }).click();
-    
-    // Finalizar Ruta
-    await page.getByRole('button', { name: /Finalizar Ruta Completa/i }).click();
-    
-    // 5. INVENTARIO y POS (Verificación)
+    // 5. RECEPCIÓN EN TIENDA (Confirmar recibo de stock)
     await page.getByRole('link', { name: 'Inventario' }).click();
-    
-    // Cambiar al tab de Tienda
     await page.getByRole('button', { name: /Tienda/i }).click();
     
-    // Entrar a la sucursal
+    // Entrar a la sucursal para que se muestren los embarques destinados a ella
     await page.locator('.glass-card', { hasText: 'Sucursal Matriz (Centro)' }).first().click();
+    await page.waitForTimeout(500);
+    
+    // Clic en recibir pedido
+    await page.getByRole('button', { name: /Recibir Pedido/i }).first().click();
+    await page.waitForTimeout(500);
+    
+    // Marcar pieza como OK
+    await page.getByRole('button', { name: /✓ OK/i }).first().click();
+    
+    // Confirmar recepción
+    await page.getByRole('button', { name: /Confirmar Recepción/i }).click();
+    await page.waitForTimeout(500);
     
     // Entrar a la categoría Otros (donde caen los custom)
     await page.locator('.glass-card', { hasText: 'Otros' }).first().click();

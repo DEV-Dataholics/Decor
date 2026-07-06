@@ -39,14 +39,17 @@ export default function PedidosPage() {
 
     if (relatedEmbarques.length > 0) {
       const statuses = relatedEmbarques.map(e => e.estatus);
-      if (statuses.includes('en_transito')) {
-        return { label: 'En Tránsito', color: 'bg-purple-500/15 text-purple-400 border border-purple-500/30' };
-      }
-      if (statuses.includes('embarcado')) {
-        return { label: 'Embarcado', color: 'bg-blue-500/15 text-blue-400 border border-blue-500/30' };
-      }
       if (statuses.every(s => s === 'entregado')) {
         return { label: 'Entregado', color: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' };
+      }
+      if (statuses.some(s => s === 'en_sucursal')) {
+        return { label: 'En Sucursal (por recibir)', color: 'bg-teal-500/15 text-teal-400 border border-teal-500/30' };
+      }
+      if (statuses.some(s => s === 'en_transito')) {
+        return { label: 'En Tránsito', color: 'bg-purple-500/15 text-purple-400 border border-purple-500/30' };
+      }
+      if (statuses.some(s => s === 'embarcado')) {
+        return { label: 'Embarcado', color: 'bg-blue-500/15 text-blue-400 border border-blue-500/30' };
       }
       return { label: 'Listo para Embarcar', color: 'bg-amber-500/15 text-amber-400 border border-amber-500/30' };
     }
@@ -121,9 +124,14 @@ export default function PedidosPage() {
   };
 
   const getPrice = (prod: typeof selectedProd) => {
-    if (!prod || !selectedCliente) return 0;
-    const key = Object.keys(prod.prices).find(k => selectedCliente.nombre.toLowerCase().includes(k.toLowerCase()));
-    return key ? prod.prices[key] : Object.values(prod.prices)[0] || 0;
+    if (!prod) return 0;
+    // Si hay cliente seleccionado, buscar su precio específico
+    if (selectedCliente) {
+      const key = Object.keys(prod.prices).find(k => selectedCliente.nombre.toLowerCase().includes(k.toLowerCase()));
+      return key ? prod.prices[key] : Object.values(prod.prices)[0] || 0;
+    }
+    // Si el destino es una tienda, usar el primer precio del catálogo
+    return Object.values(prod.prices)[0] || 0;
   };
 
   const handleAddItem = () => {
@@ -401,8 +409,8 @@ export default function PedidosPage() {
                   </div>
                   {(() => {
                     const relatedWOs = workOrders.filter(wo => wo.orden_id === pedido.id);
-                    const costoManoObra = relatedWOs.reduce((sum, wo) => sum + (wo.costo_mano_obra || 0), 0);
-                    const hasAssignedCosto = relatedWOs.some(wo => wo.empleado_id);
+                    const costoManoObra = relatedWOs.reduce((sum, wo) => sum + (wo.costo_mano_obra || 0) + (wo.costo_acabado || 0), 0);
+                    const hasAssignedCosto = relatedWOs.some(wo => wo.empleado_id || wo.empleado_acabado_id);
                     
                     if (!hasAssignedCosto) return null;
 

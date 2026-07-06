@@ -80,15 +80,16 @@ export default function PersonalPage() {
 
     // Accumulate from work orders
     workOrders.forEach(wo => {
+      // Carpintero
       if (wo.empleado_id) {
         const stats = map.get(wo.empleado_id) || { total: 0, count: 0, completedCount: 0, activePieces: 0 };
         
-        // Sumar piezas activas (carga de trabajo en tiempo real)
-        if (wo.estatus === 'pendiente' || wo.estatus === 'en_produccion' || wo.estatus === 'acabados') {
+        // Carga de trabajo en tiempo real (solo si está en producción o pendiente)
+        if (wo.estatus === 'pendiente' || wo.estatus === 'en_produccion') {
           stats.activePieces += wo.cantidad;
         }
 
-        // Sumar pagos acumulados y piezas completadas dentro del rango de fecha seleccionado
+        // Sumar pagos acumulados y piezas completadas
         if (wo.estatus === 'listo_embarque') {
           const fechaT = wo.fecha_termino || '';
           if (fechaT >= startDate && fechaT <= endDate) {
@@ -98,6 +99,27 @@ export default function PersonalPage() {
         }
         
         map.set(wo.empleado_id, stats);
+      }
+
+      // Pintor/Acabador
+      if (wo.empleado_acabado_id) {
+        const stats = map.get(wo.empleado_acabado_id) || { total: 0, count: 0, completedCount: 0, activePieces: 0 };
+        
+        // Carga de trabajo en tiempo real (solo si está en acabados)
+        if (wo.estatus === 'acabados') {
+          stats.activePieces += wo.cantidad;
+        }
+
+        // Sumar pagos acumulados y piezas completadas
+        if (wo.estatus === 'listo_embarque') {
+          const fechaT = wo.fecha_termino || '';
+          if (fechaT >= startDate && fechaT <= endDate) {
+            stats.total += wo.costo_acabado || 0;
+            stats.completedCount += wo.cantidad;
+          }
+        }
+        
+        map.set(wo.empleado_acabado_id, stats);
       }
     });
 
@@ -476,13 +498,14 @@ export default function PersonalPage() {
         
         // Filtrar órdenes activas asignadas a este empleado
         const activeWOs = workOrders.filter(wo => 
-          wo.empleado_id === selectedReportEmp.id && 
-          (wo.estatus === 'pendiente' || wo.estatus === 'en_produccion' || wo.estatus === 'acabados')
+          (wo.empleado_id === selectedReportEmp.id && (wo.estatus === 'pendiente' || wo.estatus === 'en_produccion')) ||
+          (wo.empleado_acabado_id === selectedReportEmp.id && wo.estatus === 'acabados')
         );
 
         // Filtrar órdenes completadas en este período asignadas a este empleado
         const completedWOs = workOrders.filter(wo => 
-          wo.empleado_id === selectedReportEmp.id && 
+          ((wo.empleado_id === selectedReportEmp.id && (wo.costo_mano_obra || 0) > 0) || 
+           (wo.empleado_acabado_id === selectedReportEmp.id && (wo.costo_acabado || 0) > 0)) &&
           wo.estatus === 'listo_embarque' && 
           wo.fecha_termino && wo.fecha_termino >= startDate && wo.fecha_termino <= endDate
         );
@@ -550,18 +573,32 @@ export default function PersonalPage() {
                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {completedWOs.length === 0 ? (
                         <p className="text-xs text-zinc-500 text-center py-8">Sin piezas terminadas en el rango de fechas</p>
-                      ) : completedWOs.map(wo => (
-                        <div key={wo.id} className="bg-zinc-800/30 p-3 rounded-lg border border-zinc-800/50 flex justify-between items-center text-xs">
-                          <div>
-                            <p className="font-bold text-zinc-200">{wo.producto_nombre}</p>
-                            <p className="text-[9px] text-zinc-500">Orden #{wo.orden_id} • Finalizado: {wo.fecha_termino}</p>
+                      ) : completedWOs.map(wo => {
+                        const esCarpintero = wo.empleado_id === selectedReportEmp.id;
+                        const esAcabador = wo.empleado_acabado_id === selectedReportEmp.id;
+                        let monto = 0;
+                        let detalleRol = '';
+                        if (esCarpintero) {
+                          monto += wo.costo_mano_obra || 0;
+                          detalleRol += '🔨 Carpintería';
+                        }
+                        if (esAcabador) {
+                          monto += wo.costo_acabado || 0;
+                          detalleRol += (detalleRol ? ' + ' : '') + '🎨 Acabados';
+                        }
+                        return (
+                          <div key={wo.id} className="bg-zinc-800/30 p-3 rounded-lg border border-zinc-800/50 flex justify-between items-center text-xs">
+                            <div>
+                              <p className="font-bold text-zinc-200">{wo.producto_nombre}</p>
+                              <p className="text-[9px] text-zinc-500">Orden #{wo.orden_id} • {detalleRol} • Finalizado: {wo.fecha_termino}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-emerald-400">${monto.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                              <p className="text-[9px] text-zinc-400 mt-0.5">{wo.cantidad} pza(s)</p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-emerald-400">${(wo.costo_mano_obra || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
-                            <p className="text-[9px] text-zinc-400 mt-0.5">{wo.cantidad} pza(s)</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

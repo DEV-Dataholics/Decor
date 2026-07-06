@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Search, Grid3X3, List, X, Save, Ruler, Upload } from 'lucide-react';
+import { Search, Grid3X3, List, X, Save, Ruler, Upload, Printer } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
+import QRLabel from '../components/QRLabel';
 
 export default function CatalogoPage() {
   const { productos, acabados, clientes, updateProducto } = useDecor();
@@ -9,6 +10,10 @@ export default function CatalogoPage() {
   const [finishFilter, setFinishFilter] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  
+  // Printing states
+  const [printBatch, setPrintBatch] = useState<{ name: string, sku: string, count: number } | null>(null);
+  const [printCount, setPrintCount] = useState<number>(1);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
@@ -253,10 +258,74 @@ export default function CatalogoPage() {
                   )}
                 </div>
               </div>
+
+              {!isEditing && (
+                <div className="border-t border-zinc-700/50 pt-4 space-y-3">
+                  <span className="text-zinc-500 text-[10px] block font-semibold uppercase tracking-wider">Etiquetas de Catálogo</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-zinc-800/40 px-3 py-2 rounded-lg border border-zinc-700/30 flex-1">
+                      <span className="text-xs text-zinc-500 font-medium">Cantidad:</span>
+                      <input 
+                        type="number" 
+                        value={printCount} 
+                        onChange={e => setPrintCount(Math.max(1, Number(e.target.value)))}
+                        className="input-dark w-16 text-center py-0.5 text-xs bg-transparent border-none focus:outline-none" 
+                        min="1"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => setPrintBatch({ name: selected.name, sku: selected.sku, count: printCount })}
+                      className="btn-secondary py-2 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0"
+                    >
+                      <Printer size={14} /> Imprimir {printCount} Etiquetas
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
       )}
+
+      {/* Print Batch Modal */}
+      {printBatch && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-zinc-700/50 flex justify-between items-center bg-zinc-800/90 rounded-t-2xl">
+              <h3 className="font-bold text-zinc-100 flex items-center gap-2">
+                <Printer size={18} className="text-amber-400" /> Imprimir Etiquetas de Catálogo: {printBatch.name}
+              </h3>
+              <button onClick={() => setPrintBatch(null)} className="text-zinc-500 hover:text-zinc-300">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {Array.from({ length: printBatch.count }).map((_, idx) => (
+                  <QRLabel 
+                    key={idx} 
+                    qrCode={printBatch.sku} 
+                    productoNombre={printBatch.name} 
+                    ordenId={0} 
+                    clienteNombre="MUESTRARIO CATÁLOGO" 
+                    acabado="Varios" 
+                    size={110} 
+                    showPrint={false}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-zinc-700/50 flex justify-end gap-3 bg-zinc-800/90 rounded-b-2xl">
+              <button onClick={() => setPrintBatch(null)} className="btn-ghost">Cancelar</button>
+              <button onClick={() => window.print()} className="btn-primary flex items-center gap-1.5">
+                <Printer size={16} /> Imprimir {printBatch.count} Etiquetas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

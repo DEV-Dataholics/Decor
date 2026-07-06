@@ -65,6 +65,11 @@ export interface WorkOrder {
   empleado_id?: number;
   empleado_nombre?: string;
   costo_mano_obra?: number;
+  costo_mano_obra_unitario?: number;
+  empleado_acabado_id?: number;
+  empleado_acabado_nombre?: string;
+  costo_acabado?: number;
+  costo_acabado_unitario?: number;
   fecha_termino?: string;
 }
 
@@ -104,10 +109,24 @@ export interface EmbarqueItem {
   cliente_nombre: string;
 }
 
+export interface Devolucion {
+  id: number;
+  origen: 'venta_tienda' | 'orden_produccion';
+  referencia_id: number;
+  producto_id: number;
+  producto_nombre: string;
+  cantidad: number;
+  motivo: string;
+  estatus: 'recibida' | 'en_reparacion' | 'reintegrada_inventario' | 'descartada_merma';
+  tienda_id: number;
+  fecha: string;
+}
+
 export interface Embarque {
   id: number; orden_id: number; ruta_viaje: string;
   fecha_embarque: string; placas_trailer: string; transportista: string;
   estatus: string; items: EmbarqueItem[]; cliente_nombre: string;
+  tienda_destino_id?: number;
 }
 
 export interface VentaItem {
@@ -139,6 +158,7 @@ export interface DecorStore {
   terminados: TerminadoSinEmbarcar[];
   embarques: Embarque[];
   ventas: Venta[];
+  devoluciones: Devolucion[];
   // Mutations
   moveWorkOrder: (id: number, newStatus: WOStatus, assignment?: { empleado_id: number; empleado_nombre: string; costo_mano_obra: number }) => void;
   crearPedido: (pedido: Omit<Pedido, 'id'>) => Pedido;
@@ -171,7 +191,7 @@ export interface DecorStore {
 }
 
 // --- Storage helpers ---
-const STORAGE_PREFIX = 'decor_demo_';
+const STORAGE_PREFIX = 'decor_prod_';
 
 function saveToStorage<T>(key: string, data: T): void {
   try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(data)); } catch { /* */ }
@@ -194,47 +214,11 @@ function getOrInit<T>(key: string, initial: T): T {
 
 // --- Generate initial work orders mapped to new statuses ---
 function migrateWorkOrders(): WorkOrder[] {
-  const statusMap: Record<string, WOStatus> = {
-    pendiente: 'pendiente', en_progreso: 'en_produccion', en_revision: 'acabados',
-    terminado: 'listo_embarque', entregado: 'listo_embarque',
-  };
-  return (workOrdersData as any[]).map(wo => ({
-    id: wo.id,
-    orden_id: wo.orden_id,
-    producto_id: wo.producto_id,
-    producto_nombre: wo.producto_nombre,
-    codigo_sku: wo.codigo_sku,
-    cantidad: wo.cantidad,
-    estatus: statusMap[wo.estatus] || 'pendiente',
-    fecha_asignacion: wo.fecha_asignacion,
-    acabado_nombre: wo.acabado_nombre || 'Natural',
-    cliente_nombre: wo.cliente_nombre || '',
-    empleado_id: wo.empleado_id || undefined,
-    empleado_nombre: wo.empleado_nombre || undefined,
-    costo_mano_obra: wo.monto_pago || undefined,
-    fecha_termino: wo.fecha_terminado || undefined,
-  }));
+  return []; // En producción empezamos sin órdenes de trabajo
 }
 
-function generateInitialTerminados(wos: WorkOrder[]): TerminadoSinEmbarcar[] {
-  return wos
-    .filter(wo => wo.estatus === 'listo_embarque')
-    .flatMap((wo, i) => {
-      const prod = (productosData as any[]).find(p => p.id === wo.producto_id);
-      const price = prod?.precio_base || prod?.prices?.[Object.keys(prod.prices || {})[0]] || 200;
-      return Array.from({ length: wo.cantidad }).map((_, j) => ({
-        id: 5000 + i * 100 + j,
-        qr_code: `DCR-${Date.now()}-${wo.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-        producto_id: wo.producto_id,
-        producto_nombre: wo.producto_nombre,
-        codigo_sku: wo.codigo_sku,
-        orden_id: wo.orden_id,
-        cliente_nombre: wo.cliente_nombre,
-        acabado: wo.acabado_nombre,
-        fecha_listo: new Date(Date.now() - (8 - i) * 86400000).toISOString().split('T')[0],
-        precio_estimado: price,
-      }));
-    });
+function generateInitialTerminados(_wos: WorkOrder[]): TerminadoSinEmbarcar[] {
+  return []; // En producción empezamos sin piezas terminadas
 }
 
 // --- Hook ---
@@ -266,21 +250,20 @@ export function useStore(): DecorStore {
   const [empleados, setEmpleados] = useState<Empleado[]>(() => getOrInit('empleados', empleadosData as Empleado[]));
   const [tiendas, setTiendas] = useState<Tienda[]>(() => getOrInit('tiendas', tiendasData as Tienda[]));
   const [acabados, setAcabados] = useState<string[]>(() => getOrInit('acabados', acabadosData as string[]));
-  const [inventario, setInventario] = useState<InventarioItem[]>(() => getOrInit('inventario', inventarioData as InventarioItem[]));
-  const [materiaPrima, setMateriaPrima] = useState<MateriaPrima[]>(() => getOrInit('materiaPrima', materiaPrimaData as MateriaPrima[]));
+  
+  // En producción, el inventario y transacciones inician vacíos, y la materia prima en 0
+  const [inventario, setInventario] = useState<InventarioItem[]>(() => getOrInit('inventario', []));
+  const [materiaPrima, setMateriaPrima] = useState<MateriaPrima[]>(() => {
+    const initialMp = (materiaPrimaData as MateriaPrima[]).map(mp => ({ ...mp, cantidad: 0 }));
+    return getOrInit('materiaPrima', initialMp);
+  });
 
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => {
-    const migrated = migrateWorkOrders();
-    return getOrInit('workOrders2', migrated);
-  });
-  const [pedidos, setPedidos] = useState<Pedido[]>(() => getOrInit('pedidos', pedidosData as Pedido[]));
-  const [terminados, setTerminados] = useState<TerminadoSinEmbarcar[]>(() => {
-    const migrated = migrateWorkOrders();
-    const initial = generateInitialTerminados(migrated);
-    return getOrInit('terminados', initial);
-  });
-  const [embarques, setEmbarques] = useState<Embarque[]>(() => getOrInit('embarques2', embarquesData as unknown as Embarque[]));
-  const [ventas, setVentas] = useState<Venta[]>(() => getOrInit('ventas2', ventasData as unknown as Venta[]));
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => getOrInit('workOrders2', []));
+  const [pedidos, setPedidos] = useState<Pedido[]>(() => getOrInit('pedidos', []));
+  const [terminados, setTerminados] = useState<TerminadoSinEmbarcar[]>(() => getOrInit('terminados', []));
+  const [embarques, setEmbarques] = useState<Embarque[]>(() => getOrInit('embarques2', []));
+  const [ventas, setVentas] = useState<Venta[]>(() => getOrInit('ventas2', []));
+  const [devoluciones, setDevoluciones] = useState<Devolucion[]>(() => getOrInit('devoluciones', []));
 
   // Persist
   useEffect(() => { saveToStorage('productos', productos); }, [productos]);
@@ -294,11 +277,16 @@ export function useStore(): DecorStore {
   useEffect(() => { saveToStorage('terminados', terminados); }, [terminados]);
   useEffect(() => { saveToStorage('embarques2', embarques); }, [embarques]);
   useEffect(() => { saveToStorage('ventas2', ventas); }, [ventas]);
+  useEffect(() => { saveToStorage('devoluciones', devoluciones); }, [devoluciones]);
   useEffect(() => { saveToStorage('empleados', empleados); }, [empleados]);
 
-  const login = useCallback((email: string, _password: string): boolean => {
+  const login = useCallback((email: string, password: string): boolean => {
     const user = (usuariosData as Usuario[]).find(u => u.email === email);
-    if (user) { setCurrentUser(user); saveToStorage('currentUser', user); return true; }
+    if (user && user.password === password) { 
+      setCurrentUser(user); 
+      saveToStorage('currentUser', user); 
+      return true; 
+    }
     return false;
   }, []);
 
@@ -307,39 +295,110 @@ export function useStore(): DecorStore {
     localStorage.removeItem(STORAGE_PREFIX + 'currentUser');
   }, []);
 
-  const moveWorkOrder = useCallback((id: number, newStatus: WOStatus, assignment?: { empleado_id: number; empleado_nombre: string; costo_mano_obra: number }) => {
+  const moveWorkOrder = useCallback((
+    id: number, 
+    newStatus: WOStatus, 
+    assignment?: { 
+      empleado_id: number; 
+      empleado_nombre: string; 
+      costo_mano_obra: number; 
+      cantidad_asignada?: number; 
+      costo_mano_obra_unitario?: number;
+    }
+  ) => {
     const woToMove = workOrders.find(w => w.id === id);
     if (!woToMove) return;
 
-    setWorkOrders(prev => prev.map(wo => wo.id === id ? { 
-      ...wo, 
-      estatus: newStatus,
-      ...(newStatus === 'listo_embarque' ? { fecha_termino: new Date().toISOString().split('T')[0] } : {}),
-      ...(assignment ? {
-        empleado_id: assignment.empleado_id,
-        empleado_nombre: assignment.empleado_nombre,
-        costo_mano_obra: assignment.costo_mano_obra
-      } : {})
-    } : wo));
+    if (assignment && assignment.cantidad_asignada && assignment.cantidad_asignada < woToMove.cantidad) {
+      const cantAsig = assignment.cantidad_asignada;
+      const cantRestante = woToMove.cantidad - cantAsig;
 
-    // Extract side effect outside the updater to prevent double execution in Strict Mode
-    if (woToMove.estatus !== 'listo_embarque' && newStatus === 'listo_embarque') {
-      const prod = (productosData as Producto[]).find(p => p.id === woToMove.producto_id);
-      const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
-      const ts = Date.now();
-      const nuevosTerminados = Array.from({ length: woToMove.cantidad }).map((_, j) => ({
-        id: ts + j,
-        qr_code: `DCR-${ts}-${woToMove.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-        producto_id: woToMove.producto_id,
-        producto_nombre: woToMove.producto_nombre,
-        codigo_sku: woToMove.codigo_sku,
-        orden_id: woToMove.orden_id,
-        cliente_nombre: woToMove.cliente_nombre,
-        acabado: woToMove.acabado_nombre,
-        fecha_listo: new Date().toISOString().split('T')[0],
-        precio_estimado: price,
-      }));
-      setTerminados(prev => [...nuevosTerminados, ...prev]);
+      const nuevaWO: WorkOrder = {
+        ...woToMove,
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        cantidad: cantAsig,
+        estatus: newStatus,
+        ...(newStatus === 'acabados' ? {
+          empleado_acabado_id: assignment.empleado_id,
+          empleado_acabado_nombre: assignment.empleado_nombre,
+          costo_acabado: assignment.costo_mano_obra,
+          costo_acabado_unitario: assignment.costo_mano_obra_unitario
+        } : {
+          empleado_id: assignment.empleado_id,
+          empleado_nombre: assignment.empleado_nombre,
+          costo_mano_obra: assignment.costo_mano_obra,
+          costo_mano_obra_unitario: assignment.costo_mano_obra_unitario,
+        }),
+        ...(newStatus === 'listo_embarque' ? { fecha_termino: new Date().toISOString().split('T')[0] } : {})
+      };
+
+      setWorkOrders(prev => {
+        return prev.map(wo => {
+          if (wo.id === id) {
+            return { ...wo, cantidad: cantRestante };
+          }
+          return wo;
+        }).concat(nuevaWO);
+      });
+
+      // Si pasa a listo_embarque, generar terminados para la cantidad asignada parcial
+      if (newStatus === 'listo_embarque') {
+        const prod = (productosData as Producto[]).find(p => p.id === woToMove.producto_id);
+        const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
+        const ts = Date.now();
+        const nuevosTerminados = Array.from({ length: cantAsig }).map((_, j) => ({
+          id: ts + j,
+          qr_code: `DCR-${ts}-${nuevaWO.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+          producto_id: woToMove.producto_id,
+          producto_nombre: woToMove.producto_nombre,
+          codigo_sku: woToMove.codigo_sku,
+          orden_id: woToMove.orden_id,
+          cliente_nombre: woToMove.cliente_nombre,
+          acabado: woToMove.acabado_nombre,
+          fecha_listo: new Date().toISOString().split('T')[0],
+          precio_estimado: price,
+        }));
+        setTerminados(prev => [...nuevosTerminados, ...prev]);
+      }
+    } else {
+      // Asignación total o actualización normal de estado
+      setWorkOrders(prev => prev.map(wo => wo.id === id ? { 
+        ...wo, 
+        estatus: newStatus,
+        ...(newStatus === 'listo_embarque' ? { fecha_termino: new Date().toISOString().split('T')[0] } : {}),
+        ...(assignment ? (
+          newStatus === 'acabados' ? {
+            empleado_acabado_id: assignment.empleado_id,
+            empleado_acabado_nombre: assignment.empleado_nombre,
+            costo_acabado: assignment.costo_mano_obra,
+            costo_acabado_unitario: assignment.costo_mano_obra_unitario
+          } : {
+            empleado_id: assignment.empleado_id,
+            empleado_nombre: assignment.empleado_nombre,
+            costo_mano_obra: assignment.costo_mano_obra,
+            costo_mano_obra_unitario: assignment.costo_mano_obra_unitario
+          }
+        ) : {})
+      } : wo));
+
+      if (woToMove.estatus !== 'listo_embarque' && newStatus === 'listo_embarque') {
+        const prod = (productosData as Producto[]).find(p => p.id === woToMove.producto_id);
+        const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
+        const ts = Date.now();
+        const nuevosTerminados = Array.from({ length: woToMove.cantidad }).map((_, j) => ({
+          id: ts + j,
+          qr_code: `DCR-${ts}-${woToMove.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+          producto_id: woToMove.producto_id,
+          producto_nombre: woToMove.producto_nombre,
+          codigo_sku: woToMove.codigo_sku,
+          orden_id: woToMove.orden_id,
+          cliente_nombre: woToMove.cliente_nombre,
+          acabado: woToMove.acabado_nombre,
+          fecha_listo: new Date().toISOString().split('T')[0],
+          precio_estimado: price,
+        }));
+        setTerminados(prev => [...nuevosTerminados, ...prev]);
+      }
     }
   }, [workOrders]);
 
@@ -428,6 +487,7 @@ export function useStore(): DecorStore {
     setEmbarques(prev => prev.map(e =>
       e.id === embarqueId ? { ...e, estatus: 'entregado', items } : e
     ));
+
     // Move received items to store inventory
     const received = items.filter(i => i.estado_recepcion === 'ok');
     for (const item of received) {
@@ -456,6 +516,24 @@ export function useStore(): DecorStore {
           }];
         });
       }
+    }
+
+    // Register damaged items in devoluciones
+    const damaged = items.filter(i => i.estado_recepcion === 'dañado' || i.estado_recepcion === 'danado');
+    if (damaged.length > 0) {
+      const newDevoluciones = damaged.map((item, idx) => ({
+        id: Date.now() + idx + Math.random(),
+        origen: 'orden_produccion' as const,
+        referencia_id: embarqueId,
+        producto_id: item.producto_id,
+        producto_nombre: item.producto_nombre,
+        cantidad: 1,
+        motivo: 'Pieza dañada o defectuosa al recibir en tienda',
+        estatus: 'recibida' as const,
+        tienda_id: item.tienda_destino_id || 1,
+        fecha: new Date().toISOString().split('T')[0]
+      }));
+      setDevoluciones(prev => [...newDevoluciones, ...prev]);
     }
   }, [productos]);
 
@@ -670,7 +748,7 @@ export function useStore(): DecorStore {
   return {
     currentUser, login, logout,
     productos, categorias, clientes, empleados, tiendas, acabados,
-    inventario, materiaPrima, workOrders, pedidos, terminados, embarques, ventas,
+    inventario, materiaPrima, workOrders, pedidos, terminados, embarques, ventas, devoluciones,
     moveWorkOrder, crearPedido, editarPedido, eliminarPedido, crearEmbarque,
     cancelarEmbarque,
     updateEmbarqueStatus,

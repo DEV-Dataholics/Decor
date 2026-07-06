@@ -7,17 +7,29 @@
 
 | Orden | Archivo | Contenido |
 |---|---|---|
-| 1 | `00_base.sql` | Crea la BD `decor_muebleria` y la tabla `usuarios` |
+| 1 | `00_base.sql` | Crea la BD `decor_muebleria` y la tabla `usuarios` con admin inicial |
 | 2 | `01_catalogo.sql` | Categorías, proveedores, acabados, productos, clientes |
 | 3 | `02_ordenes.sql` | Tiendas, cotizaciones, órdenes, ítems de orden |
 | 4 | `03_produccion.sql` | Empleados, lista de precios, semanas nómina, work_orders |
 | 5 | `04_inventario_taller.sql` | Materiales, movimientos y alertas de stock (con triggers) |
 | 6 | `05_tienda_pos.sql` | Inventario tienda, compras externas, cajas, ventas, pagos |
 | 7 | `06_logistica.sql` | Embarques, ítems de embarque y devoluciones |
-| 8 | `07_semilla.sql` | Datos iniciales (acabados estándar, usuario admin) |
+| 8 | `07_semilla.sql` | Datos iniciales (acabados estándar) |
+| 9 | `08_semilla_pos.sql` | Datos de prueba POS: 6 productos, 6 materiales, inventario inicial |
 
-> **Contraseña del admin inicial:** `password`  
-> **IMPORTANTE:** Cámbiala inmediatamente en `Config → Usuarios` al iniciar sesión.
+> **Credenciales del admin inicial:**  
+> **Email:** `admin@decor.mx`  
+> **Contraseña:** `password` (hash bcrypt)  
+> **IMPORTANTE:** Cámbiala inmediatamente en producción.
+
+### Scripts de Mantenimiento (opcionales)
+
+Estos scripts NO forman parte de la instalación inicial. Úsalos solo cuando sea necesario:
+
+| Archivo | Uso |
+|---|---|
+| `import_catalogo.sql` | Importa productos y categorías desde un catálogo externo |
+| `truncate_operaciones.sql` | **⚠️ CUIDADO:** Limpia TODAS las tablas operativas (órdenes, ventas, embarques, etc.) sin borrar catálogos ni usuarios. Útil para "reiniciar" el sistema después de pruebas |
 
 ---
 
@@ -25,7 +37,7 @@
 
 Todo el esquema respeta esta máxima:
 
-| Dado | Se captura en | Se reutiliza en |
+| Dato | Se captura en | Se reutiliza en |
 |---|---|---|
 | Nombre e info de cliente | `clientes` | `cotizaciones`, `ordenes`, `ventas_tienda` |
 | Nombre e info de producto | `productos` | `cotizacion_items`, `orden_items`, `inventario_tienda`, `venta_items`, `embarque_items` |
