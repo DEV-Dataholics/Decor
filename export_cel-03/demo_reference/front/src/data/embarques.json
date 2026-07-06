@@ -1,0 +1,164 @@
+[
+  {
+    "id": 1,
+    "orden_id": 2001,
+    "tienda_destino_id": 1,
+    "cliente_nombre": "CASA CRISTAL",
+    "fecha_embarque": "2026-06-05",
+    "placas_trailer": "CHI-1234-A",
+    "transportista": "Transportes del Norte",
+    "estatus": "entregado",
+    "items": [
+      {
+        "id": 1,
+        "producto_id": 157,
+        "producto_nombre": "TARAHUMARA BARSTOOL",
+        "codigo_sku": "DCR-0157",
+        "cantidad": 5,
+        "precio_unitario": 110,
+        "subtotal": 550,
+        "embarcado": true,
+        "recibido_en_tienda": true,
+        "cantidad_embarcada": 5,
+        "cantidad_recibida": 5,
+        "diferencia": 0
+      },
+      {
+        "id": 2,
+        "producto_id": 72,
+        "producto_nombre": "CROSS SHORT JELLY",
+        "codigo_sku": "DCR-0072",
+        "cantidad": 3,
+        "precio_unitario": 133,
+        "subtotal": 399,
+        "embarcado": true,
+        "recibido_en_tienda": true,
+        "cantidad_embarcada": 3,
+        "cantidad_recibida": 3,
+        "diferencia": 0
+      },
+      {
+        "id": 3,
+        "producto_id": 86,
+        "producto_nombre": "ROPE END TABLE",
+        "codigo_sku": "DCR-0086",
+        "cantidad": 7,
+        "precio_unitario": 167,
+        "subtotal": 1169,
+        "embarcado": true,
+        "recibido_en_tienda": true,
+        "cantidad_embarcada": 7,
+        "cantidad_recibida": 7,
+        "diferencia": 0
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "orden_id": 2002,
+    "tienda_destino_id": 2,
+    "cliente_nombre": "MONTERREY",
+    "fecha_embarque": "2026-06-08",
+    "placas_trailer": "CHI-5678-B",
+    "transportista": "Fletes Chihuahua Express",
+    "estatus": "en_transito",
+    "items": [
+      {
+        "id": 1,
+        "producto_id": 141,
+        "producto_nombre": "BUTT BENCH 4-SEAT",
+        "codigo_sku": "DCR-0141",
+        "cantidad": 4,
+        "precio_unitario": 102,
+        "subtotal": 408,
+        "embarcado": true,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 4,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      },
+      {
+        "id": 2,
+        "producto_id": 133,
+        "producto_nombre": "PANEL DRESSER 48\" 5-DWRS",
+        "codigo_sku": "DCR-0133",
+        "cantidad": 7,
+        "precio_unitario": 472,
+        "subtotal": 3304,
+        "embarcado": true,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 7,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      },
+      {
+        "id": 3,
+        "producto_id": 87,
+        "producto_nombre": "TAPER LEGS SOFA TABLE W/SHELF",
+        "codigo_sku": "DCR-0087",
+        "cantidad": 5,
+        "precio_unitario": 156,
+        "subtotal": 780,
+        "embarcado": true,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 5,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      },
+      {
+        "id": 4,
+        "producto_id": 144,
+        "producto_nombre": "IRON BASE PUPITRE DESK",
+        "codigo_sku": "DCR-0144",
+        "cantidad": 10,
+        "precio_unitario": 317,
+        "subtotal": 3170,
+        "embarcado": true,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 10,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "orden_id": 2003,
+    "tienda_destino_id": 1,
+    "cliente_nombre": "PEPE MTZ",
+    "fecha_embarque": "2026-06-10",
+    "placas_trailer": "",
+    "transportista": "",
+    "estatus": "preparando",
+    "items": [
+      {
+        "id": 1,
+        "producto_id": 106,
+        "producto_nombre": "30X13X60 CURIO BOOKCASE",
+        "codigo_sku": "DCR-0106",
+        "cantidad": 10,
+        "precio_unitario": 100,
+        "subtotal": 1000,
+        "embarcado": false,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 10,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      },
+      {
+        "id": 2,
+        "producto_id": 174,
+        "producto_nombre": "MEDICINE CABINET",
+        "codigo_sku": "DCR-0174",
+        "cantidad": 8,
+        "precio_unitario": 55,
+        "subtotal": 440,
+        "embarcado": false,
+        "recibido_en_tienda": false,
+        "cantidad_embarcada": 8,
+        "cantidad_recibida": 0,
+        "diferencia": 0
+      }
+    ]
+  }
+]

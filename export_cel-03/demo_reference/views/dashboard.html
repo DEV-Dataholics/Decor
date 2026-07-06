@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Decor Mueblería</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <!-- Google Icons -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+<body class="app-layout">
+
+  <!-- Sidebar Lateral -->
+  <aside class="app-sidebar">
+    <div class="sidebar-logo">
+      <span>🪑 Decor</span>
+      <small>Mueblería & Diseño</small>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Principal</div>
+      <a href="/views/dashboard.html" class="nav-item active">
+        <span class="material-symbols-rounded icon">dashboard</span>
+        Dashboard
+      </a>
+      <a href="/views/pedidos.html" class="nav-item" data-roles="admin,gerente_tienda">
+        <span class="material-symbols-rounded icon">ink_pen</span>
+        Pedidos y Cotizaciones
+      </a>
+
+      <div class="nav-section-title">Taller</div>
+      <a href="/views/produccion.html" class="nav-item" data-roles="admin,encargado_taller">
+        <span class="material-symbols-rounded icon">precision_manufacturing</span>
+        Producción
+      </a>
+
+      <div class="nav-section-title">Tienda</div>
+      <a href="/views/pos.html" class="nav-item" data-roles="admin,cajero,gerente_tienda">
+        <span class="material-symbols-rounded icon">point_of_sale</span>
+        Punto de Venta
+      </a>
+      <a href="/views/inventario_tienda.html" class="nav-item" data-roles="admin,gerente_tienda,cajero">
+        <span class="material-symbols-rounded icon">inventory_2</span>
+        Inventario Tienda
+      </a>
+      <a href="/views/productos.html" class="nav-item" data-roles="admin,gerente_tienda">
+        <span class="material-symbols-rounded icon">storefront</span>
+        Catálogo Productos
+      </a>
+      <a href="/views/compras_externas.html" class="nav-item" data-roles="admin,gerente_tienda">
+        <span class="material-symbols-rounded icon">shopping_bag</span>
+        Compras Externas
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="user-initials">--</div>
+        <div class="user-info">
+          <div class="name" id="user-name">Cargando...</div>
+          <div class="role" id="user-role">...</div>
+        </div>
+        <button onclick="logout()" class="btn-icon" title="Cerrar sesión">
+          <span class="material-symbols-rounded">logout</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Contenido Principal -->
+  <main class="app-main">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">Bienvenido, <span id="welcome-name">...</span></h1>
+        <p class="page-subtitle">Resumen general de operación — Decor Mueblería</p>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="window.location.href=basePath+'/views/pos.html'">
+          <span class="material-symbols-rounded">point_of_sale</span>
+          Abrir POS
+        </button>
+      </div>
+    </header>
+
+    <!-- KPI Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Ventas del día</div>
+        <div class="kpi-value">$0.00</div>
+        <div class="kpi-sub">Actualizado hace un momento</div>
+      </div>
+      <div class="kpi-card success">
+        <div class="kpi-label">Órdenes Activas</div>
+        <div class="kpi-value">0</div>
+        <div class="kpi-sub">En proceso de fabricación</div>
+      </div>
+      <div class="kpi-card warning">
+        <div class="kpi-label">Materiales Bajos</div>
+        <div class="kpi-value">0</div>
+        <div class="kpi-sub">Requieren atención pronto</div>
+      </div>
+      <div class="kpi-card danger">
+        <div class="kpi-label">Pendientes Embarque</div>
+        <div class="kpi-value">0</div>
+        <div class="kpi-sub">Piezas terminadas en taller</div>
+      </div>
+    </section>
+
+    <!-- Secciones Inferiores (Pendiente implementar lógica) -->
+    <section style="margin-top: var(--space-8); display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-6);">
+      
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Últimos Pedidos</h3>
+          <button class="btn btn-secondary btn-sm">Ver todos</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Folio</th>
+                <th>Cliente</th>
+                <th>Estatus</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="last-orders-body">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: var(--space-8); color: var(--color-gray-500);">
+                  No hay pedidos registrados aún
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Alertas de Stock</h3>
+        </div>
+        <div id="stock-alerts-list">
+          <p style="text-align: center; color: var(--color-gray-500); padding: var(--space-4);">Todo en orden</p>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Bottom Nav para Móvil -->
+  <nav class="bottom-nav">
+    <a href="/views/dashboard.html" class="bottom-nav-item active">
+      <span class="material-symbols-rounded icon">dashboard</span>
+      Inicio
+    </a>
+    <a href="/views/pos.html" class="bottom-nav-item">
+      <span class="material-symbols-rounded icon">point_of_sale</span>
+      POS
+    </a>
+    <a href="/views/pedidos.html" class="bottom-nav-item">
+      <span class="material-symbols-rounded icon">ink_pen</span>
+      Pedidos
+    </a>
+    <a href="/views/productos.html" class="bottom-nav-item">
+      <span class="material-symbols-rounded icon">storefront</span>
+      Stock
+    </a>
+  </nav>
+
+  <script src="../assets/js/api.js"></script>
+  <script>
+    // Inicialización al cargar la página
+    document.addEventListener('DOMContentLoaded', async () => {
+      const bp = window.location.pathname.includes('/sistema_decor/') ? '/sistema_decor' : '';
+      
+      // Corregir todos los enlaces internos del sidebar y bottom nav
+      document.querySelectorAll('a[href^="/views/"]').forEach(link => {
+        const path = link.getAttribute('href');
+        link.setAttribute('href', bp + path);
+      });
+
+      const user = await loadCurrentUser();
+      if (user) {
+        document.getElementById('user-name').textContent = user.nombre;
+        document.getElementById('welcome-name').textContent = user.nombre.split(' ')[0];
+        document.getElementById('user-role').textContent = user.rol.replace('_', ' ');
+        document.getElementById('user-initials').textContent = user.nombre.charAt(0);
+        
+        applyRoleVisibility();
+        loadDashboardStats();
+      }
+    });
+
+    async function logout() {
+      if (confirm('¿Cerrar sesión?')) {
+        await api('/auth/logout.php', 'POST');
+        const bp = window.location.pathname.includes('/sistema_decor/') ? '/sistema_decor' : '';
+        window.location.href = `${bp}/views/login.html`;
+      }
+    }
+
+    async function loadDashboardStats() {
+      // Por ahora son estáticas, se conectarán a la API en la siguiente fase
+      console.log('Cargando estadísticas del dashboard...');
+    }
+  </script>
+</body>
+</html>

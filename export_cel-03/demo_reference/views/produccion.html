@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Producción — Decor Mueblería</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .prod-tabs { display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
+    .prod-tab {
+      background:var(--color-gray-50); border:1px solid var(--color-gray-200); border-radius:20px;
+      padding:6px 16px; font-size:.82rem; cursor:pointer; transition:all .15s;
+    }
+    .prod-tab.active { background:rgba(192,122,58,.12); border-color:#c07a3a; color:#c07a3a; font-weight:600; }
+    .prod-tab .count { background:var(--color-gray-200); border-radius:10px; padding:1px 7px; margin-left:4px; font-size:.72rem; }
+    .prod-tab.active .count { background:rgba(192,122,58,.25); }
+
+    .wo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+    .wo-card {
+      background:var(--color-white); border:1px solid var(--color-gray-200); border-radius:12px;
+      padding:16px; transition:border-color .15s, box-shadow .15s;
+    }
+    .wo-card:hover { border-color:#c07a3a; box-shadow:0 4px 16px rgba(192,122,58,.1); }
+    .wo-card-header { display:flex; justify-content:space-between; align-items:start; margin-bottom:8px; }
+    .wo-card-title { font-size:.95rem; font-weight:700; }
+    .wo-card-sku { font-size:.75rem; color:var(--color-gray-500); font-family:monospace; }
+    .wo-card-meta { font-size:.8rem; color:var(--color-gray-500); margin-top:8px; display:flex; flex-direction:column; gap:3px; }
+    .wo-card-meta span { display:flex; align-items:center; gap:4px; }
+    .wo-card-meta .material-symbols-rounded { font-size:16px; }
+    .wo-card-actions { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+    .wo-btn {
+      flex:1; min-width:80px; padding:8px 10px; border-radius:8px; font-size:.8rem; font-weight:600;
+      cursor:pointer; border:1px solid; transition:all .15s; text-align:center;
+      display:flex; align-items:center; justify-content:center; gap:4px;
+    }
+    .wo-btn .material-symbols-rounded { font-size:16px; }
+    .wo-btn-start  { background:rgba(0,123,255,.08); border-color:#007bff; color:#007bff; }
+    .wo-btn-start:hover { background:#007bff; color:#fff; }
+    .wo-btn-review { background:rgba(192,122,58,.08); border-color:#c07a3a; color:#c07a3a; }
+    .wo-btn-review:hover { background:#c07a3a; color:#fff; }
+    .wo-btn-done   { background:rgba(40,167,69,.08);  border-color:#28a745; color:#28a745; }
+    .wo-btn-done:hover   { background:#28a745; color:#fff; }
+    .wo-btn-reject { background:rgba(220,53,69,.06);  border-color:#dc3545; color:#dc3545; }
+    .wo-btn-reject:hover { background:#dc3545; color:#fff; }
+
+    .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .dot-pendiente   { background:#777c96; }
+    .dot-en_progreso { background:#007bff; }
+    .dot-en_revision { background:#c07a3a; }
+    .dot-terminado   { background:#28a745; }
+    .dot-pagado      { background:#6f42c1; }
+
+    .empty-state { text-align:center; padding:60px 20px; color:var(--color-gray-500); }
+    .empty-state .material-symbols-rounded { font-size:3rem; display:block; opacity:.3; margin-bottom:12px; }
+
+    .rechazos-badge { background:rgba(220,53,69,.1); color:#dc3545; font-size:.7rem; font-weight:700; padding:2px 6px; border-radius:8px; }
+  </style>
+</head>
+<body class="app-layout">
+  <aside class="app-sidebar" id="sidebar-container"></aside>
+
+  <main class="app-main">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">Producción</h1>
+        <p class="page-subtitle">Work Orders del Taller — Control de piezas en fabricación</p>
+      </div>
+    </header>
+
+    <div class="prod-tabs" id="prod-tabs"></div>
+
+    <div class="wo-grid" id="wo-grid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <span class="material-symbols-rounded">precision_manufacturing</span>
+        Cargando work orders…
+      </div>
+    </div>
+  </main>
+
+  <script src="../assets/js/api.js"></script>
+  <script>
+    let workOrders = [], currentTab = '';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadSidebar('produccion.html');
+      const user = await loadCurrentUser();
+      if (!user) return;
+      applyRoleVisibility();
+      await loadWorkOrders();
+    });
+
+    async function loadSidebar(activePage) {
+      try {
+        const resp = await fetch(basePath + '/views/dashboard.html');
+        const html = await resp.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const sidebar = doc.querySelector('.app-sidebar');
+        if (sidebar) {
+          document.getElementById('sidebar-container').outerHTML = sidebar.outerHTML;
+          document.querySelectorAll('.app-sidebar a[href^="/views/"]').forEach(a => {
+            a.href = basePath + a.getAttribute('href');
+          });
+          document.querySelectorAll('.app-sidebar .nav-item').forEach(a => {
+            a.classList.remove('active');
+            if (a.href.includes(activePage)) a.classList.add('active');
+          });
+        }
+      } catch(e) {}
+    }
+
+    async function loadWorkOrders() {
+      try {
+        const res = await api('/produccion/work_orders.php');
+        workOrders = res?.items || [];
+        buildTabs();
+        renderGrid();
+      } catch(e) {
+        document.getElementById('wo-grid').innerHTML =
+          '<div class="empty-state" style="grid-column:1/-1"><span class="material-symbols-rounded">error</span>Error cargando work orders</div>';
+      }
+    }
+
+    function buildTabs() {
+      const statuses = ['','pendiente','en_progreso','en_revision','terminado','pagado'];
+      const labels   = { '':'Todas','pendiente':'Pendientes','en_progreso':'En Progreso','en_revision':'En Revisión','terminado':'Terminadas','pagado':'Pagadas' };
+      const tabs = document.getElementById('prod-tabs');
+      tabs.innerHTML = statuses.map(s => {
+        const count = s ? workOrders.filter(w=>w.estatus===s).length : workOrders.length;
+        return `<button class="prod-tab ${s===currentTab?'active':''}" onclick="filterTab('${s}')">
+          ${labels[s]}<span class="count">${count}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function filterTab(s) { currentTab = s; buildTabs(); renderGrid(); }
+
+    function renderGrid() {
+      const filtered = currentTab ? workOrders.filter(w=>w.estatus===currentTab) : workOrders;
+      const grid = document.getElementById('wo-grid');
+      if (!filtered.length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="material-symbols-rounded">precision_manufacturing</span>No hay work orders en este estatus</div>';
+        return;
+      }
+      grid.innerHTML = filtered.map(w => `
+        <div class="wo-card">
+          <div class="wo-card-header">
+            <div>
+              <div class="wo-card-title">${w.producto_nombre}</div>
+              <div class="wo-card-sku">${w.codigo_sku} · Cantidad: ${w.cantidad}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="status-dot dot-${w.estatus}"></span>
+              <span style="font-size:.75rem;color:var(--color-gray-500)">${w.estatus.replace('_',' ')}</span>
+              ${w.rechazos > 0 ? `<span class="rechazos-badge">↩ ${w.rechazos}</span>` : ''}
+            </div>
+          </div>
+          <div class="wo-card-meta">
+            <span><span class="material-symbols-rounded">person</span>${w.empleado_nombre} (${w.empleado_rol})</span>
+            <span><span class="material-symbols-rounded">group</span>Cliente: ${w.cliente_nombre || '—'}</span>
+            <span><span class="material-symbols-rounded">palette</span>Acabado: ${w.acabado_nombre || 'N/A'}</span>
+            <span><span class="material-symbols-rounded">event</span>Asignada: ${w.fecha_asignacion}</span>
+            ${w.fecha_terminado ? `<span><span class="material-symbols-rounded">check_circle</span>Terminada: ${new Date(w.fecha_terminado).toLocaleDateString('es-MX')}</span>` : ''}
+          </div>
+          <div class="wo-card-actions">
+            ${w.estatus==='pendiente' ? `<button class="wo-btn wo-btn-start" onclick="doAction(${w.id},'iniciar')"><span class="material-symbols-rounded">play_arrow</span>Iniciar</button>` : ''}
+            ${w.estatus==='en_progreso' ? `<button class="wo-btn wo-btn-review" onclick="doAction(${w.id},'revisar')"><span class="material-symbols-rounded">visibility</span>A Revisión</button>` : ''}
+            ${w.estatus==='en_revision' ? `
+              <button class="wo-btn wo-btn-done" onclick="doAction(${w.id},'terminar')"><span class="material-symbols-rounded">check</span>Aprobar</button>
+              <button class="wo-btn wo-btn-reject" onclick="doAction(${w.id},'rechazar')"><span class="material-symbols-rounded">undo</span>Rechazar</button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function doAction(id, action) {
+      let body = { id, action };
+      if (action === 'rechazar') {
+        const notas = prompt('Motivo del rechazo:');
+        if (notas === null) return;
+        body.notas_calidad = notas;
+      }
+      try {
+        await api('/produccion/work_orders.php', 'POST', body);
+        await loadWorkOrders();
+      } catch(e) { alert(e.message); }
+    }
+  </script>
+</body>
+</html>

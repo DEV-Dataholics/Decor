@@ -43,6 +43,7 @@ export default function PuntoDeVentaPage() {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const startInputTime = useRef<number>(0);
 
   // Mantener el focus en el campo de texto manual continuamente (para pistolas de escaneo)
   useEffect(() => {
@@ -55,6 +56,30 @@ export default function PuntoDeVentaPage() {
       return () => clearInterval(interval);
     }
   }, [step, showCamera, tiendaId]);
+
+  // Auto-procesar entrada de la pistola de escaneo sin presionar Enter
+  useEffect(() => {
+    const trimmed = qrInput.trim();
+    if (!trimmed) return;
+
+    const elapsed = Date.now() - startInputTime.current;
+    const msPerChar = trimmed.length > 0 ? elapsed / trimmed.length : 0;
+    
+    // Si la velocidad de entrada es muy rápida (menor a 45ms por carácter) y tiene
+    // una longitud mínima de 8 caracteres, asumimos que es una pistola de escaneo
+    // y procesamos de forma automática tras 100ms de inactividad.
+    const esEntradaScanner = msPerChar < 45 && trimmed.length >= 8;
+
+    if (esEntradaScanner) {
+      const delayDebounceFn = setTimeout(() => {
+        // Validar que el valor del input no haya cambiado o sido limpiado (ej. por presionar Enter manualmente)
+        if (inputRef.current && inputRef.current.value.trim() === trimmed) {
+          handleScan(trimmed);
+        }
+      }, 100);
+      return () => clearTimeout(delayDebounceFn);
+    }
+  }, [qrInput]);
 
   const handleScan = (code: string) => {
     const trimmed = code.trim();
@@ -538,7 +563,13 @@ export default function PuntoDeVentaPage() {
                 <input
                   ref={inputRef}
                   value={qrInput}
-                  onChange={e => setQrInput(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val && !qrInput) {
+                      startInputTime.current = Date.now();
+                    }
+                    setQrInput(val);
+                  }}
                   onKeyDown={e => e.key === 'Enter' && handleScan(qrInput)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-center font-mono text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/20 transition-colors shadow-inner"
                   placeholder="Escanea con pistola o escribe QR"

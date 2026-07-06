@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Punto de Venta — Decor Mueblería</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:         #0f1117;
+      --bg-card:    #1a1d26;
+      --bg-input:   #252836;
+      --border:     #2f3245;
+      --accent:     #c07a3a;
+      --accent-dim: rgba(192,122,58,.15);
+      --accent-hover: #d88f4c;
+      --green:      #28a745;
+      --green-dim:  rgba(40,167,69,.15);
+      --red:        #dc3545;
+      --red-dim:    rgba(220,53,69,.13);
+      --yellow:     #f0ad4e;
+      --text:       #e8e9f0;
+      --text-muted: #777c96;
+      --radius:     12px;
+      --transition: 150ms ease;
+    }
+    html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+
+    /* ── Layout 2 Columnas ───────────────────────────────────── */
+    .pos-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      height: 100vh;
+      gap: 0;
+    }
+    @media (max-width: 900px) {
+      .pos-layout { grid-template-columns: 1fr; }
+      .pos-right { display: none; }
+      .pos-right.cart-open { display: flex; position: fixed; inset: 0; z-index: 100; }
+    }
+
+    /* ── LEFT — Escáner + Catálogo ───────────────────────────── */
+    .pos-left {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .pos-top-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .pos-logo { font-size: 1.1rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .scan-wrapper {
+      position: relative;
+      flex: 1;
+    }
+    .scan-wrapper .material-symbols-rounded {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--accent); pointer-events: none; font-size: 22px;
+    }
+    #scan-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      padding: 12px 16px 12px 44px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    #scan-input:focus { border-color: var(--accent-hover); box-shadow: 0 0 0 4px var(--accent-dim); }
+    #scan-input::placeholder { color: var(--text-muted); }
+
+    .scan-feedback {
+      padding: 6px 20px;
+      font-size: 0.82rem;
+      min-height: 26px;
+      color: var(--text-muted);
+    }
+    .scan-feedback.ok   { color: var(--green); }
+    .scan-feedback.err  { color: var(--red); }
+
+    /* Catálogo Grid */
+    .catalog-header {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .catalog-header h2 { font-size: .9rem; font-weight: 600; color: var(--text-muted); flex: 1; }
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      color: var(--text-muted);
+    }
+    .chip.active, .chip:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .catalog-grid {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+      padding: 16px 20px;
+      align-content: start;
+    }
+    .catalog-grid::-webkit-scrollbar { width: 6px; }
+    .catalog-grid::-webkit-scrollbar-track { background: transparent; }
+    .catalog-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      cursor: pointer;
+      transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      user-select: none;
+    }
+    .product-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(192,122,58,.15); }
+    .product-card:active { transform: scale(.97); }
+    .product-card.no-stock { opacity: .5; pointer-events: none; }
+    .product-icon { font-size: 2rem; line-height: 1; }
+    .product-name { font-size: .85rem; font-weight: 600; line-height: 1.3; }
+    .product-sku  { font-size: .7rem; color: var(--text-muted); font-family: monospace; }
+    .product-price { font-size: 1rem; font-weight: 700; color: var(--accent); margin-top: 4px; }
+    .product-stock { font-size: .72rem; color: var(--text-muted); }
+    .badge-unique  { font-size: .65rem; background: var(--accent-dim); color: var(--accent); border-radius: 6px; padding: 2px 6px; display: inline-block; width: fit-content; }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-input) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: var(--radius);
+      height: 140px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* ── RIGHT — Carrito ─────────────────────────────────────── */
+    .pos-right {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+    }
+    .cart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .cart-header .material-symbols-rounded { color: var(--accent); }
+    .cart-count {
+      background: var(--accent);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .cart-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cart-items::-webkit-scrollbar { width: 5px; }
+    .cart-items::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+    .cart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+    .cart-empty .material-symbols-rounded { font-size: 3rem; opacity: .3; }
+
+    .cart-item {
+      background: var(--bg-input);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 8px;
+      align-items: center;
+    }
+    .cart-item-name  { font-size: .85rem; font-weight: 600; }
+    .cart-item-sku   { font-size: .7rem; color: var(--text-muted); font-family: monospace; }
+    .cart-item-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .qty-btn {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      line-height: 1;
+      transition: background var(--transition);
+    }
+    .qty-btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+    .qty-display { font-weight: 700; min-width: 28px; text-align: center; }
+    .cart-item-subtotal { font-size: .9rem; font-weight: 700; color: var(--accent); grid-row: 1 / 3; align-self: center; }
+    .cart-item-remove {
+      background: none; border: none;
+      color: var(--text-muted); cursor: pointer;
+      font-size: .85rem; transition: color var(--transition);
+    }
+    .cart-item-remove:hover { color: var(--red); }
+
+    /* Totales */
+    .cart-totals {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: .88rem;
+    }
+    .total-row { display: flex; justify-content: space-between; color: var(--text-muted); }
+    .total-row.grand { color: var(--text); font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+
+    /* Panel de cobro */
+    .cobro-panel {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .metodo-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .metodo-btn {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 4px;
+      cursor: pointer;
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text-muted);
+      transition: all var(--transition);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .metodo-btn .material-symbols-rounded { font-size: 18px; }
+    .metodo-btn.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .cobro-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .cobro-input-row label { font-size: .8rem; color: var(--text-muted); white-space: nowrap; }
+    .cobro-input-row input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: .95rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+    }
+    .cobro-input-row input:focus { border-color: var(--accent); }
+    .cambio-display {
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: .92rem;
+      color: var(--green);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-cobrar {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .02em;
+      transition: background var(--transition), transform var(--transition);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-cobrar:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-cobrar:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-vaciar {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      font-size: .8rem;
+      transition: all var(--transition);
+    }
+    .btn-vaciar:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Modal Ticket ─────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      display: grid; place-items: center;
+      z-index: 200;
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: min(440px, 95vw);
+      padding: 28px;
+      transform: translateY(20px);
+      transition: transform .2s;
+    }
+    .modal-overlay.open .modal-box { transform: translateY(0); }
+    .ticket-header { text-align: center; margin-bottom: 16px; }
+    .ticket-header h3 { font-size: 1.1rem; }
+    .ticket-folio { font-size: 2rem; font-weight: 800; color: var(--accent); font-family: monospace; }
+    .ticket-body { font-size: .85rem; color: var(--text-muted); }
+    .ticket-body table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .ticket-body td, .ticket-body th { padding: 5px 4px; }
+    .ticket-body th { color: var(--text); font-size: .78rem; border-bottom: 1px solid var(--border); }
+    .ticket-total { display: flex; justify-content: space-between; font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .ticket-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-secondary { flex: 1; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px; cursor: pointer; font-size: .9rem; transition: background var(--transition); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-print { flex: 1; background: var(--green); border: none; color: #fff; border-radius: 10px; padding: 10px; cursor: pointer; font-size: .9rem; font-weight: 600; transition: background var(--transition); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-print:hover { background: #22963d; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 20px; font-size: .9rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 300;
+      transition: transform .25s, opacity .25s; opacity: 0;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.ok  { border-color: var(--green); color: var(--green); }
+    .toast.err { border-color: var(--red);   color: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="pos-layout">
+
+    <!-- ══ PANEL IZQUIERDO: Escáner + Catálogo ══════════════════ -->
+    <div class="pos-left">
+      <div class="pos-top-bar">
+        <div class="pos-logo">🪑 Decor POS</div>
+        <div class="scan-wrapper">
+          <span class="material-symbols-rounded">qr_code_scanner</span>
+          <input type="text" id="scan-input"
+            placeholder="Escanea o escribe un código de barras (SKU)…"
+            autocomplete="off" autofocus />
+        </div>
+        <a href="/views/dashboard.html" style="color:var(--text-muted); text-decoration:none; font-size:.82rem; display:flex; align-items:center; gap:4px; white-space:nowrap">
+          <span class="material-symbols-rounded" style="font-size:18px">arrow_back</span> Salir
+        </a>
+      </div>
+
+      <div class="scan-feedback" id="scan-feedback">Listo — apunta el lector al código de barras del artículo</div>
+
+      <div class="catalog-header">
+        <h2>Catálogo disponible</h2>
+        <div class="filter-chips" id="filter-chips"></div>
+      </div>
+
+      <div class="catalog-grid" id="catalog-grid">
+        <!-- Skeletons de carga -->
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+
+    <!-- ══ PANEL DERECHO: Carrito & Cobro ════════════════════════ -->
+    <div class="pos-right" id="pos-right">
+      <div class="cart-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="material-symbols-rounded">shopping_cart</span>
+          Carrito
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="cart-count" id="cart-count">0</span>
+          <button class="btn-vaciar" onclick="clearCart()">Vaciar</button>
+        </div>
+      </div>
+
+      <div class="cart-items" id="cart-items">
+        <div class="cart-empty">
+          <span class="material-symbols-rounded">shopping_cart</span>
+          <p>El carrito está vacío</p>
+          <p style="font-size:.78rem">Escanea o selecciona un artículo</p>
+        </div>
+      </div>
+
+      <div class="cart-totals">
+        <div class="total-row"><span>Subtotal</span><span id="total-subtotal">$0.00</span></div>
+        <div class="total-row"><span>Descuentos</span><span id="total-desc">-$0.00</span></div>
+        <div class="total-row grand"><span>Total</span><span id="total-final">$0.00</span></div>
+      </div>
+
+      <div class="cobro-panel">
+        <!-- Método de pago -->
+        <div style="font-size:.8rem; color:var(--text-muted); margin-bottom:4px;">Método de pago</div>
+        <div class="metodo-selector">
+          <button class="metodo-btn selected" data-metodo="efectivo" onclick="selectMetodo(this)">
+            <span class="material-symbols-rounded">payments</span>Efectivo
+          </button>
+          <button class="metodo-btn" data-metodo="transferencia" onclick="selectMetodo(this)">
+            <span class="material-symbols-rounded">phone_iphone</span>Transf.
+          </button>
+          <button class="metodo-btn" data-metodo="tarjeta" onclick="selectMetodo(this)">
+            <span class="material-symbols-rounded">credit_card</span>Tarjeta
+          </button>
+          <button class="metodo-btn" data-metodo="cheque" onclick="selectMetodo(this)">
+            <span class="material-symbols-rounded">assignment</span>Cheque
+          </button>
+          <button class="metodo-btn" data-metodo="credito_cliente" onclick="selectMetodo(this)">
+            <span class="material-symbols-rounded">account_balance</span>Crédito
+          </button>
+        </div>
+
+        <!-- Monto recibido (solo efectivo) -->
+        <div id="efectivo-row" class="cobro-input-row">
+          <label>Recibido:</label>
+          <input type="number" id="monto-recibido" min="0" step="0.01" placeholder="$0.00"
+            oninput="calcCambio()" />
+        </div>
+        <div class="cambio-display" id="cambio-display" style="display:none">
+          <span>Cambio</span><span id="cambio-valor">$0.00</span>
+        </div>
+
+        <!-- Referencia (transferencia/cheque) -->
+        <div id="ref-row" class="cobro-input-row" style="display:none">
+          <label>Ref.:</label>
+          <input type="text" id="pago-referencia" placeholder="Número de transferencia/cheque" />
+        </div>
+
+        <button class="btn-cobrar" id="btn-cobrar" onclick="procesarVenta()" disabled>
+          <span class="material-symbols-rounded">point_of_sale</span>
+          Cobrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Modal Ticket ═══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="ticket-modal">
+    <div class="modal-box" id="ticket-content">
+      <div class="ticket-header">
+        <div style="font-size:2rem">🪑</div>
+        <h3>Decor Mueblería</h3>
+        <p style="color:var(--text-muted); font-size:.8rem">Venta #<span class="ticket-folio" id="t-folio">000000</span></p>
+        <p style="color:var(--text-muted); font-size:.75rem" id="t-fecha"></p>
+      </div>
+      <div class="ticket-body">
+        <table>
+          <thead><tr><th>Artículo</th><th>Cant.</th><th>Precio</th><th>Total</th></tr></thead>
+          <tbody id="t-items"></tbody>
+        </table>
+        <div class="ticket-total"><span>TOTAL</span><span id="t-total"></span></div>
+        <div style="margin-top:8px; font-size:.8rem; color:var(--text-muted)">
+          Método: <span id="t-metodo" style="color:var(--text)">—</span>
+        </div>
+      </div>
+      <div class="ticket-actions">
+        <button class="btn-secondary" onclick="closeTicket()">Nueva Venta</button>
+        <button class="btn-print" onclick="printTicket()">
+          <span class="material-symbols-rounded">print</span> Imprimir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast global -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="../assets/js/api.js"></script>
+  <script>
+    // ── ESTADO ─────────────────────────────────────────────────
+    let cart    = [];
+    let catalog = [];
+    let metodoActual = 'efectivo';
+    let cajaId  = null;
+    let tiendaId = 1; // Por defecto tienda principal; se puede extender
+    let procesando = false;
+
+    // ── INIT ───────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Corregir base de ruta para sidebar
+      const bp = basePath;
+      document.querySelectorAll('a[href^="/views/"]').forEach(a => {
+        a.href = bp + a.getAttribute('href');
+      });
+
+      const user = await loadCurrentUser();
+      if (!user) return;
+
+      // Obtener / crear caja abierta
+      await initCaja();
+      await loadCatalog();
+      setupScanInterceptor();
+    });
+
+    // ── CAJA ───────────────────────────────────────────────────
+    async function initCaja() {
+      // Buscar caja abierta para hoy; si no existe, crear una
+      try {
+        const resp = await api(`/ventas/caja.php?tienda_id=${tiendaId}`, 'GET');
+        if (resp?.caja_id) {
+          cajaId = resp.caja_id;
+        }
+      } catch {
+        showToast('No se pudo obtener información de caja', 'err');
+      }
+    }
+
+    // ── CATÁLOGO ───────────────────────────────────────────────
+    async function loadCatalog() {
+      try {
+        const data = await api(`/inventario/catalogo.php?tienda_id=${tiendaId}`, 'GET');
+        catalog = data?.items || [];
+        renderCatalog(catalog);
+        buildFilterChips();
+      } catch {
+        document.getElementById('catalog-grid').innerHTML =
+          '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1; padding:40px">No se pudo cargar el catálogo</p>';
+      }
+    }
+
+    function renderCatalog(items) {
+      const grid = document.getElementById('catalog-grid');
+      if (!items.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1; padding:40px">Sin artículos disponibles en esta tienda</p>';
+        return;
+      }
+      grid.innerHTML = items.map(p => `
+        <div class="product-card ${p.stock_disponible <= 0 ? 'no-stock' : ''}"
+             onclick="addToCart(${p.id})">
+          <div class="product-icon">${iconForCategory(p.categoria)}</div>
+          ${p.es_pieza_unica ? '<span class="badge-unique">⭐ Pieza única</span>' : ''}
+          <div class="product-name">${p.nombre}</div>
+          <div class="product-sku">${p.codigo_sku}</div>
+          <div class="product-price">${fmt(p.precio_venta)}</div>
+          <div class="product-stock">Stock: ${p.stock_disponible}</div>
+        </div>
+      `).join('');
+    }
+
+    function buildFilterChips() {
+      const cats = [...new Set(catalog.map(p => p.categoria).filter(Boolean))];
+      const wrap = document.getElementById('filter-chips');
+      wrap.innerHTML = `<button class="chip active" data-cat="" onclick="filterCatalog(this)">Todos</button>` +
+        cats.map(c => `<button class="chip" data-cat="${c}" onclick="filterCatalog(this)">${c}</button>`).join('');
+    }
+
+    function filterCatalog(btn) {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const cat = btn.dataset.cat;
+      renderCatalog(cat ? catalog.filter(p => p.categoria === cat) : catalog);
+    }
+
+    function iconForCategory(cat) {
+      const map = {
+        'Sillas':'🪑','Mesas':'🪵','Camas':'🛏','Cómodas':'🗄','Barras':'🍺',
+        'Artesanías':'🏺','Decoración':'🖼','Libreros':'📚','Escritorios':'🖥',
+        'Gabinetes':'🗃','Bancos':'🪑','Cabeceras':'🛏'
+      };
+      return map[cat] || '🛋';
+    }
+
+    // ── ESCÁNER (Interceptor de Teclado) ──────────────────────
+    function setupScanInterceptor() {
+      const input = document.getElementById('scan-input');
+      let buffer = '';
+      let scanTimer;
+
+      // El lector de barras escribe muy rápido (<50ms entre char) y termina con Enter
+      document.addEventListener('keypress', (e) => {
+        // Si el foco está en otro input numérico, no interferir
+        const tag = document.activeElement?.tagName;
+        const type = document.activeElement?.type;
+        if (tag === 'INPUT' && type !== 'text' && document.activeElement !== input) return;
+
+        if (e.key === 'Enter') {
+          clearTimeout(scanTimer);
+          const codigo = buffer.trim() || input.value.trim();
+          if (codigo) processScan(codigo);
+          buffer = '';
+          input.value = '';
+        } else {
+          buffer += e.key;
+          clearTimeout(scanTimer);
+          scanTimer = setTimeout(() => { buffer = ''; }, 150);
+        }
+      });
+
+      // También soportar escritura manual en el input + Enter
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const codigo = input.value.trim();
+          if (codigo) processScan(codigo);
+          input.value = '';
+        }
+      });
+
+      // Mantener foco en el input si el usuario da click fuera
+      document.addEventListener('click', (e) => {
+        const tag = e.target.closest('.cobro-input-row, .cart-item-controls, button, a');
+        if (!tag) setTimeout(() => input.focus(), 50);
+      });
+    }
+
+    async function processScan(codigo) {
+      setFeedback('Buscando código: ' + codigo + '…', '');
+      try {
+        const res = await api(`/inventario/scan.php?codigo=${encodeURIComponent(codigo)}&tienda_id=${tiendaId}`);
+        if (res?.ok && res.tipo_item === 'producto') {
+          addToCartByScan(res.data);
+        } else {
+          setFeedback('Código no encontrado: ' + codigo, 'err');
+        }
+      } catch (e) {
+        setFeedback(e.message || 'Error al buscar código', 'err');
+      }
+    }
+
+    function setFeedback(text, type) {
+      const el = document.getElementById('scan-feedback');
+      el.textContent = text;
+      el.className = 'scan-feedback ' + type;
+    }
+
+    // ── CARRITO ────────────────────────────────────────────────
+    function findInCatalog(id) {
+      return catalog.find(p => p.id == id);
+    }
+
+    function addToCart(productoId) {
+      const prod = findInCatalog(productoId);
+      if (!prod) return;
+      addToCartByScan(prod);
+    }
+
+    function addToCartByScan(prod) {
+      if (prod.stock_disponible <= 0) {
+        setFeedback('Sin stock disponible: ' + prod.nombre, 'err');
+        return;
+      }
+      const existing = cart.find(item => item.producto_id === prod.id && !prod.es_pieza_unica);
+      if (existing) {
+        if (existing.cantidad >= prod.stock_disponible) {
+          setFeedback('Stock máximo alcanzado para: ' + prod.nombre, 'err'); return;
+        }
+        existing.cantidad++;
+      } else {
+        cart.push({
+          inventario_tienda_id: prod.inventario_tienda_id,
+          producto_id:          prod.id,
+          nombre:               prod.nombre,
+          codigo_sku:           prod.codigo_sku,
+          precio_unitario:      prod.precio_venta,
+          descuento_item:       0,
+          cantidad:             1,
+          es_pieza_unica:       prod.es_pieza_unica,
+          stock_disponible:     prod.stock_disponible
+        });
+      }
+      setFeedback('✔ Agregado: ' + prod.nombre, 'ok');
+      renderCart();
+    }
+
+    function changeQty(idx, delta) {
+      const item = cart[idx];
+      const newQty = item.cantidad + delta;
+      if (newQty < 1)                         { removeItem(idx); return; }
+      if (newQty > item.stock_disponible)      { showToast('Sin más stock disponible', 'err'); return; }
+      item.cantidad = newQty;
+      renderCart();
+    }
+
+    function removeItem(idx) {
+      cart.splice(idx, 1);
+      renderCart();
+    }
+
+    function clearCart() {
+      if (cart.length && !confirm('¿Vaciar el carrito?')) return;
+      cart = [];
+      renderCart();
+      document.getElementById('scan-input').focus();
+    }
+
+    function renderCart() {
+      const wrap = document.getElementById('cart-items');
+      const count = cart.reduce((s, i) => s + i.cantidad, 0);
+      document.getElementById('cart-count').textContent = count;
+
+      if (!cart.length) {
+        wrap.innerHTML = `
+          <div class="cart-empty">
+            <span class="material-symbols-rounded">shopping_cart</span>
+            <p>El carrito está vacío</p>
+            <p style="font-size:.78rem">Escanea o selecciona un artículo</p>
+          </div>`;
+        updateTotals(0, 0);
+        document.getElementById('btn-cobrar').disabled = true;
+        return;
+      }
+
+      wrap.innerHTML = cart.map((item, idx) => `
+        <div class="cart-item">
+          <div>
+            <div class="cart-item-name">${item.nombre}</div>
+            <div class="cart-item-sku">${item.codigo_sku}</div>
+            <div class="cart-item-controls">
+              <button class="qty-btn" onclick="changeQty(${idx}, -1)">−</button>
+              <span class="qty-display">${item.cantidad}</span>
+              <button class="qty-btn" onclick="changeQty(${idx}, +1)">+</button>
+              <button class="cart-item-remove" onclick="removeItem(${idx})">✕ Quitar</button>
+            </div>
+          </div>
+          <div class="cart-item-subtotal">${fmt(item.precio_unitario * item.cantidad)}</div>
+        </div>
+      `).join('');
+
+      const subtotal = cart.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0);
+      const desc     = cart.reduce((s, i) => s + i.descuento_item, 0);
+      updateTotals(subtotal, desc);
+      document.getElementById('btn-cobrar').disabled = false;
+      calcCambio();
+    }
+
+    function updateTotals(subtotal, desc) {
+      const total = subtotal - desc;
+      document.getElementById('total-subtotal').textContent = fmt(subtotal);
+      document.getElementById('total-desc').textContent     = '-' + fmt(desc);
+      document.getElementById('total-final').textContent    = fmt(total);
+    }
+
+    function getTotal() {
+      return cart.reduce((s, i) => s + (i.precio_unitario * i.cantidad) - i.descuento_item, 0);
+    }
+
+    // ── MÉTODO DE PAGO ─────────────────────────────────────────
+    function selectMetodo(btn) {
+      document.querySelectorAll('.metodo-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      metodoActual = btn.dataset.metodo;
+
+      const efectivoRow = document.getElementById('efectivo-row');
+      const refRow      = document.getElementById('ref-row');
+      const cambio      = document.getElementById('cambio-display');
+      efectivoRow.style.display = metodoActual === 'efectivo' ? '' : 'none';
+      cambio.style.display      = metodoActual === 'efectivo' ? ''  : 'none';
+      refRow.style.display      = ['transferencia','cheque'].includes(metodoActual) ? '' : 'none';
+    }
+
+    function calcCambio() {
+      const total    = getTotal();
+      const recibido = parseFloat(document.getElementById('monto-recibido').value) || 0;
+      const cambio   = recibido - total;
+      const el       = document.getElementById('cambio-display');
+      if (recibido > 0) {
+        el.style.display = '';
+        document.getElementById('cambio-valor').textContent = fmt(Math.max(0, cambio));
+        el.style.borderColor = cambio >= 0 ? 'var(--green)' : 'var(--red)';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // ── PROCESAR VENTA ─────────────────────────────────────────
+    async function procesarVenta() {
+      if (procesando || !cart.length) return;
+      const total = getTotal();
+      if (total <= 0) { showToast('Total inválido', 'err'); return; }
+
+      // Validación efectivo
+      if (metodoActual === 'efectivo') {
+        const recibido = parseFloat(document.getElementById('monto-recibido').value) || 0;
+        if (recibido < total) { showToast('El monto recibido es menor al total', 'err'); return; }
+      }
+
+      if (!cajaId) {
+        showToast('No hay caja abierta. Contacta al administrador.', 'err');
+        return;
+      }
+
+      procesando = true;
+      document.getElementById('btn-cobrar').disabled = true;
+      document.getElementById('btn-cobrar').textContent = 'Procesando…';
+
+      const payload = {
+        tienda_id: tiendaId,
+        caja_id:   cajaId,
+        items:     cart.map(i => ({
+          inventario_tienda_id: i.inventario_tienda_id,
+          producto_id:          i.producto_id,
+          cantidad:             i.cantidad,
+          precio_unitario:      i.precio_unitario,
+          descuento_item:       i.descuento_item
+        })),
+        pagos: [{
+          metodo:     metodoActual,
+          monto:      total,
+          referencia: document.getElementById('pago-referencia')?.value || null
+        }]
+      };
+
+      try {
+        const res = await api('/ventas/checkout.php', 'POST', payload);
+        if (res?.ok) {
+          showTicket(res);
+        }
+      } catch (e) {
+        showToast(e.message || 'Error al procesar la venta', 'err');
+        document.getElementById('btn-cobrar').disabled = false;
+        document.getElementById('btn-cobrar').innerHTML =
+          '<span class="material-symbols-rounded">point_of_sale</span> Cobrar';
+      } finally {
+        procesando = false;
+      }
+    }
+
+    // ── TICKET ─────────────────────────────────────────────────
+    function showTicket(res) {
+      document.getElementById('t-folio').textContent  = res.folio;
+      document.getElementById('t-fecha').textContent  = new Date().toLocaleString('es-MX');
+      document.getElementById('t-total').textContent  = fmt(res.total);
+      document.getElementById('t-metodo').textContent = metodoActual.replace('_', ' ');
+      document.getElementById('t-items').innerHTML = cart.map(i => `
+        <tr>
+          <td>${i.nombre}</td>
+          <td style="text-align:center">${i.cantidad}</td>
+          <td>${fmt(i.precio_unitario)}</td>
+          <td style="text-align:right">${fmt(i.precio_unitario * i.cantidad)}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('ticket-modal').classList.add('open');
+    }
+
+    function closeTicket() {
+      document.getElementById('ticket-modal').classList.remove('open');
+      cart = [];
+      renderCart();
+      document.getElementById('monto-recibido').value = '';
+      document.getElementById('pago-referencia').value = '';
+      document.getElementById('btn-cobrar').innerHTML =
+        '<span class="material-symbols-rounded">point_of_sale</span> Cobrar';
+      document.getElementById('scan-input').focus();
+      setFeedback('Venta completada. Listo para el siguiente cliente.', 'ok');
+    }
+
+    function printTicket() {
+      window.print();
+    }
+
+    // ── UTILIDADES ─────────────────────────────────────────────
+    function fmt(n) {
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0);
+    }
+
+    function showToast(msg, type = '') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className   = `toast ${type} show`;
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>

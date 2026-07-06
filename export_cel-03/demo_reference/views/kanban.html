@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tablero Kanban — Decor Mueblería</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    .kanban-board { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; min-height:calc(100vh - 160px); align-items:start; }
+    @media(max-width:900px) { .kanban-board { grid-template-columns:1fr 1fr; } }
+    @media(max-width:600px) { .kanban-board { grid-template-columns:1fr; } }
+
+    .kanban-col { background:var(--color-gray-50); border-radius:12px; padding:12px; min-height:200px; }
+    .kanban-col-header {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 8px; margin-bottom:12px; font-size:.85rem; font-weight:700;
+      border-radius:8px;
+    }
+    .kanban-col-header .count { font-weight:400; color:var(--color-gray-500); margin-left:auto; font-size:.75rem; }
+    .col-pendiente   .kanban-col-header { background:rgba(119,124,150,.1); color:#555; }
+    .col-en_progreso .kanban-col-header { background:rgba(0,123,255,.08);  color:#007bff; }
+    .col-en_revision .kanban-col-header { background:rgba(192,122,58,.1);  color:#c07a3a; }
+    .col-terminado   .kanban-col-header { background:rgba(40,167,69,.08); color:#28a745; }
+
+    .k-card {
+      background:var(--color-white); border:1px solid var(--color-gray-200); border-radius:10px;
+      padding:12px; margin-bottom:10px; transition:border-color .15s, transform .15s;
+      cursor:default;
+    }
+    .k-card:hover { border-color:#c07a3a; transform:translateY(-1px); }
+    .k-card-title { font-size:.88rem; font-weight:700; margin-bottom:4px; }
+    .k-card-sub { font-size:.75rem; color:var(--color-gray-500); display:flex; flex-direction:column; gap:2px; }
+    .k-card-sub span { display:flex; align-items:center; gap:4px; }
+    .k-card-sub .material-symbols-rounded { font-size:14px; }
+    .k-actions { margin-top:8px; display:flex; gap:6px; }
+    .k-btn {
+      flex:1; padding:6px; border-radius:6px; font-size:.75rem; font-weight:600;
+      cursor:pointer; border:1px solid; text-align:center; transition:all .15s;
+    }
+    .k-btn-blue   { background:rgba(0,123,255,.06); border-color:#007bff; color:#007bff; }
+    .k-btn-blue:hover   { background:#007bff; color:#fff; }
+    .k-btn-orange { background:rgba(192,122,58,.06); border-color:#c07a3a; color:#c07a3a; }
+    .k-btn-orange:hover { background:#c07a3a; color:#fff; }
+    .k-btn-green  { background:rgba(40,167,69,.06);  border-color:#28a745; color:#28a745; }
+    .k-btn-green:hover  { background:#28a745; color:#fff; }
+    .k-btn-red    { background:rgba(220,53,69,.05);  border-color:#dc3545; color:#dc3545; }
+    .k-btn-red:hover    { background:#dc3545; color:#fff; }
+
+    .rechazos-badge { background:rgba(220,53,69,.1); color:#dc3545; font-size:.65rem; font-weight:700; padding:1px 5px; border-radius:6px; }
+    .empty-col { text-align:center; color:var(--color-gray-400); font-size:.82rem; padding:20px 0; }
+  </style>
+</head>
+<body class="app-layout">
+  <aside class="app-sidebar" id="sidebar-container"></aside>
+  <main class="app-main">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">Mi Tablero Kanban</h1>
+        <p class="page-subtitle">Vista de piezas asignadas por estatus de producción</p>
+      </div>
+    </header>
+
+    <div class="kanban-board" id="kanban-board">
+      <div class="kanban-col col-pendiente" id="col-pendiente">
+        <div class="kanban-col-header">⏳ Pendientes <span class="count">0</span></div>
+      </div>
+      <div class="kanban-col col-en_progreso" id="col-en_progreso">
+        <div class="kanban-col-header">🔨 En Progreso <span class="count">0</span></div>
+      </div>
+      <div class="kanban-col col-en_revision" id="col-en_revision">
+        <div class="kanban-col-header">👁 En Revisión <span class="count">0</span></div>
+      </div>
+      <div class="kanban-col col-terminado" id="col-terminado">
+        <div class="kanban-col-header">✅ Terminadas <span class="count">0</span></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../assets/js/api.js"></script>
+  <script>
+    let workOrders = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadSidebar('kanban.html');
+      const user = await loadCurrentUser();
+      if (!user) return;
+      applyRoleVisibility();
+      await loadData();
+    });
+
+    async function loadSidebar(activePage) {
+      try {
+        const resp = await fetch(basePath + '/views/dashboard.html');
+        const html = await resp.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const sidebar = doc.querySelector('.app-sidebar');
+        if (sidebar) {
+          document.getElementById('sidebar-container').outerHTML = sidebar.outerHTML;
+          document.querySelectorAll('.app-sidebar a[href^="/views/"]').forEach(a => {
+            a.href = basePath + a.getAttribute('href');
+          });
+          document.querySelectorAll('.app-sidebar .nav-item').forEach(a => {
+            a.classList.remove('active');
+            if (a.href.includes(activePage)) a.classList.add('active');
+          });
+        }
+      } catch(e) {}
+    }
+
+    async function loadData() {
+      try {
+        const res = await api('/produccion/work_orders.php');
+        workOrders = res?.items || [];
+        renderBoard();
+      } catch(e) {
+        document.getElementById('kanban-board').innerHTML =
+          '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--color-gray-500)">Error cargando work orders</div>';
+      }
+    }
+
+    function renderBoard() {
+      const cols = ['pendiente','en_progreso','en_revision','terminado'];
+      cols.forEach(status => {
+        const items = workOrders.filter(w => w.estatus === status);
+        const col = document.getElementById('col-' + status);
+        // Update count
+        col.querySelector('.count').textContent = items.length;
+        // Remove old cards
+        col.querySelectorAll('.k-card').forEach(c => c.remove());
+        col.querySelectorAll('.empty-col').forEach(c => c.remove());
+
+        if (!items.length) {
+          col.innerHTML += '<div class="empty-col">Sin piezas aquí</div>';
+          return;
+        }
+
+        items.forEach(w => {
+          const card = document.createElement('div');
+          card.className = 'k-card';
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:start">
+              <div class="k-card-title">${w.producto_nombre}</div>
+              ${w.rechazos > 0 ? `<span class="rechazos-badge">↩${w.rechazos}</span>` : ''}
+            </div>
+            <div class="k-card-sub">
+              <span><span class="material-symbols-rounded">tag</span>${w.codigo_sku} · x${w.cantidad}</span>
+              <span><span class="material-symbols-rounded">person</span>${w.empleado_nombre}</span>
+              <span><span class="material-symbols-rounded">palette</span>${w.acabado_nombre || 'Sin acabado'}</span>
+              <span><span class="material-symbols-rounded">group</span>${w.cliente_nombre || '—'}</span>
+            </div>
+            <div class="k-actions">
+              ${status==='pendiente'   ? `<button class="k-btn k-btn-blue" onclick="doAction(${w.id},'iniciar')">▶ Iniciar</button>` : ''}
+              ${status==='en_progreso' ? `<button class="k-btn k-btn-orange" onclick="doAction(${w.id},'revisar')">👁 Revisión</button>` : ''}
+              ${status==='en_revision' ? `
+                <button class="k-btn k-btn-green" onclick="doAction(${w.id},'terminar')">✓ Aprobar</button>
+                <button class="k-btn k-btn-red" onclick="doAction(${w.id},'rechazar')">↩ Rechazar</button>
+              ` : ''}
+            </div>
+          `;
+          col.appendChild(card);
+        });
+      });
+    }
+
+    async function doAction(id, action) {
+      let body = { id, action };
+      if (action === 'rechazar') {
+        const notas = prompt('Motivo del rechazo:');
+        if (notas === null) return;
+        body.notas_calidad = notas;
+      }
+      try {
+        await api('/produccion/work_orders.php', 'POST', body);
+        await loadData();
+      } catch(e) { alert(e.message); }
+    }
+  </script>
+</body>
+</html>

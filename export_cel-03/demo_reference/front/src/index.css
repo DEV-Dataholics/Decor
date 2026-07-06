@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: #09090b;
+    color: #e4e4e7;
+    min-height: 100vh;
+  }
+
+  /* Custom Scrollbar - Dark Theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(113, 113, 122, 0.4);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(113, 113, 122, 0.6);
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(245, 158, 11, 0.3);
+    color: #fcd34d;
+  }
+}
+
+@layer components {
+  /* Glass Surface Card */
+  .glass-card {
+    @apply bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-2xl;
+  }
+
+  /* Subtle glow effect for accent elements */
+  .glow-amber {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.15), 0 0 40px rgba(245, 158, 11, 0.05);
+  }
+
+  /* Input base style */
+  .input-dark {
+    @apply w-full bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-4 py-3 text-sm text-zinc-100 
+    placeholder:text-zinc-500 outline-none transition-all duration-200
+    focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 focus:bg-zinc-800;
+  }
+
+  /* Button base */
+  .btn-primary {
+    @apply bg-amber-500 hover:bg-amber-400 text-zinc-900 font-semibold px-5 py-2.5 rounded-xl 
+    transition-all duration-200 flex items-center gap-2 text-sm shadow-lg shadow-amber-500/20
+    active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-zinc-700/50 hover:bg-zinc-700 text-zinc-200 font-medium px-4 py-2.5 rounded-xl 
+    border border-zinc-600/50 transition-all duration-200 flex items-center gap-2 text-sm
+    active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 font-medium px-3 py-2 rounded-lg 
+    transition-all duration-200 flex items-center gap-2 text-sm;
+  }
+
+  .btn-danger {
+    @apply bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-medium px-4 py-2.5 rounded-xl 
+    border border-red-500/20 transition-all duration-200 flex items-center gap-2 text-sm;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

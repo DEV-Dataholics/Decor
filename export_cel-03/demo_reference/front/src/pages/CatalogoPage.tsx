@@ -1,0 +1,262 @@
+import { useState, useMemo } from 'react';
+import { Search, Grid3X3, List, X, Save, Ruler, Upload } from 'lucide-react';
+import { useDecor } from '../store/StoreContext';
+
+export default function CatalogoPage() {
+  const { productos, acabados, clientes, updateProducto } = useDecor();
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('');
+  const [finishFilter, setFinishFilter] = useState('');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      if (selectedId) updateProducto(selectedId, editForm);
+      setIsEditing(false);
+    } else {
+      setEditForm(JSON.parse(JSON.stringify(productos.find(p => p.id === selectedId) || {})));
+      setIsEditing(true);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setEditForm((prev: any) => ({ ...prev, image_url: dataUrl }));
+        };
+        img.src = ev.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const filtered = useMemo(() => productos.filter(p => {
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.sku.toLowerCase().includes(search.toLowerCase())) return false;
+    if (catFilter && p.type !== catFilter) return false;
+    if (finishFilter && !p.finishes?.includes(finishFilter)) return false;
+    return true;
+  }), [productos, search, catFilter, finishFilter]);
+
+  const selected = selectedId ? productos.find(p => p.id === selectedId) : null;
+  const types = useMemo(() => [...new Set(productos.map(p => p.type))].sort(), [productos]);
+
+  return (
+    <div className="space-y-5">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+          <input value={search} onChange={e => setSearch(e.target.value)} className="input-dark pl-10" placeholder="Buscar por nombre o SKU..." />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>}
+        </div>
+        <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="input-dark w-full sm:w-48">
+          <option value="" className="bg-zinc-900">Todas las categorías</option>
+          {types.map(t => <option key={t} value={t} className="bg-zinc-900">{t}</option>)}
+        </select>
+        <select value={finishFilter} onChange={e => setFinishFilter(e.target.value)} className="input-dark w-full sm:w-40">
+          <option value="" className="bg-zinc-900">Todos los acabados</option>
+          {acabados.map(a => <option key={a} value={a} className="bg-zinc-900">{a}</option>)}
+        </select>
+        <button onClick={() => setView(view === 'grid' ? 'list' : 'grid')} className="btn-ghost shrink-0">{view === 'grid' ? <List size={16} /> : <Grid3X3 size={16} />}</button>
+      </div>
+
+      <p className="text-xs text-zinc-500">{filtered.length} productos</p>
+
+      {/* Grid view */}
+      {view === 'grid' ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {filtered.slice(0, 60).map(prod => (
+            <button key={prod.id} onClick={() => setSelectedId(prod.id)} className="glass-card p-4 text-left hover:border-amber-500/20 transition-all space-y-2">
+              <div className="w-full aspect-square bg-zinc-800/50 rounded-lg flex items-center justify-center overflow-hidden text-3xl">
+                {prod.image_url ? <img src={prod.image_url} alt={prod.name} className="w-full h-full object-contain" /> : '🪑'}
+              </div>
+              <p className="text-xs font-bold text-zinc-200 leading-tight truncate">{prod.name}</p>
+              <p className="text-[10px] text-zinc-500">{prod.type}</p>
+              {prod.dimensions && (
+                <p className="text-[9px] text-zinc-600 flex items-center gap-0.5"><Ruler size={8} /> {prod.dimensions.width}×{prod.dimensions.height}×{prod.dimensions.depth}″</p>
+              )}
+              <div className="flex flex-wrap gap-0.5">
+                {prod.finishes?.slice(0, 2).map(f => (
+                  <span key={f} className="text-[8px] bg-amber-500/10 text-amber-400 px-1 py-0 rounded">{f}</span>
+                ))}
+                {(prod.finishes?.length || 0) > 2 && <span className="text-[8px] text-zinc-600">+{prod.finishes!.length - 2}</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="glass-card overflow-hidden">
+          <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-zinc-800/30 border-b border-zinc-700/30 text-[10px] font-semibold text-zinc-500 uppercase">
+            <div className="col-span-4">Producto</div><div className="col-span-2">Categoría</div><div className="col-span-2">Medidas</div><div className="col-span-2">Acabados</div><div className="col-span-2 text-right">SKU</div>
+          </div>
+          {filtered.slice(0, 80).map(prod => (
+            <button key={prod.id} onClick={() => setSelectedId(prod.id)} className="w-full grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-800/20 hover:bg-zinc-800/20 transition-colors items-center text-left">
+              <div className="col-span-4 text-xs font-semibold text-zinc-200 truncate">{prod.name}</div>
+              <div className="col-span-2 text-xs text-zinc-500">{prod.type}</div>
+              <div className="col-span-2 text-[10px] text-zinc-500">{prod.dimensions ? `${prod.dimensions.width}×${prod.dimensions.height}×${prod.dimensions.depth}″` : '—'}</div>
+              <div className="col-span-2 text-[10px] text-amber-400 truncate">{prod.finishes?.slice(0, 2).join(', ')}</div>
+              <div className="col-span-2 text-right text-[10px] font-mono text-zinc-600">{prod.sku}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-lg max-h-[80vh] overflow-y-auto animate-scale-in">
+            <div className="px-6 py-4 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-800/90 backdrop-blur-sm">
+              <h3 className="font-bold text-zinc-100 truncate pr-4">
+                {isEditing ? <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="input-dark text-lg font-bold py-1 px-2 w-full" /> : selected.name}
+              </h3>
+              <div className="flex gap-2">
+                <button onClick={handleEditToggle} className="btn-primary shrink-0 py-1 px-3 text-xs">
+                  {isEditing ? <><Save size={14} /> Guardar</> : 'Editar'}
+                </button>
+                <button onClick={() => { setSelectedId(null); setIsEditing(false); }} className="text-zinc-500 hover:text-zinc-300 shrink-0"><X size={18} /></button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="w-full aspect-video bg-zinc-800/50 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group">
+                {(isEditing ? editForm.image_url : selected.image_url) ? (
+                  <img src={isEditing ? editForm.image_url : selected.image_url} alt={selected.name} className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-6xl">🪑</span>
+                )}
+                {isEditing && (
+                  <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <div className="text-zinc-200 text-sm font-semibold bg-zinc-800/80 px-4 py-2 rounded-lg flex items-center gap-2">
+                      <Upload size={16} /> Cambiar Foto
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="bg-zinc-800/40 p-3 rounded-lg">
+                  <span className="text-zinc-500 block text-[10px] mb-1">SKU</span>
+                  {isEditing ? <input type="text" value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} className="input-dark py-1 text-xs w-full" /> : <span className="font-mono text-zinc-300">{selected.sku}</span>}
+                </div>
+                <div className="bg-zinc-800/40 p-3 rounded-lg">
+                  <span className="text-zinc-500 block text-[10px] mb-1">Categoría</span>
+                  {isEditing ? (
+                    <select value={editForm.type} onChange={e => setEditForm({ ...editForm, type: e.target.value })} className="input-dark py-1 text-xs w-full">
+                      {types.map(t => <option key={t} value={t} className="bg-zinc-900">{t}</option>)}
+                    </select>
+                  ) : <span className="text-zinc-300">{selected.type}</span>}
+                </div>
+                <div className="bg-zinc-800/40 p-3 rounded-lg">
+                  <span className="text-zinc-500 block text-[10px] mb-1">Costo Prod. ($)</span>
+                  {isEditing ? (
+                    <input 
+                      type="number" 
+                      value={editForm.costo_produccion ?? ''} 
+                      onChange={e => setEditForm({ ...editForm, costo_produccion: Number(e.target.value) })} 
+                      onFocus={e => e.target.select()}
+                      className="input-dark py-1 text-xs w-full font-bold text-amber-400" 
+                      min="0"
+                    />
+                  ) : (
+                    <span className="font-bold text-amber-400">
+                      {selected.costo_produccion ? `$${selected.costo_produccion}` : '⚠️ Sin asignar'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="bg-zinc-800/40 p-3 rounded-lg">
+                <span className="text-zinc-500 text-[10px] block mb-1">Dimensiones (pulgadas)</span>
+                {isEditing ? (
+                  <div className="flex gap-2 text-sm font-bold text-zinc-200">
+                    <div className="flex items-center gap-1">An: <input type="number" value={editForm.dimensions?.width || 0} onChange={e => setEditForm({ ...editForm, dimensions: { ...editForm.dimensions, width: Number(e.target.value) } })} className="input-dark w-16 py-1 text-xs" />″</div>
+                    <div className="flex items-center gap-1">Al: <input type="number" value={editForm.dimensions?.height || 0} onChange={e => setEditForm({ ...editForm, dimensions: { ...editForm.dimensions, height: Number(e.target.value) } })} className="input-dark w-16 py-1 text-xs" />″</div>
+                    <div className="flex items-center gap-1">Fo: <input type="number" value={editForm.dimensions?.depth || 0} onChange={e => setEditForm({ ...editForm, dimensions: { ...editForm.dimensions, depth: Number(e.target.value) } })} className="input-dark w-16 py-1 text-xs" />″</div>
+                  </div>
+                ) : (
+                  selected.dimensions && (
+                    <div className="flex gap-4 text-sm font-bold text-zinc-200">
+                      <span>Ancho: {selected.dimensions.width}″</span>
+                      <span>Alto: {selected.dimensions.height}″</span>
+                      <span>Fondo: {selected.dimensions.depth}″</span>
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div>
+                <span className="text-zinc-500 text-[10px] block mb-1">Acabados Disponibles</span>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-2">
+                    {acabados.map(a => (
+                      <label key={a} className="flex items-center gap-1 text-xs text-zinc-300 cursor-pointer">
+                        <input type="checkbox" checked={editForm.finishes?.includes(a)} onChange={e => {
+                          const newFinishes = e.target.checked ? [...(editForm.finishes || []), a] : (editForm.finishes || []).filter((f: string) => f !== a);
+                          setEditForm({ ...editForm, finishes: newFinishes });
+                        }} className="accent-amber-500" />
+                        {a}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  selected.finishes && (
+                    <div className="flex flex-wrap gap-1.5">{selected.finishes.map(f => <span key={f} className="bg-amber-500/10 text-amber-400 text-[10px] px-2 py-0.5 rounded-full font-semibold">{f}</span>)}</div>
+                  )
+                )}
+              </div>
+
+              <div>
+                <span className="text-zinc-500 text-[10px] block mb-2">Precios por Cliente</span>
+                <div className="space-y-1">
+                  {isEditing ? (
+                    clientes.map(cli => (
+                      <div key={cli.nombre} className="flex justify-between items-center bg-zinc-800/40 px-3 py-2 rounded-lg gap-2">
+                        <span className="text-xs text-zinc-400 flex-1 truncate">{cli.nombre}</span>
+                        <div className="relative w-32">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">$</span>
+                          <input type="number" value={editForm.prices?.[cli.nombre] || 0} onChange={e => setEditForm({ ...editForm, prices: { ...editForm.prices, [cli.nombre]: Number(e.target.value) } })} className="input-dark w-full pl-6 py-1 text-xs text-right" />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    Object.entries(selected.prices).map(([cli, price]) => (
+                      <div key={cli} className="flex justify-between bg-zinc-800/40 px-3 py-2 rounded-lg">
+                        <span className="text-xs text-zinc-400">{cli}</span>
+                        <span className="text-xs font-bold text-zinc-200">${price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
