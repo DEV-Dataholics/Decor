@@ -28,9 +28,11 @@ export default function RepartoPage() {
     updateEmbarqueStatus(id, 'en_transito');
   };
 
-  const handleFinalizarEntrega = (id: number) => {
-    // Al finalizar entrega, pasa a 'en_sucursal' para que la tienda haga el recibo
-    updateEmbarqueStatus(id, 'en_sucursal');
+  const handleFinalizarEntrega = (emb: Embarque) => {
+    // Si va a una tienda física, pasa a 'en_sucursal' para que la tienda haga el recibo.
+    // Si es cliente directo (tienda_destino_id es 0 o null), pasa directamente a 'entregado'.
+    const nextStatus = (emb.tienda_destino_id && emb.tienda_destino_id > 0) ? 'en_sucursal' : 'entregado';
+    updateEmbarqueStatus(emb.id, nextStatus);
     setActiveRouteId(null);
   };
 
@@ -104,7 +106,7 @@ export default function RepartoPage() {
 
             {isEnTransito && (
               <button 
-                onClick={() => handleFinalizarEntrega(activeRoute.id)}
+                onClick={() => handleFinalizarEntrega(activeRoute)}
                 className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 text-sm shadow-xl shadow-emerald-500/20 active:scale-98 transition-all"
               >
                 🏁 Finalizar Entrega (Llegada a Sucursal)
