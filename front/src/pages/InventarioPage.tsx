@@ -45,7 +45,7 @@ export default function InventarioPage() {
     setActiveRecepcionEmb(emb);
     setRecepcionItems(emb.items.map(item => ({
       ...item,
-      estado_recepcion: (item.estado_recepcion || 'ok') as any
+      estado_recepcion: (item.estado_recepcion === 'pendiente' || !item.estado_recepcion) ? 'ok' : item.estado_recepcion as any
     })));
   };
 
