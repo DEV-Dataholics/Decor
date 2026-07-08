@@ -33,8 +33,8 @@ try {
     if (!$embarque) {
         throw new Exception("Embarque no encontrado");
     }
-    if ($embarque['estatus'] !== 'en_transito' && $embarque['estatus'] !== 'embarcado') {
-        throw new Exception("El embarque no está en tránsito o embarcado para ser recibido (Estado actual: " . $embarque['estatus'] . ")");
+    if ($embarque['estatus'] !== 'en_transito' && $embarque['estatus'] !== 'embarcado' && $embarque['estatus'] !== 'en_sucursal') {
+        throw new Exception("El embarque no está en un estado válido para ser recibido (Estado actual: " . $embarque['estatus'] . ")");
     }
 
     $tienda_destino_id = $embarque['tienda_destino_id'];
