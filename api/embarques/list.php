@@ -54,7 +54,8 @@ try {
         $emb['cliente_nombre'] = $emb['tienda_destino'] ?: 'Sucursal';
     }
 
-    json_ok($embarques);
+    echo json_encode(['items' => $embarques]);
+    exit;
 } catch (Exception $e) {
     json_error('Error al listar embarques: ' . $e->getMessage(), 500);
 }
