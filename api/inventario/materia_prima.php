@@ -20,7 +20,7 @@ try {
 $prov_id = $pdo->query("SELECT id FROM proveedores LIMIT 1")->fetchColumn();
 if (!$prov_id) {
     // Si no hay proveedores, insertamos uno por defecto temporalmente
-    $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema')");
+    $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre, tipo) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema', 'materia_prima')");
     $prov_id = $pdo->lastInsertId();
 }
 
