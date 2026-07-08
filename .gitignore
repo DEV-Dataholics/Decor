@@ -51,6 +51,13 @@ Agents.md
 # ── Tasks de desarrollo ──
 tasks/
 
+# ── DB: scripts obsoletos / duplicados ──
+db/instalacion_limpia.sql
+db/migration_produccion.sql
+db/rebuild_tables.sql
+db/import_catalogo.sql
+db/seed_clientes.sql
+
 # ── Playwright (reportes y resultados de tests) ──
 front/playwright-report/
 front/test-results/

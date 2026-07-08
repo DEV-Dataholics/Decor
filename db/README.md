@@ -1,9 +1,10 @@
 # Base de Datos — Decor Mueblería
 
-## Cómo importar en Laragon (phpMyAdmin)
+## Instalación desde cero
 
-1. Abre **phpMyAdmin** en tu Laragon (`http://localhost/phpmyadmin`).
-2. Ejecuta los scripts **en orden**, uno por uno:
+Ejecuta los scripts **en orden** en phpMyAdmin (Laragon local o cPanel en producción):
+
+### Paso 1: Esquema (estructura de tablas)
 
 | Orden | Archivo | Contenido |
 |---|---|---|
@@ -14,21 +15,40 @@
 | 5 | `04_inventario_taller.sql` | Materiales, movimientos y alertas de stock (con triggers) |
 | 6 | `05_tienda_pos.sql` | Inventario tienda, compras externas, cajas, ventas, pagos |
 | 7 | `06_logistica.sql` | Embarques, ítems de embarque y devoluciones |
-| 8 | `07_semilla.sql` | Datos iniciales (acabados estándar) |
-| 9 | `08_semilla_pos.sql` | Datos de prueba POS: 6 productos, 6 materiales, inventario inicial |
+
+### Paso 2: Datos iniciales (semilla básica)
+
+| Orden | Archivo | Contenido |
+|---|---|---|
+| 8 | `07_semilla.sql` | Acabados estándar (8 acabados: Natural, Alder #2, Santa Fe, etc.) |
+
+### Paso 3: Catálogo de producción (datos reales)
+
+| Orden | Archivo | Contenido |
+|---|---|---|
+| 9 | `seed_completo.sql` | **Catálogo completo:** 736 productos (SKU `DCR-XXXX`), 5 clientes, 3 tiendas, 8 empleados y relaciones producto↔acabados |
+
+> **⚠️ IMPORTANTE:** `seed_completo.sql` hace `DELETE` de productos, clientes, empleados y tiendas antes de insertar. Ejecútalo solo en instalación limpia o cuando quieras reiniciar los datos maestros.
+
+### Paso opcional: Datos POS de prueba
+
+| Orden | Archivo | Contenido |
+|---|---|---|
+| 10 | `08_semilla_pos.sql` | 6 productos de prueba POS, 6 materiales del taller, inventario inicial. **Solo para entorno de desarrollo/demo.** |
+
+---
 
 > **Credenciales del admin inicial:**  
 > **Email:** `admin@decor.mx`  
 > **Contraseña:** `password` (hash bcrypt)  
 > **IMPORTANTE:** Cámbiala inmediatamente en producción.
 
-### Scripts de Mantenimiento (opcionales)
+---
 
-Estos scripts NO forman parte de la instalación inicial. Úsalos solo cuando sea necesario:
+## Script de Mantenimiento
 
 | Archivo | Uso |
 |---|---|
-| `import_catalogo.sql` | Importa productos y categorías desde un catálogo externo |
 | `truncate_operaciones.sql` | **⚠️ CUIDADO:** Limpia TODAS las tablas operativas (órdenes, ventas, embarques, etc.) sin borrar catálogos ni usuarios. Útil para "reiniciar" el sistema después de pruebas |
 
 ---
