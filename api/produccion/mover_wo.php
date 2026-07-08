@@ -63,16 +63,36 @@ try {
         $pdo->prepare("UPDATE work_orders SET cantidad_asignada = ? WHERE id = ?")->execute([$cant_restante, $id]);
 
         // 2. Insertamos la NUEVA (la que sí se va a mover)
+        $new_carpintero_id = $wo['empleado_carpintero_id'];
+        $new_costo_carpinteria = $wo['costo_mano_obra_carpinteria'];
+        $new_acabado_id = $wo['empleado_acabado_id'] ?? null;
+        $new_costo_acabado = $wo['costo_mano_obra_acabado'] ?? null;
+
+        if ($estatus === 'en_produccion') {
+            $new_carpintero_id = $assignment['empleado_id'] ?? null;
+            $new_costo_carpinteria = $assignment['costo_mano_obra'] ?? null;
+        } elseif ($estatus === 'acabados') {
+            $new_acabado_id = $assignment['empleado_id'] ?? null;
+            $new_costo_acabado = $assignment['costo_mano_obra'] ?? null;
+        }
+
         $pdo->prepare("
-            INSERT INTO work_orders (orden_item_id, estatus, cantidad_asignada, empleado_carpintero_id, costo_mano_obra_carpinteria, fecha_inicio, fecha_termino)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO work_orders (
+                orden_item_id, estatus, cantidad_asignada, 
+                empleado_carpintero_id, costo_mano_obra_carpinteria, 
+                empleado_acabado_id, costo_mano_obra_acabado, 
+                fecha_inicio, fecha_termino
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ")->execute([
             $wo['orden_item_id'],
             $estatus,
             $cantidad_a_mover,
-            $assignment['empleado_id'] ?? null,
-            $assignment['costo_mano_obra'] ?? null,
-            $estatus === 'en_produccion' ? date('Y-m-d') : null,
+            $new_carpintero_id,
+            $new_costo_carpinteria,
+            $new_acabado_id,
+            $new_costo_acabado,
+            $estatus === 'en_produccion' ? date('Y-m-d') : $wo['fecha_inicio'],
             null
         ]);
         

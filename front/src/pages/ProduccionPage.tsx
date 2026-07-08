@@ -237,12 +237,12 @@ export default function ProduccionPage() {
           <table>
             <thead><tr><th style="width: 20%">CODE</th><th class="center" style="width: 12%">Qty</th><th style="width: 48%">Description</th><th class="right" style="width: 20%">TOTAL</th></tr></thead>
             <tbody>
-              ${pedido.items.map(item => `<tr><td>${item.codigo_sku || '-'}</td><td class="center">${item.cantidad}</td><td>${item.producto_nombre}${item.acabado ? `<br/><small>${item.acabado}</small>` : ''}</td><td class="right">${(item.precio_unitario * item.cantidad).toFixed(2)}</td></tr>`).join('')}
+              ${pedido.items.map(item => `<tr><td>${item.codigo_sku || '-'}</td><td class="center">${item.cantidad}</td><td>${item.producto_nombre}${item.acabado ? `<br/><small>${item.acabado}</small>` : ''}</td><td class="right">${(Number(item.precio_unitario || 0) * Number(item.cantidad || 0)).toFixed(2)}</td></tr>`).join('')}
             </tbody>
           </table>
           <div class="totals">
-            <div class="totals-row"><span>Subtotal</span><span>${pedido.total.toFixed(2)}</span></div>
-            <div class="totals-row bold total-final"><span>TOTAL</span><span>${pedido.total.toFixed(2)}</span></div>
+            <div class="totals-row"><span>Subtotal</span><span>${(Number(pedido.total) || 0).toFixed(2)}</span></div>
+            <div class="totals-row bold total-final"><span>TOTAL</span><span>${(Number(pedido.total) || 0).toFixed(2)}</span></div>
           </div>
           <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); };</script>
         </body>
