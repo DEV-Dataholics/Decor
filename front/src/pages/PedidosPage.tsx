@@ -74,7 +74,9 @@ export default function PedidosPage() {
   }, [workOrders, embarques]);
 
   const filtered = useMemo(() =>
-    pedidos.filter(p => !search || p.cliente_nombre.toLowerCase().includes(search.toLowerCase()) || p.id.toString().includes(search)),
+    [...pedidos]
+      .filter(p => !search || p.cliente_nombre.toLowerCase().includes(search.toLowerCase()) || p.id.toString().includes(search))
+      .sort((a, b) => b.id - a.id),
     [pedidos, search]
   );
 
