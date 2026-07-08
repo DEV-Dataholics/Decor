@@ -16,212 +16,18 @@ export default function ConfiguracionPage() {
     acabados, addAcabado, updateAcabado, deleteAcabado,
     tiendas, addTienda, updateTienda, deleteTienda,
     clientes, addCliente, updateCliente, deleteCliente,
-    productos, materiaPrima, resetDemo
+    usuarios, addUsuario, updateUsuario, deleteUsuario,
+    empleados, productos, materiaPrima, resetDemo
   } = useDecor();
   
   const [tab, setTab] = useState<ActiveTab>('acabados');
   const [editingId, setEditingId] = useState<number | string | null>(null);
-  const [generando, setGenerando] = useState(false);
 
-  const generarDatosSimulacion = () => {
-    setGenerando(true);
-    setTimeout(() => {
-      try {
-        const activeProducts = productos.length > 0 ? productos : [];
-        if (activeProducts.length === 0) {
-          alert('No hay productos en el catálogo para simular ventas.');
-          setGenerando(false);
-          return;
-        }
-        
-        const activeClientes = clientes.length > 0 ? clientes : [];
-        const activeTiendas = tiendas.length > 0 ? tiendas : [];
-        const activeEmpleados = [
-          'Víctor Manuel López', 
-          'José García Ramírez', 
-          'Miguel Hernández Soto', 
-          'Carlos Martínez Ruiz', 
-          'Roberto Sánchez Díaz', 
-          'Fernando Torres Luna', 
-          'Alberto Morales Cruz', 
-          'Pedro Jiménez Flores'
-        ];
-
-        const generatedPedidos = [];
-        const generatedWorkOrders = [];
-        const generatedTerminados = [];
-        const generatedVentas = [];
-
-        const hoy = new Date();
-        
-        // Simular 400 pedidos
-        for (let i = 0; i < 400; i++) {
-          const diasAtras = Math.floor(Math.random() * 365);
-          const fecha = new Date();
-          fecha.setDate(hoy.getDate() - diasAtras);
-          const fechaCortaStr = fecha.toISOString().split('T')[0];
-
-          const pId = 2000 + i;
-          const cli = activeClientes[Math.floor(Math.random() * activeClientes.length)] || { id: 1, nombre: 'Distribuidora Decor' };
-          
-          const qtyItems = Math.floor(Math.random() * 3) + 1;
-          const items = [];
-          let total = 0;
-          let totalItems = 0;
-
-          for (let j = 0; j < qtyItems; j++) {
-            const prod = activeProducts[Math.floor(Math.random() * activeProducts.length)];
-            const qty = Math.floor(Math.random() * 4) + 1;
-            const price = Object.values(prod.prices)[0] || 150;
-            const sub = qty * price;
-            total += sub;
-            totalItems += qty;
-
-            const acabado = acabados[Math.floor(Math.random() * acabados.length)] || 'Santa Fe';
-
-            items.push({
-              id: Date.now() + Math.random(),
-              producto_id: prod.id,
-              producto_nombre: prod.name,
-              codigo_sku: prod.sku,
-              cantidad: qty,
-              precio_unitario: price,
-              subtotal: sub,
-              tipo_pedido: 'linea',
-              acabado: acabado
-            });
-
-            const isCompleted = diasAtras > 30;
-            const woEstatus = isCompleted ? 'listo_embarque' : ['pendiente', 'en_produccion', 'acabados'][Math.floor(Math.random() * 3)];
-            
-            const carpinteroName = activeEmpleados[Math.floor(Math.random() * 4)];
-            const pintorName = activeEmpleados[4 + Math.floor(Math.random() * 2)];
-            
-            const costUnitario = prod.costo_produccion || Math.round(price * 0.25);
-
-            const wo: any = {
-              id: Date.now() + Math.random() + Math.random(),
-              orden_id: pId,
-              producto_id: prod.id,
-              producto_nombre: prod.name,
-              codigo_sku: prod.sku,
-              cantidad: qty,
-              estatus: woEstatus,
-              fecha_asignacion: fechaCortaStr,
-              acabado_nombre: acabado,
-              cliente_nombre: cli.nombre,
-            };
-
-            if (woEstatus !== 'pendiente') {
-              wo.empleado_id = 2; 
-              wo.empleado_nombre = carpinteroName;
-              wo.costo_mano_obra_unitario = costUnitario;
-              wo.costo_mano_obra = costUnitario * qty;
-            }
-
-            if (woEstatus === 'acabados' || woEstatus === 'listo_embarque') {
-              wo.empleado_acabado_id = 5; 
-              wo.empleado_acabado_nombre = pintorName;
-              wo.costo_acabado_unitario = 320;
-              wo.costo_acabado = 320 * qty;
-            }
-
-            if (woEstatus === 'listo_embarque') {
-              const diasFabricacion = Math.floor(Math.random() * 5) + 2;
-              const fechaTermino = new Date(fecha);
-              fechaTermino.setDate(fecha.getDate() + diasFabricacion);
-              wo.fecha_termino = fechaTermino.toISOString().split('T')[0];
-
-              for (let k = 0; k < qty; k++) {
-                generatedTerminados.push({
-                  id: Date.now() + Math.random(),
-                  qr_code: `DCR-${fechaTermino.getTime()}-${wo.id}-${k}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-                  producto_id: prod.id,
-                  producto_nombre: prod.name,
-                  codigo_sku: prod.sku,
-                  orden_id: pId,
-                  cliente_nombre: cli.nombre,
-                  acabado: acabado,
-                  fecha_listo: wo.fecha_termino,
-                  precio_estimado: price
-                });
-              }
-            }
-
-            generatedWorkOrders.push(wo);
-          }
-
-          generatedPedidos.push({
-            id: pId,
-            fecha_creacion: fechaCortaStr,
-            estatus: diasAtras > 30 ? 'entregado' : 'produccion',
-            tipo_orden: 'cliente_mayorista',
-            cliente_id: cli.id,
-            cliente_nombre: cli.nombre,
-            cliente_email: cli.email || 'mayorista@decor.com',
-            total: total,
-            total_items: totalItems,
-            items: items,
-            notas: 'Simulado para stress test'
-          });
-        }
-
-        // Simular 1500 ventas POS
-        for (let i = 0; i < 1500; i++) {
-          const diasAtras = Math.floor(Math.random() * 365);
-          const fecha = new Date();
-          fecha.setDate(hoy.getDate() - diasAtras);
-          const fechaStr = fecha.toISOString();
-
-          const tienda = activeTiendas[Math.floor(Math.random() * activeTiendas.length)] || { id: 1, nombre: 'Sucursal Norte' };
-          const qtyItems = Math.floor(Math.random() * 2) + 1;
-          const items = [];
-          let total = 0;
-
-          for (let j = 0; j < qtyItems; j++) {
-            const prod = activeProducts[Math.floor(Math.random() * activeProducts.length)];
-            const qty = Math.floor(Math.random() * 2) + 1;
-            const price = Object.values(prod.prices)[0] || 150;
-            const sub = qty * price;
-            total += sub;
-
-            items.push({
-              id: Date.now() + Math.random(),
-              producto_id: prod.id,
-              producto_nombre: prod.name,
-              codigo_sku: prod.sku,
-              qr_code: `DCR-POS-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-              precio_unitario: price
-            });
-          }
-
-          generatedVentas.push({
-            id: 3000 + i,
-            tienda_id: tienda.id,
-            fecha_venta: fechaStr,
-            total: total,
-            items: items
-          });
-        }
-
-        // NOTA: Los datos operativos ahora vienen del backend API.
-        // La simulación local ya no aplica. Usar el backend para insertar datos reales.
-        alert(`⚠️ Simulación deshabilitada.\n\nLos datos de producción ahora se gestionan desde la base de datos en vivo.\nUsa los módulos de Pedidos y Producción para crear órdenes reales.`);
-        // window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
-      } catch (err) {
-        alert('Error en simulación: ' + err);
-      } finally {
-        setGenerando(false);
-      }
-    }, 100);
-  };
-  
   // Form states
   const [acabadoName, setAcabadoName] = useState('');
   const [tiendaForm, setTiendaForm] = useState({ nombre: '', ciudad: '', direccion: '', telefono: '', activa: true });
   const [clienteForm, setClienteForm] = useState({ nombre: '', email: '', telefono: '', direccion: '', ciudad: '', limite_credito: 0, saldo_pendiente: 0, tipo: 'Mayorista', credito_activo: true });
-
-
+  const [userForm, setUserForm] = useState({ nombre: '', email: '', password: '', rol: 'gerente_tienda', activo: 1, empleado_id: '' });
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -380,13 +186,120 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
+      {tab === 'usuarios' && (
+        <div className="space-y-4 max-w-4xl">
+          <div className="flex justify-between items-center bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/50">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-100">Gestión de Usuarios</h3>
+              <p className="text-[10px] text-zinc-500 mt-0.5">Crea, edita o elimina cuentas de usuarios y configura sus roles y vinculación con empleados.</p>
+            </div>
+            {editingId !== 'new_user' && (
+              <button 
+                onClick={() => { 
+                  setEditingId('new_user'); 
+                  setUserForm({ nombre: '', email: '', password: '', rol: 'gerente_tienda', activo: 1, empleado_id: '' }); 
+                }} 
+                className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5"
+              >
+                <Plus size={14} /> Nuevo Usuario
+              </button>
+            )}
+          </div>
+
+          {(editingId === 'new_user' || typeof editingId === 'number') && (
+            <div className="glass-card p-5 space-y-4 animate-fade-in border-amber-500/30">
+              <h4 className="text-sm font-bold text-zinc-200">{editingId === 'new_user' ? 'Nuevo Usuario' : 'Editar Usuario'}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Nombre</label>
+                  <input value={userForm.nombre} onChange={e => setUserForm(p => ({ ...p, nombre: e.target.value }))} className="input-dark" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Email</label>
+                  <input type="email" value={userForm.email} onChange={e => setUserForm(p => ({ ...p, email: e.target.value }))} className="input-dark" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Contraseña {editingId !== 'new_user' && '(dejar vacío para no cambiar)'}</label>
+                  <input type="password" value={userForm.password} onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} className="input-dark" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Rol de Sistema</label>
+                  <select value={userForm.rol} onChange={e => setUserForm(p => ({ ...p, rol: e.target.value as any }))} className="input-dark">
+                    <option value="admin" className="bg-zinc-900">Admin</option>
+                    <option value="gerente_tienda" className="bg-zinc-900">Gerente de Tienda</option>
+                    <option value="encargado_taller" className="bg-zinc-900">Encargado de Taller</option>
+                    <option value="cajero" className="bg-zinc-900">Cajero</option>
+                    <option value="carpintero" className="bg-zinc-900">Carpintero</option>
+                    <option value="bodega" className="bg-zinc-900">Bodega</option>
+                    <option value="repartidor" className="bg-zinc-900">Repartidor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Vinculación Empleado</label>
+                  <select value={userForm.empleado_id} onChange={e => setUserForm(p => ({ ...p, empleado_id: e.target.value }))} className="input-dark">
+                    <option value="" className="bg-zinc-900">Ninguno (No es empleado de taller)</option>
+                    {empleados.map(e => <option key={e.id} value={e.id} className="bg-zinc-900">{e.nombre} ({e.rol})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Estado</label>
+                  <select value={userForm.activo} onChange={e => setUserForm(p => ({ ...p, activo: Number(e.target.value) }))} className="input-dark">
+                    <option value={1} className="bg-zinc-900">Activo</option>
+                    <option value={0} className="bg-zinc-900">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={cancelEdit} className="btn-ghost text-xs">Cancelar</button>
+                <button onClick={async () => {
+                  if (editingId === 'new_user') {
+                    await addUsuario(userForm);
+                  } else {
+                    await updateUsuario({ ...userForm, id: editingId });
+                  }
+                  cancelEdit();
+                }} className="btn-primary text-xs" disabled={!userForm.nombre.trim() || !userForm.email.trim()}>Guardar Usuario</button>
+              </div>
+            </div>
+          )}
+
+          <div className="glass-card overflow-hidden">
+            <div className="divide-y divide-zinc-800/20">
+              {usuarios.map(u => (
+                <div key={u.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-4 py-3 hover:bg-zinc-800/20 transition-colors group">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-9 h-9 shrink-0 rounded-full bg-amber-500/15 text-amber-400 flex items-center justify-center text-sm font-bold">{u.nombre.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-zinc-200">{u.nombre}</p>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${u.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                          {u.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-500">{u.email} · Rol: <strong className="text-zinc-400 font-semibold">{u.rol}</strong></p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-6">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <button onClick={() => { setEditingId(u.id); setUserForm({ nombre: u.nombre, email: u.email, password: '', rol: u.rol, activo: u.activo ? 1 : 0, empleado_id: u.empleado_id || '' }); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg"><Edit2 size={14} /></button>
+                      <button onClick={async () => { if (confirm(`¿Eliminar usuario ${u.nombre}?`)) await deleteUsuario(u.id); }} className="p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {usuarios.length === 0 && <p className="text-center text-sm text-zinc-500 py-6">No hay usuarios registrados o no tienes permisos de administrador.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'sistema' && (
-        <div className="space-y-4 max-w-md">
+        <div className="space-y-4 max-w-md animate-fade-in">
           <div className="glass-card p-5 space-y-3">
             <h3 className="text-sm font-bold text-zinc-200">Información del Sistema</h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Versión</span><span className="text-zinc-300 font-mono">v1.0.0 — Producción</span></div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Modo</span><span className="text-amber-400 font-bold">Local (Producción)</span></div>
+              <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Modo</span><span className="text-amber-400 font-bold">Base de Datos en Vivo</span></div>
               <div className="flex justify-between py-1 border-b border-zinc-800/30"><span className="text-zinc-500">Productos</span><span className="text-zinc-300 font-bold">{productos.length}</span></div>
               <div className="flex justify-between py-1"><span className="text-zinc-500">Materias Primas</span><span className="text-zinc-300 font-bold">{materiaPrima.length} tipos</span></div>
             </div>
@@ -394,27 +307,19 @@ export default function ConfiguracionPage() {
 
           <div className="glass-card p-5 space-y-4 border-amber-500/10">
             <div>
-              <h3 className="text-sm font-bold text-zinc-200">Pruebas de Estrés y Rendimiento</h3>
-              <p className="text-[10px] text-zinc-500 mt-1">Genera un volumen masivo de datos para probar la fluidez del cliente frente a 1 año de operación real simulada.</p>
+              <h3 className="text-sm font-bold text-zinc-200">Restablecer Datos</h3>
+              <p className="text-[10px] text-zinc-500 mt-1">Borra la memoria caché de catálogos local del navegador para forzar una sincronización limpia con el servidor.</p>
             </div>
             <div className="flex flex-col gap-2">
               <button
-                onClick={generarDatosSimulacion}
-                disabled={generando}
-                className="btn-primary text-xs py-2 w-full justify-center disabled:opacity-50"
-              >
-                {generando ? 'Generando datos...' : '⚡ Simular 1 Año de Operación'}
-              </button>
-              <button
                 onClick={() => {
-                  if (confirm('¿Restablecer todos los datos al estado demo original? Esto borrará las ventas y órdenes simuladas.')) {
+                  if (confirm('¿Restablecer la configuración caché local? Se forzará la recarga de datos desde la base de datos.')) {
                     resetDemo();
-                    window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
                   }
                 }}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-colors"
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-colors w-full"
               >
-                <RotateCcw size={12} /> Restablecer Demo de Fábrica
+                <RotateCcw size={12} /> Restablecer Caché Local
               </button>
             </div>
           </div>

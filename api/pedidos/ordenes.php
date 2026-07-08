@@ -14,10 +14,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $pdo = getDB();
         $stmt = $pdo->query("
             SELECT o.id, o.fecha_creacion, o.estatus, o.total, o.tipo_orden,
-                   c.nombre as cliente_nombre, c.email as cliente_email,
+                   o.cliente_id,
+                   CASE 
+                     WHEN o.tipo_orden = 'resurtido_tienda' THEN t.nombre
+                     ELSE c.nombre 
+                   END as cliente_nombre,
+                   CASE 
+                     WHEN o.tipo_orden = 'resurtido_tienda' THEN ''
+                     ELSE c.email 
+                   END as cliente_email,
                    COUNT(oi.id) as total_items
             FROM ordenes o
             LEFT JOIN clientes c ON o.cliente_id = c.id
+            LEFT JOIN tiendas t ON o.cliente_id = t.id AND o.tipo_orden = 'resurtido_tienda'
             LEFT JOIN orden_items oi ON oi.orden_id = o.id
             WHERE o.tipo_orden != 'borrador'
             GROUP BY o.id

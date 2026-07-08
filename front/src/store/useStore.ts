@@ -13,7 +13,7 @@ import acabadosData from '../data/acabados.json';
 export type Rol = 'admin' | 'gerente_tienda' | 'encargado_taller' | 'repartidor';
 
 export interface Usuario {
-  id: number; nombre: string; email: string; password: string; rol: Rol; avatar: string;
+  id: number; nombre: string; email: string; password?: string; rol: Rol; avatar: string; activo?: boolean; empleado_id?: number; creado_en?: string;
 }
 
 export interface Producto {
@@ -151,6 +151,7 @@ export interface DecorStore {
   acabados: string[];
   inventario: InventarioItem[];
   materiaPrima: MateriaPrima[];
+  usuarios: Usuario[];
   workOrders: WorkOrder[];
   pedidos: Pedido[];
   terminados: TerminadoSinEmbarcar[];
@@ -169,6 +170,10 @@ export interface DecorStore {
   registrarVentaQR: (qrCode: string, tiendaId: number) => boolean;
   registrarVentaCarrito: (tiendaId: number, qrCodes: string[]) => Venta | null;
   updateMateriaPrima: (id: number, delta: number) => void;
+  guardarMateriaPrima: () => Promise<void>;
+  addUsuario: (usr: any) => Promise<void>;
+  updateUsuario: (usr: any) => Promise<void>;
+  deleteUsuario: (id: number) => Promise<void>;
   addCliente: (cli: Omit<Cliente, 'id'>) => void;
   updateCliente: (id: number, cli: Partial<Cliente>) => void;
   deleteCliente: (id: number) => void;
@@ -256,6 +261,7 @@ export function useStore(): DecorStore {
     return getOrInit('materiaPrima', initialMp);
   });
 
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [terminados, setTerminados] = useState<TerminadoSinEmbarcar[]>([]);
@@ -357,18 +363,30 @@ export function useStore(): DecorStore {
       if (resEmp.ok) { const d = await resEmp.json(); if(d.data?.items) setEmpleados(d.data.items); }
       if (resTie.ok) { const d = await resTie.json(); if(d.data?.items) setTiendas(d.data.items); }
       if (resAca.ok) { const d = await resAca.json(); if(d.data?.items) setAcabados(d.data.items.map((a: any) => a.nombre)); }
+
+      // Cargar usuarios si es admin
+      const currentUserData = loadFromStorage<Usuario>('currentUser');
+      if (currentUserData?.rol === 'admin') {
+        const resUsr = await apiFetch(`${base}/api/auth/users.php`);
+        if (resUsr.ok) {
+          const d = await resUsr.json();
+          if (d.data) setUsuarios(d.data);
+        }
+      }
     } catch (e) { console.error('Error fetching catalogos:', e); }
   }, [apiBase, apiFetch]);
 
   const fetchOperativos = useCallback(async () => {
     try {
       const base = apiBase();
-      const [resPed, resWo, resInv] = await Promise.all([
+      const [resPed, resWo, resInv, resMp] = await Promise.all([
         apiFetch(`${base}/api/pedidos/ordenes.php`),
         apiFetch(`${base}/api/produccion/work_orders.php`),
         apiFetch(`${base}/api/inventario/list_tienda.php?tienda_id=1`),
+        apiFetch(`${base}/api/inventario/materia_prima.php`),
       ]);
       if (resPed.ok) { const d = await resPed.json(); if(d.data) setPedidos(d.data); }
+      if (resMp.ok) { const d = await resMp.json(); if(d.data) setMateriaPrima(d.data); }
       if (resWo.ok) {
         const d = await resWo.json();
         if (d.data) {
@@ -745,6 +763,26 @@ export function useStore(): DecorStore {
     ));
   }, []);
 
+  const guardarMateriaPrima = useCallback(async () => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/inventario/materia_prima.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: materiaPrima })
+      });
+      if (res.ok) {
+        alert('Inventario de materia prima guardado correctamente.');
+        await fetchOperativos();
+      } else {
+        throw new Error('Error al guardar');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al guardar el inventario.');
+    }
+  }, [materiaPrima, apiBase, apiFetch, fetchOperativos]);
+
   const addCliente = useCallback((cli: Omit<Cliente, 'id'>) => {
     setClientes(prev => [...prev, { ...cli, id: Date.now() }]);
   }, []);
@@ -800,6 +838,81 @@ export function useStore(): DecorStore {
     setProductos(prev => prev.map(p => p.id === id ? { ...p, ...prod } : p));
   }, []);
 
+  const addUsuario = useCallback(async (usr: any) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/auth/users.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(usr)
+      });
+      if (res.ok) {
+        // Recargar usuarios
+        const resUsr = await apiFetch(`${base}/api/auth/users.php`);
+        if (resUsr.ok) {
+          const d = await resUsr.json();
+          if (d.data) setUsuarios(d.data);
+        }
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Error al crear usuario');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error al crear usuario');
+    }
+  }, [apiBase, apiFetch]);
+
+  const updateUsuario = useCallback(async (usr: any) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/auth/users.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(usr)
+      });
+      if (res.ok) {
+        // Recargar usuarios
+        const resUsr = await apiFetch(`${base}/api/auth/users.php`);
+        if (resUsr.ok) {
+          const d = await resUsr.json();
+          if (d.data) setUsuarios(d.data);
+        }
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Error al actualizar usuario');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error al actualizar usuario');
+    }
+  }, [apiBase, apiFetch]);
+
+  const deleteUsuario = useCallback(async (id: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/auth/users.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'delete' })
+      });
+      if (res.ok) {
+        // Recargar usuarios
+        const resUsr = await apiFetch(`${base}/api/auth/users.php`);
+        if (resUsr.ok) {
+          const d = await resUsr.json();
+          if (d.data) setUsuarios(d.data);
+        }
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || 'Error al eliminar usuario');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Error al eliminar usuario');
+    }
+  }, [apiBase, apiFetch]);
+
   const resetDemo = useCallback(() => {
     // Limpiar solo cache de catálogos; datos operativos vienen del API
     clearStorage();
@@ -828,7 +941,8 @@ export function useStore(): DecorStore {
     moveWorkOrder, crearPedido, editarPedido, eliminarPedido, crearEmbarque,
     cancelarEmbarque,
     updateEmbarqueStatus,
-    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima,
+    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima, guardarMateriaPrima,
+    usuarios, addUsuario, updateUsuario, deleteUsuario,
     addCliente, updateCliente, deleteCliente,
     addTienda, updateTienda, deleteTienda,
     addAcabado, updateAcabado, deleteAcabado,

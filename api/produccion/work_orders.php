@@ -29,7 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                e.nombre  AS empleado_nombre, e.rol AS empleado_rol,
                p.nombre  AS producto_nombre, p.codigo_sku,
                oi.acabado_id,
-               o.id AS orden_id, c.nombre AS cliente_nombre,
+               o.id AS orden_id, 
+               CASE 
+                 WHEN o.tipo_orden = 'resurtido_tienda' THEN t.nombre
+                 ELSE c.nombre 
+               END AS cliente_nombre,
                a.nombre AS acabado_nombre
         FROM work_orders wo
         LEFT  JOIN empleados e      ON e.id  = wo.empleado_id
@@ -37,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         INNER JOIN ordenes o        ON o.id  = oi.orden_id
         INNER JOIN productos p      ON p.id  = oi.producto_id
         LEFT  JOIN clientes c       ON c.id  = o.cliente_id
+        LEFT  JOIN tiendas t        ON t.id  = o.cliente_id AND o.tipo_orden = 'resurtido_tienda'
         LEFT  JOIN acabados a       ON a.id  = oi.acabado_id
         $whereStr
         ORDER BY wo.fecha_asignacion DESC

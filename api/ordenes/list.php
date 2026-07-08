@@ -15,12 +15,17 @@ if ($estatus) { $where = 'WHERE o.estatus = ?'; $params[] = $estatus; }
 $sql = "
     SELECT o.id, o.tipo_orden, o.fecha_creacion, o.fecha_entrega_estimada,
            o.estatus, o.total, o.notas,
-           c.nombre AS cliente_nombre, c.tipo AS cliente_tipo,
+           CASE 
+             WHEN o.tipo_orden = 'resurtido_tienda' THEN td.nombre
+             ELSE c.nombre 
+           END AS cliente_nombre,
+           c.tipo AS cliente_tipo,
            t.nombre AS tienda_nombre,
            (SELECT COUNT(*) FROM orden_items oi WHERE oi.orden_id = o.id) AS total_items
     FROM ordenes o
     LEFT JOIN clientes c ON c.id = o.cliente_id
     LEFT JOIN tiendas t ON t.id = o.tienda_origen_id
+    LEFT JOIN tiendas td ON td.id = o.cliente_id AND o.tipo_orden = 'resurtido_tienda'
     $where
     ORDER BY o.fecha_creacion DESC
     LIMIT 200

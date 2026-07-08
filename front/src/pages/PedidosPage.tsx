@@ -83,14 +83,6 @@ export default function PedidosPage() {
 
   const availableProducts = useMemo(() => {
     let prods = productos;
-    if (!isTienda && selectedCliente) {
-      const cliName = selectedCliente.nombre.toLowerCase();
-      prods = productos.filter(p => {
-        const hasClientPrice = Object.keys(p.prices || {}).some(k => cliName.includes(k.toLowerCase()) || k.toLowerCase().includes(cliName));
-        return hasClientPrice;
-      });
-    }
-
     const grouped = new Map<string, typeof prods>();
     prods.forEach(p => {
       const cat = p.type || 'Otros';
@@ -98,7 +90,7 @@ export default function PedidosPage() {
       grouped.get(cat)!.push(p);
     });
     return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [productos, selectedCliente, isTienda]);
+  }, [productos]);
 
   const selectedProd = selectedProdId ? productos.find(p => p.id === selectedProdId) : null;
 
@@ -311,7 +303,7 @@ export default function PedidosPage() {
                   <td>${item.codigo_sku || '-'}</td>
                   <td class="center">${item.cantidad}</td>
                   <td>${item.producto_nombre}${item.acabado ? `<br/><small>${item.acabado}</small>` : ''}</td>
-                  <td class="right">${(item.precio_unitario * item.cantidad).toFixed(2)}</td>
+                  <td class="right">${(Number(item.precio_unitario || 0) * Number(item.cantidad || 0)).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -320,7 +312,7 @@ export default function PedidosPage() {
           <div class="totals">
             <div class="totals-row">
               <span>Subtotal</span>
-              <span>${pedido.total.toFixed(2)}</span>
+              <span>${(Number(pedido.total) || 0).toFixed(2)}</span>
             </div>
             <div class="totals-row">
               <span>Freight</span>
@@ -328,7 +320,7 @@ export default function PedidosPage() {
             </div>
             <div class="totals-row bold total-final">
               <span>TOTAL</span>
-              <span>${pedido.total.toFixed(2)}</span>
+              <span>${(Number(pedido.total) || 0).toFixed(2)}</span>
             </div>
           </div>
           

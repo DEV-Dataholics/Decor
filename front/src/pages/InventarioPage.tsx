@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X } from 'lucide-react';
+import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X, Save } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import QRLabel from '../components/QRLabel';
 import { QRCodeSVG } from 'qrcode.react';
@@ -10,7 +10,7 @@ type Tab = 'tienda' | 'materia_prima' | 'terminados';
 import type { Embarque, EmbarqueItem } from '../store/useStore';
 
 export default function InventarioPage() {
-  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
   const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
   const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
 
@@ -426,7 +426,12 @@ export default function InventarioPage() {
 
       {/* Materia Prima */}
       {tab === 'materia_prima' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/50 gap-4">
+            <p className="text-xs text-zinc-500">Ajusta las cantidades de las maderas e insumos del taller y presiona el botón para guardar en la base de datos.</p>
+            <button onClick={guardarMateriaPrima} className="btn-primary py-2 px-4 text-xs font-bold flex items-center gap-2 shrink-0"><Save size={14} /> Guardar Cambios</button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 animate-fade-in">
           {mpSorted.map(mp => {
             const pct = Math.min(100, (mp.cantidad / (mp.minimo * 3)) * 100);
             const isCritical = mp.cantidad <= mp.minimo;
