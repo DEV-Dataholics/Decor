@@ -16,6 +16,16 @@ try {
     $pdo->exec("ALTER TABLE materiales ADD COLUMN color VARCHAR(7) NULL DEFAULT '#cccccc'");
 }
 
+// Obtener un proveedor_id válido y creado_por válido de la base de datos para evitar fallos de clave foránea
+$prov_id = $pdo->query("SELECT id FROM proveedores LIMIT 1")->fetchColumn();
+if (!$prov_id) {
+    // Si no hay proveedores, insertamos uno por defecto temporalmente
+    $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema')");
+    $prov_id = $pdo->lastInsertId();
+}
+
+$creado_por = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
+
 // Semilla de materias primas si está vacía o no tiene las maderas del frontend
 $maderas = [
     ['nombre' => 'Pino', 'unidad' => 'pacas', 'cantidad' => 14.0, 'minimo' => 5.0, 'color' => '#d4a574'],
@@ -33,9 +43,9 @@ foreach ($maderas as $mad) {
     if (!$stmt->fetchColumn()) {
         $stmtIns = $pdo->prepare("
             INSERT INTO materiales (nombre, tipo, unidad_medida, proveedor_id, stock_actual, stock_minimo, color, creado_por)
-            VALUES (?, 'madera', ?, 1, ?, ?, ?, 1)
+            VALUES (?, 'madera', ?, ?, ?, ?, ?, ?)
         ");
-        $stmtIns->execute([$mad['nombre'], $mad['unidad'], $mad['cantidad'], $mad['minimo'], $mad['color']]);
+        $stmtIns->execute([$mad['nombre'], $mad['unidad'], $prov_id, $mad['cantidad'], $mad['minimo'], $mad['color'], $creado_por]);
     }
 }
 
@@ -94,7 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
         json_ok(['mensaje' => 'Inventario de materia prima actualizado correctamente']);
     } catch (Exception $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         json_error('Error al guardar inventario: ' . $e->getMessage(), 500);
     }
 }
