@@ -1,6 +1,5 @@
 <?php
 // api/embarques/crear.php
-header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 require_once '../config/db.php';
@@ -52,16 +51,29 @@ try {
 
     // 2. Insertar items y actualizar estatus de work orders / orden items
     foreach ($items as $it) {
-        $producto_id = (int)$it['producto_id'];
+        $producto_id = (int)($it['producto_id'] ?? 0);
         $qr_code = $it['qr_code'] ?? '';
         
         // Extraer work_order_id de "QR-{id}"
         $wo_id = (int)str_replace('QR-', '', $qr_code);
 
-        // Encontrar orden_item_id a partir de la work order
-        $stmtWo = $pdo->prepare("SELECT orden_item_id FROM work_orders WHERE id = ?");
-        $stmtWo->execute([$wo_id]);
-        $orden_item_id = $stmtWo->fetchColumn() ?: null;
+        // Encontrar orden_item_id y producto_id a partir de la work order
+        $orden_item_id = null;
+        if ($wo_id > 0) {
+            $stmtWo = $pdo->prepare("SELECT orden_item_id FROM work_orders WHERE id = ?");
+            $stmtWo->execute([$wo_id]);
+            $orden_item_id = $stmtWo->fetchColumn() ?: null;
+            
+            // Si no tenemos producto_id, obtenerlo de orden_items
+            if ($producto_id <= 0 && $orden_item_id) {
+                $stmtProd = $pdo->prepare("SELECT producto_id FROM orden_items WHERE id = ?");
+                $stmtProd->execute([$orden_item_id]);
+                $producto_id = (int)$stmtProd->fetchColumn();
+            }
+        }
+
+        // Skip items sin producto válido
+        if ($producto_id <= 0) continue;
 
         // Insertar item de embarque
         $stmtIt = $pdo->prepare("
@@ -70,7 +82,7 @@ try {
         ");
         $stmtIt->execute([$embarque_id, $orden_item_id, $producto_id]);
 
-        // Actualizar estatus de la work order a 'terminado' (o dejarlo para saber que ya se despachó? Work order estatus for finished is 'terminado').
+        // Actualizar estatus del orden item
         if ($orden_item_id) {
             $pdo->prepare("UPDATE orden_items SET estatus_item = 'embarcado' WHERE id = ?")->execute([$orden_item_id]);
         }
@@ -79,7 +91,7 @@ try {
     $pdo->commit();
     json_ok(['embarque_id' => $embarque_id]);
 } catch (Exception $e) {
-    if ($pdo->inTransaction()) {
+    if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     json_error('Error al crear embarque: ' . $e->getMessage(), 500);
