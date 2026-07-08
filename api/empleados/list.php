@@ -1,14 +1,21 @@
 <?php
 // api/empleados/list.php
-header('Content-Type: application/json');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-require_once '../config/db.php';
-session_start();
-if (!isset($_SESSION['user'])) { http_response_code(401); echo json_encode(['error'=>'Sesión requerida']); exit; }
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
+
+set_json_headers();
+require_role(['admin', 'gerente_tienda', 'encargado_taller', 'repartidor', 'bodega']);
 
 $pdo = getDB();
 $stmt = $pdo->query("
     SELECT id, nombre, rol, especialidades, tarifa_base, activo, fecha_ingreso
-    FROM empleados WHERE activo = 1 ORDER BY nombre
+    FROM empleados ORDER BY nombre
 ");
-echo json_encode(['ok'=>true, 'items'=>$stmt->fetchAll()]);
+$empleados = $stmt->fetchAll();
+foreach ($empleados as &$emp) {
+    // MySQL devuelve JSON como string, el frontend espera un Array para usar .map()
+    $emp['especialidades'] = json_decode($emp['especialidades'], true) ?: [];
+    // Opcionalmente parseamos activo como bool
+    $emp['activo'] = (bool) $emp['activo'];
+}
+json_ok(['items' => $empleados]);

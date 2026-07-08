@@ -10,8 +10,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    const success = login(email, password);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    const success = await login(email, password);
+    setIsLoading(false);
     if (success) navigate('/dashboard');
     else setError('Credenciales inválidas');
   };
@@ -59,7 +64,7 @@ export default function LoginPage() {
         <div className="clay-card-cream p-4 pb-5 rounded-[2rem] w-full max-w-[280px] border border-black/5">
           <div className="overflow-hidden rounded-[1.5rem] aspect-[4/3] relative">
             <img 
-              src="/decor/decor_login_hero.png" 
+              src="/decor_login_hero.png" 
               alt="Decor Hacienda Interior" 
               className="w-full h-full object-cover"
             />
@@ -146,9 +151,10 @@ export default function LoginPage() {
               </div>
             )}
             
-            <button 
-              onClick={handleLogin} 
-              className="w-full clay-btn-dark hover:bg-[#361c0e] text-[#fbfaf7] font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-wider active:scale-[0.98] border border-transparent hover:border-white/10"
+            <button
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center space-x-3 bg-[#4a2818] hover:bg-[#3a1f12] text-[#fbfaf7] py-4 rounded-[1.5rem] font-bold text-sm tracking-widest transition-all duration-300 transform active:scale-95 shadow-xl hover:shadow-[#4a2818]/20 disabled:opacity-50"
             >
               <LogIn size={14} /> Ingresar al Sistema
             </button>

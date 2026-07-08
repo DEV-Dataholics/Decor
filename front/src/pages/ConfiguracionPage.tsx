@@ -204,17 +204,10 @@ export default function ConfiguracionPage() {
           });
         }
 
-        localStorage.setItem('decor_prod_pedidos', JSON.stringify(generatedPedidos));
-        localStorage.setItem('decor_prod_workOrders', JSON.stringify(generatedWorkOrders));
-        localStorage.setItem('decor_prod_terminados', JSON.stringify(generatedTerminados));
-        localStorage.setItem('decor_prod_ventas', JSON.stringify(generatedVentas));
-        
-        alert(`¡Simulación exitosa! Se han inyectado:
-- ${generatedPedidos.length} Pedidos de mayoreo.
-- ${generatedWorkOrders.length} Órdenes de trabajo.
-- ${generatedTerminados.length} Piezas en almacén listo.
-- ${generatedVentas.length} Tickets de Venta POS de sucursales.`);
-        window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
+        // NOTA: Los datos operativos ahora vienen del backend API.
+        // La simulación local ya no aplica. Usar el backend para insertar datos reales.
+        alert(`⚠️ Simulación deshabilitada.\n\nLos datos de producción ahora se gestionan desde la base de datos en vivo.\nUsa los módulos de Pedidos y Producción para crear órdenes reales.`);
+        // window.location.href = window.location.pathname.startsWith('/decor') ? '/decor/' : '/';
       } catch (err) {
         alert('Error en simulación: ' + err);
       } finally {

@@ -56,6 +56,4 @@ export const router = createBrowserRouter([
       { path: 'configuracion', element: withSuspense(ConfiguracionPage) },
     ],
   },
-], {
-  basename: '/decor/'
-});
+]);

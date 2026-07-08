@@ -1,17 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 
-// --- Importar datos JSON iniciales ---
+// --- Importar datos JSON iniciales (solo catálogos como fallback) ---
 import productosData from '../data/productos.json';
 import categoriasData from '../data/categorias.json';
 import clientesData from '../data/clientes.json';
 import empleadosData from '../data/empleados.json';
 import tiendasData from '../data/tiendas.json';
-import usuariosData from '../data/usuarios.json';
-import inventarioData from '../data/inventario-inicial.json';
-import workOrdersData from '../data/work-orders.json';
-import pedidosData from '../data/pedidos.json';
-import embarquesData from '../data/embarques.json';
-import ventasData from '../data/ventas.json';
 import materiaPrimaData from '../data/materia-prima.json';
 import acabadosData from '../data/acabados.json';
 
@@ -71,6 +65,7 @@ export interface WorkOrder {
   costo_acabado?: number;
   costo_acabado_unitario?: number;
   fecha_termino?: string;
+  rechazos?: number;
 }
 
 export type TipoPedido = 'linea' | 'linea_especial' | 'orden_especial';
@@ -132,6 +127,7 @@ export interface Embarque {
 export interface VentaItem {
   id: number; producto_id: number; producto_nombre: string; codigo_sku: string;
   qr_code: string; precio_unitario: number;
+  cantidad?: number;
 }
 
 export interface Venta {
@@ -142,9 +138,11 @@ export interface Venta {
 export interface DecorStore {
   // Auth
   currentUser: Usuario | null;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
-  // Data
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+  fetchCatalogos: () => Promise<void>;
+  fetchOperativos: () => Promise<void>;
   productos: Producto[];
   categorias: Categoria[];
   clientes: Cliente[];
@@ -160,10 +158,10 @@ export interface DecorStore {
   ventas: Venta[];
   devoluciones: Devolucion[];
   // Mutations
-  moveWorkOrder: (id: number, newStatus: WOStatus, assignment?: { empleado_id: number; empleado_nombre: string; costo_mano_obra: number }) => void;
-  crearPedido: (pedido: Omit<Pedido, 'id'>) => Pedido;
-  editarPedido: (id: number, pedidoData: Omit<Pedido, 'id' | 'fecha_creacion'>) => boolean;
-  eliminarPedido: (id: number) => boolean;
+  moveWorkOrder: (id: number, newStatus: WOStatus, assignment?: { empleado_id: number; empleado_nombre: string; costo_mano_obra: number; cantidad_asignada?: number; costo_mano_obra_unitario?: number }) => Promise<void>;
+  crearPedido: (pedido: Omit<Pedido, 'id'>) => Promise<void>;
+  editarPedido: (id: number, pedidoData: Omit<Pedido, 'id' | 'fecha_creacion'>) => Promise<boolean>;
+  eliminarPedido: (id: number) => Promise<boolean>;
   crearEmbarque: (embarque: Omit<Embarque, 'id'>) => Embarque;
   cancelarEmbarque: (id: number) => void;
   updateEmbarqueStatus: (id: number, newStatus: string) => void;
@@ -251,51 +249,171 @@ export function useStore(): DecorStore {
   const [tiendas, setTiendas] = useState<Tienda[]>(() => getOrInit('tiendas', tiendasData as Tienda[]));
   const [acabados, setAcabados] = useState<string[]>(() => getOrInit('acabados', acabadosData as string[]));
   
-  // En producción, el inventario y transacciones inician vacíos, y la materia prima en 0
-  const [inventario, setInventario] = useState<InventarioItem[]>(() => getOrInit('inventario', []));
+  // ── Datos operativos: inicializan vacíos, se cargan del API al login ──
+  const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [materiaPrima, setMateriaPrima] = useState<MateriaPrima[]>(() => {
     const initialMp = (materiaPrimaData as MateriaPrima[]).map(mp => ({ ...mp, cantidad: 0 }));
     return getOrInit('materiaPrima', initialMp);
   });
 
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(() => getOrInit('workOrders2', []));
-  const [pedidos, setPedidos] = useState<Pedido[]>(() => getOrInit('pedidos', []));
-  const [terminados, setTerminados] = useState<TerminadoSinEmbarcar[]>(() => getOrInit('terminados', []));
-  const [embarques, setEmbarques] = useState<Embarque[]>(() => getOrInit('embarques2', []));
-  const [ventas, setVentas] = useState<Venta[]>(() => getOrInit('ventas2', []));
-  const [devoluciones, setDevoluciones] = useState<Devolucion[]>(() => getOrInit('devoluciones', []));
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [terminados, setTerminados] = useState<TerminadoSinEmbarcar[]>([]);
+  const [embarques, setEmbarques] = useState<Embarque[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [devoluciones, setDevoluciones] = useState<Devolucion[]>([]);
 
-  // Persist
+  // Persist — solo catálogos (cache offline); datos operativos vienen del API
   useEffect(() => { saveToStorage('productos', productos); }, [productos]);
   useEffect(() => { saveToStorage('clientes', clientes); }, [clientes]);
   useEffect(() => { saveToStorage('tiendas', tiendas); }, [tiendas]);
   useEffect(() => { saveToStorage('acabados', acabados); }, [acabados]);
-  useEffect(() => { saveToStorage('inventario', inventario); }, [inventario]);
   useEffect(() => { saveToStorage('materiaPrima', materiaPrima); }, [materiaPrima]);
-  useEffect(() => { saveToStorage('workOrders2', workOrders); }, [workOrders]);
-  useEffect(() => { saveToStorage('pedidos', pedidos); }, [pedidos]);
-  useEffect(() => { saveToStorage('terminados', terminados); }, [terminados]);
-  useEffect(() => { saveToStorage('embarques2', embarques); }, [embarques]);
-  useEffect(() => { saveToStorage('ventas2', ventas); }, [ventas]);
-  useEffect(() => { saveToStorage('devoluciones', devoluciones); }, [devoluciones]);
   useEffect(() => { saveToStorage('empleados', empleados); }, [empleados]);
 
-  const login = useCallback((email: string, password: string): boolean => {
-    const user = (usuariosData as Usuario[]).find(u => u.email === email);
-    if (user && user.password === password) { 
-      setCurrentUser(user); 
-      saveToStorage('currentUser', user); 
-      return true; 
-    }
-    return false;
+  // ── Helper para construir URLs ──
+  const apiBase = useCallback(() => {
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    return isProduction ? '' : 'http://localhost/sistema_decor';
   }, []);
 
-  const logout = useCallback(() => {
+  const apiFetch = useCallback((url: string, opts?: RequestInit) => {
+    return fetch(url, { credentials: 'include', ...opts });
+  }, []);
+
+  // ── Auth ──
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    try {
+      const res = await apiFetch(`${apiBase()}/api/auth/login.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      let data: any = {};
+      try { const text = await res.text(); if (text) data = JSON.parse(text); } catch { /* */ }
+      if (res.ok && data.ok && data.user) {
+        setCurrentUser(data.user);
+        saveToStorage('currentUser', data.user);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Error en login:', e);
+      return false;
+    }
+  }, [apiBase, apiFetch]);
+
+  const logout = useCallback(async () => {
+    try { await apiFetch(`${apiBase()}/api/auth/logout.php`, { method: 'POST' }); } catch { /* */ }
     setCurrentUser(null);
     localStorage.removeItem(STORAGE_PREFIX + 'currentUser');
-  }, []);
+  }, [apiBase, apiFetch]);
 
-  const moveWorkOrder = useCallback((
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${apiBase()}/api/auth/me.php`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.user) {
+          setCurrentUser(data.user);
+          saveToStorage('currentUser', data.user);
+        }
+      }
+    } catch { /* */ }
+  }, [apiBase, apiFetch]);
+
+  const fetchCatalogos = useCallback(async () => {
+    try {
+      const base = apiBase();
+      const [resProd, resCli, resEmp, resTie, resAca] = await Promise.all([
+        apiFetch(`${base}/api/productos/list.php`),
+        apiFetch(`${base}/api/clientes/list.php`),
+        apiFetch(`${base}/api/empleados/list.php`),
+        apiFetch(`${base}/api/tiendas/list.php`),
+        apiFetch(`${base}/api/acabados/list.php`),
+      ]);
+      if (resProd.ok) { 
+        const d = await resProd.json(); 
+        if (d.data?.productos) {
+          const mappedProds = d.data.productos.map((bp: any) => ({
+            id: bp.id,
+            name: bp.nombre,
+            type: bp.categoria_nombre || 'Otros',
+            sku: bp.sku || bp.codigo_sku,
+            prices: { "Publico": parseFloat(bp.precio_venta_base || '0') },
+            dimensions: {
+              width: bp.dimension_ancho ? parseFloat(bp.dimension_ancho) : 0,
+              height: bp.dimension_alto ? parseFloat(bp.dimension_alto) : 0,
+              depth: bp.dimension_largo ? parseFloat(bp.dimension_largo) : 0
+            },
+            finishes: bp.acabados ? bp.acabados.map((a:any) => a.nombre) : [],
+            image_url: (bp.foto_url && bp.foto_url.length > 0) ? bp.foto_url[0] : null,
+            costo_produccion: parseFloat(bp.precio_produccion_base || '0')
+          }));
+          setProductos(mappedProds);
+        }
+      }
+      if (resCli.ok) { const d = await resCli.json(); if(d.data?.items) setClientes(d.data.items); }
+      if (resEmp.ok) { const d = await resEmp.json(); if(d.data?.items) setEmpleados(d.data.items); }
+      if (resTie.ok) { const d = await resTie.json(); if(d.data?.items) setTiendas(d.data.items); }
+      if (resAca.ok) { const d = await resAca.json(); if(d.data?.items) setAcabados(d.data.items.map((a: any) => a.nombre)); }
+    } catch (e) { console.error('Error fetching catalogos:', e); }
+  }, [apiBase, apiFetch]);
+
+  const fetchOperativos = useCallback(async () => {
+    try {
+      const base = apiBase();
+      const [resPed, resWo, resInv] = await Promise.all([
+        apiFetch(`${base}/api/pedidos/ordenes.php`),
+        apiFetch(`${base}/api/produccion/work_orders.php`),
+        apiFetch(`${base}/api/inventario/list_tienda.php?tienda_id=1`),
+      ]);
+      if (resPed.ok) { const d = await resPed.json(); if(d.data) setPedidos(d.data); }
+      if (resWo.ok) {
+        const d = await resWo.json();
+        if (d.data) {
+          const allWo = (Array.isArray(d.data) ? d.data : (d.data.items || [])) as WorkOrder[];
+          // Separar WOs activas de terminadas/listas para embarque
+          const terminadoStatuses = ['listo_embarque', 'terminado'];
+          setWorkOrders(allWo.filter((w: WorkOrder) => !terminadoStatuses.includes(w.estatus)));
+          setTerminados(allWo.filter((w: WorkOrder) => terminadoStatuses.includes(w.estatus)).map((w: WorkOrder) => ({
+            id: w.id, orden_id: w.orden_id || 0, producto_id: w.producto_id || 0,
+            producto_nombre: w.producto_nombre || '', codigo_sku: w.codigo_sku || '',
+            acabado: w.acabado_nombre || '', qr_code: `QR-${w.id}`, cantidad: w.cantidad || 1,
+            cliente_nombre: w.cliente_nombre || '', fecha_listo: w.fecha_termino || '',
+            precio_estimado: 0,
+          })));
+        }
+      }
+      if (resInv.ok) {
+        const d = await resInv.json();
+        if (d.data?.items) {
+          const mapped: InventarioItem[] = d.data.items.map((item: any) => ({
+            id: item.inventario_tienda_id || item.producto_id,
+            tienda_id: item.tienda_id || 1,
+            producto_id: item.producto_id,
+            cantidad_disponible: item.cantidad_disponible || 0,
+            cantidad_reservada: item.cantidad_reservada || 0,
+            origen_stock: item.origen_stock || 'embarque_taller',
+            costo_unitario: item.costo_unitario || 0,
+            precio_venta: item.precio_venta || 0,
+          }));
+          setInventario(mapped);
+        }
+      }
+    } catch (e) { console.error('Error fetching operativos:', e); }
+  }, [apiBase, apiFetch]);
+
+  // Auto-cargar datos al loguearse
+  useEffect(() => {
+    if (currentUser) {
+      fetchCatalogos();
+      fetchOperativos();
+    }
+  }, [currentUser, fetchCatalogos, fetchOperativos]);
+
+
+  const moveWorkOrder = useCallback(async (
     id: number, 
     newStatus: WOStatus, 
     assignment?: { 
@@ -306,159 +424,121 @@ export function useStore(): DecorStore {
       costo_mano_obra_unitario?: number;
     }
   ) => {
-    const woToMove = workOrders.find(w => w.id === id);
-    if (!woToMove) return;
+    try {
+      const base = apiBase();
+      const payload = { id, estatus: newStatus, assignment };
+      const res = await apiFetch(`${base}/api/produccion/mover_wo.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Error al mover WO');
 
-    if (assignment && assignment.cantidad_asignada && assignment.cantidad_asignada < woToMove.cantidad) {
-      const cantAsig = assignment.cantidad_asignada;
-      const cantRestante = woToMove.cantidad - cantAsig;
+      // Recargar datos operativos del backend (WOs + terminados + inventario)
+      await fetchOperativos();
+    } catch (e) {
+      console.error(e);
+      alert('Error moviendo estatus en el servidor.');
+    }
+  }, [workOrders, apiBase, apiFetch, fetchOperativos]);
 
-      const nuevaWO: WorkOrder = {
-        ...woToMove,
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        cantidad: cantAsig,
-        estatus: newStatus,
-        ...(newStatus === 'acabados' ? {
-          empleado_acabado_id: assignment.empleado_id,
-          empleado_acabado_nombre: assignment.empleado_nombre,
-          costo_acabado: assignment.costo_mano_obra,
-          costo_acabado_unitario: assignment.costo_mano_obra_unitario
-        } : {
-          empleado_id: assignment.empleado_id,
-          empleado_nombre: assignment.empleado_nombre,
-          costo_mano_obra: assignment.costo_mano_obra,
-          costo_mano_obra_unitario: assignment.costo_mano_obra_unitario,
-        }),
-        ...(newStatus === 'listo_embarque' ? { fecha_termino: new Date().toISOString().split('T')[0] } : {})
+  const crearPedido = useCallback(async (pedido: Omit<Pedido, 'id'>) => {
+    try {
+      const base = apiBase();
+      const payload = {
+        cliente_id: pedido.cliente_id,
+        tienda_origen_id: 1,
+        tipo_orden: pedido.tipo_orden,
+        notas: pedido.notas || '',
+        items: pedido.items.map(it => ({
+          producto_id: it.producto_id,
+          acabado_nombre: it.acabado || '',
+          cantidad: it.cantidad,
+          precio_unitario: it.precio_unitario || 0
+        }))
       };
 
-      setWorkOrders(prev => {
-        return prev.map(wo => {
-          if (wo.id === id) {
-            return { ...wo, cantidad: cantRestante };
-          }
-          return wo;
-        }).concat(nuevaWO);
+      const res = await apiFetch(`${base}/api/pedidos/crear.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-
-      // Si pasa a listo_embarque, generar terminados para la cantidad asignada parcial
-      if (newStatus === 'listo_embarque') {
-        const prod = (productosData as Producto[]).find(p => p.id === woToMove.producto_id);
-        const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
-        const ts = Date.now();
-        const nuevosTerminados = Array.from({ length: cantAsig }).map((_, j) => ({
-          id: ts + j,
-          qr_code: `DCR-${ts}-${nuevaWO.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-          producto_id: woToMove.producto_id,
-          producto_nombre: woToMove.producto_nombre,
-          codigo_sku: woToMove.codigo_sku,
-          orden_id: woToMove.orden_id,
-          cliente_nombre: woToMove.cliente_nombre,
-          acabado: woToMove.acabado_nombre,
-          fecha_listo: new Date().toISOString().split('T')[0],
-          precio_estimado: price,
-        }));
-        setTerminados(prev => [...nuevosTerminados, ...prev]);
+      if (!res.ok) {
+        throw new Error('Error al crear pedido en servidor');
       }
-    } else {
-      // Asignación total o actualización normal de estado
-      setWorkOrders(prev => prev.map(wo => wo.id === id ? { 
-        ...wo, 
-        estatus: newStatus,
-        ...(newStatus === 'listo_embarque' ? { fecha_termino: new Date().toISOString().split('T')[0] } : {}),
-        ...(assignment ? (
-          newStatus === 'acabados' ? {
-            empleado_acabado_id: assignment.empleado_id,
-            empleado_acabado_nombre: assignment.empleado_nombre,
-            costo_acabado: assignment.costo_mano_obra,
-            costo_acabado_unitario: assignment.costo_mano_obra_unitario
-          } : {
-            empleado_id: assignment.empleado_id,
-            empleado_nombre: assignment.empleado_nombre,
-            costo_mano_obra: assignment.costo_mano_obra,
-            costo_mano_obra_unitario: assignment.costo_mano_obra_unitario
-          }
-        ) : {})
-      } : wo));
-
-      if (woToMove.estatus !== 'listo_embarque' && newStatus === 'listo_embarque') {
-        const prod = (productosData as Producto[]).find(p => p.id === woToMove.producto_id);
-        const price = prod ? Object.values(prod.prices)[0] || 200 : 200;
-        const ts = Date.now();
-        const nuevosTerminados = Array.from({ length: woToMove.cantidad }).map((_, j) => ({
-          id: ts + j,
-          qr_code: `DCR-${ts}-${woToMove.id}-${j}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-          producto_id: woToMove.producto_id,
-          producto_nombre: woToMove.producto_nombre,
-          codigo_sku: woToMove.codigo_sku,
-          orden_id: woToMove.orden_id,
-          cliente_nombre: woToMove.cliente_nombre,
-          acabado: woToMove.acabado_nombre,
-          fecha_listo: new Date().toISOString().split('T')[0],
-          precio_estimado: price,
-        }));
-        setTerminados(prev => [...nuevosTerminados, ...prev]);
-      }
+      
+      // Recargar operativos para actualizar pedidos y work orders desde la DB
+      await fetchOperativos();
+    } catch (e) {
+      console.error('Error al crear pedido:', e);
+      alert('Error al crear el pedido. Revisa tu conexión.');
     }
-  }, [workOrders]);
+  }, [apiBase, apiFetch, fetchOperativos]);
 
-  const crearPedido = useCallback((pedido: Omit<Pedido, 'id'>): Pedido => {
-    let newPedido: Pedido;
-    setPedidos(prev => {
-      const maxId = prev.length > 0 ? Math.max(...prev.map(p => p.id)) : 2000;
-      newPedido = { ...pedido, id: maxId + 1 } as Pedido;
-      return [newPedido, ...prev];
-    });
-
-    // @ts-ignore
-    const newWOs: WorkOrder[] = newPedido.items.map((item, i) => ({
-      id: Date.now() + i + 1,
-      orden_id: newPedido.id, // now properly sequential
-      producto_id: item.producto_id,
-      producto_nombre: item.producto_nombre,
-      codigo_sku: item.codigo_sku,
-      cantidad: item.cantidad,
-      estatus: 'pendiente' as WOStatus,
-      fecha_asignacion: new Date().toISOString().split('T')[0],
-      acabado_nombre: item.acabado || 'Natural',
-      cliente_nombre: newPedido.cliente_nombre,
-    }));
-    setWorkOrders(prev => [...newWOs, ...prev]);
-    return newPedido!;
-  }, []);
-
-  const editarPedido = useCallback((id: number, pedidoData: Omit<Pedido, 'id' | 'fecha_creacion'>): boolean => {
+  const editarPedido = useCallback(async (id: number, pedidoData: Omit<Pedido, 'id' | 'fecha_creacion'>): Promise<boolean> => {
     const relatedWOs = workOrders.filter(wo => wo.orden_id === id);
-    if (relatedWOs.some(wo => wo.estatus !== 'pendiente')) return false;
+    if (relatedWOs.some(wo => wo.estatus !== 'pendiente')) {
+        alert("No se puede editar: algunas órdenes ya están en producción.");
+        return false;
+    }
 
-    setPedidos(prev => prev.map(p => p.id === id ? { ...p, ...pedidoData } : p));
-    setWorkOrders(prev => {
-      const filtered = prev.filter(wo => wo.orden_id !== id);
-      const newWOs: WorkOrder[] = pedidoData.items.map((item, i) => ({
-        id: Date.now() + i + 1,
-        orden_id: id,
-        producto_id: item.producto_id,
-        producto_nombre: item.producto_nombre,
-        codigo_sku: item.codigo_sku,
-        cantidad: item.cantidad,
-        estatus: 'pendiente' as WOStatus,
-        fecha_asignacion: new Date().toISOString().split('T')[0],
-        acabado_nombre: item.acabado || 'Natural',
-        cliente_nombre: pedidoData.cliente_nombre,
-      }));
-      return [...newWOs, ...filtered];
-    });
-    return true;
-  }, [workOrders]);
+    try {
+      const base = apiBase();
+      const payload = {
+        id: id,
+        cliente_id: pedidoData.cliente_id,
+        tienda_origen_id: 1,
+        tipo_orden: pedidoData.tipo_orden,
+        notas: pedidoData.notas || '',
+        estatus: pedidoData.estatus,
+        items: pedidoData.items.map(it => ({
+          producto_id: it.producto_id,
+          acabado_nombre: it.acabado || '',
+          cantidad: it.cantidad,
+          precio_unitario: it.precio_unitario || 0
+        }))
+      };
 
-  const eliminarPedido = useCallback((id: number): boolean => {
+      const res = await apiFetch(`${base}/api/ordenes/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Error al editar pedido');
+
+      await fetchOperativos();
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert('Error al editar el pedido.');
+      return false;
+    }
+  }, [workOrders, apiBase, apiFetch, fetchOperativos]);
+
+  const eliminarPedido = useCallback(async (id: number): Promise<boolean> => {
     const relatedWOs = workOrders.filter(wo => wo.orden_id === id);
-    if (relatedWOs.some(wo => wo.estatus !== 'pendiente')) return false;
+    if (relatedWOs.some(wo => wo.estatus !== 'pendiente')) {
+      alert("No se puede eliminar: algunas órdenes ya están en producción.");
+      return false;
+    }
+    
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/pedidos/eliminar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!res.ok) throw new Error('Error al eliminar');
 
-    setWorkOrders(prev => prev.filter(wo => wo.orden_id !== id));
-    setPedidos(prev => prev.filter(p => p.id !== id));
-    return true;
-  }, [workOrders]);
+      await fetchOperativos();
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert('Error al eliminar el pedido.');
+      return false;
+    }
+  }, [workOrders, apiBase, apiFetch, fetchOperativos]);
 
   const crearEmbarque = useCallback((embarque: Omit<Embarque, 'id'>): Embarque => {
     const newEmbarque = { ...embarque, id: Date.now() } as Embarque;
@@ -721,12 +801,8 @@ export function useStore(): DecorStore {
   }, []);
 
   const resetDemo = useCallback(() => {
-    saveToStorage('workOrders2', []);
-    saveToStorage('pedidos', []);
-    saveToStorage('terminados', []);
-    saveToStorage('embarques2', []);
-    saveToStorage('ventas2', []);
-    saveToStorage('inventario', []);
+    // Limpiar solo cache de catálogos; datos operativos vienen del API
+    clearStorage();
     window.location.reload();
   }, []);
 
@@ -746,7 +822,7 @@ export function useStore(): DecorStore {
   }, []);
 
   return {
-    currentUser, login, logout,
+    currentUser, login, logout, checkAuth, fetchCatalogos, fetchOperativos,
     productos, categorias, clientes, empleados, tiendas, acabados,
     inventario, materiaPrima, workOrders, pedidos, terminados, embarques, ventas, devoluciones,
     moveWorkOrder, crearPedido, editarPedido, eliminarPedido, crearEmbarque,

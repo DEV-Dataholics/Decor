@@ -1,20 +1,17 @@
 <?php
 // api/auth/login.php
-require_once '../config/response.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
 set_json_headers();
 
-require_once '../config/db.php';
-
-session_start();
+// session_start() ya se ejecuta en db.php
 
 $data  = json_decode(file_get_contents('php://input'), true);
 $email = trim($data['email'] ?? '');
 $pass  = trim($data['password'] ?? '');
 
 if (!$email || !$pass) {
-    http_response_code(422);
-    echo json_encode(['error' => 'Email y contraseña son obligatorios']);
-    exit;
+    json_error('Email y contraseña son obligatorios', 422);
 }
 
 try {
@@ -24,22 +21,22 @@ try {
     $user = $stmt->fetch();
 
     if (!$user || !password_verify($pass, $user['password_hash'])) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Credenciales incorrectas']);
-        exit;
+        json_error('Credenciales incorrectas', 401);
     }
+
+    // Regenerar ID de sesión por seguridad
+    session_regenerate_id(true);
 
     // Guardar en sesión (sin exponer password_hash)
     $_SESSION['user'] = [
-        'id'     => $user['id'],
+        'id'     => (int)$user['id'],
         'nombre' => $user['nombre'],
         'email'  => $user['email'],
         'rol'    => $user['rol'],
     ];
 
-    echo json_encode(['ok' => true, 'user' => $_SESSION['user']]);
+    echo json_encode(['ok' => true, 'user' => $_SESSION['user']], JSON_UNESCAPED_UNICODE);
 
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Error de servidor']);
+} catch (Throwable $e) {
+    json_error('Error interno: ' . $e->getMessage(), 500);
 }

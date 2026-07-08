@@ -21,12 +21,27 @@ function successResponse($data, int $code = 200) { json_ok($data, $code); }
 function errorResponse(string $message, int $code = 400) { json_error($message, $code); }
 
 function set_json_headers(): void {
-    // Configuración de CORS
+    // La sesión segura ahora se configura en db.php
+
+    // ── Configuración de CORS ───────────────────────────────
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     
-    // Permitir explícitamente localhost para desarrollo
-    if (empty($origin) || preg_match('/^http:\/\/localhost(:\d+)?$/', $origin)) {
-        header("Access-Control-Allow-Origin: " . ($origin ?: 'http://localhost:3000'));
+    // Orígenes permitidos
+    $allowed_patterns = [
+        '/^http:\/\/localhost(:\d+)?$/',                    // Desarrollo local
+        '/^https?:\/\/(decor\.)?dataholics\.com\.mx$/',    // Producción
+    ];
+    
+    $is_allowed = empty($origin);
+    foreach ($allowed_patterns as $pattern) {
+        if (preg_match($pattern, $origin)) {
+            $is_allowed = true;
+            break;
+        }
+    }
+    
+    if ($is_allowed) {
+        header("Access-Control-Allow-Origin: " . ($origin ?: (defined('APP_URL') ? APP_URL : 'http://localhost:3000')));
     }
     
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -49,8 +64,11 @@ function require_role(array $allowed_roles): void {
         session_start();
     }
     
-    // MODO DEV: Auto-login como admin para facilitar el desarrollo local sin pantalla de login
-    if (empty($_SESSION['user']) && preg_match('/localhost/', $_SERVER['HTTP_HOST'] ?? '')) {
+    // MODO DEV: Auto-login como admin SOLO en desarrollo local
+    // En producción (APP_ENV=production) este bloque se salta por completo
+    if ((!defined('APP_ENV') || APP_ENV === 'development')
+        && empty($_SESSION['user'])
+        && preg_match('/localhost/', $_SERVER['HTTP_HOST'] ?? '')) {
         $_SESSION['user'] = [
             'id' => 1,
             'nombre' => 'Dev Admin',

@@ -1,11 +1,11 @@
 <?php
 // api/acabados/list.php
-header('Content-Type: application/json');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-require_once '../config/db.php';
-session_start();
-if (!isset($_SESSION['user'])) { http_response_code(401); echo json_encode(['error'=>'Sesión requerida']); exit; }
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
+
+set_json_headers();
+require_role(['admin', 'gerente_tienda', 'encargado_taller', 'cajero', 'carpintero', 'bodega']);
 
 $pdo = getDB();
 $stmt = $pdo->query("SELECT id, nombre, tipo, codigo_color, descripcion FROM acabados ORDER BY nombre");
-echo json_encode(['ok'=>true, 'items'=>$stmt->fetchAll()]);
+json_ok(['items' => $stmt->fetchAll()]);

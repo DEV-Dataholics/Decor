@@ -1,0 +1,4244 @@
+-- ============================================================
+-- INSTALACIÓN LIMPIA: Sistema Decor
+-- Generado automáticamente - Versión corregida
+-- ============================================================
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
+
+DROP TABLE IF EXISTS devoluciones;
+DROP TABLE IF EXISTS embarque_items;
+DROP TABLE IF EXISTS embarques;
+DROP TABLE IF EXISTS pagos_venta;
+DROP TABLE IF EXISTS venta_items;
+DROP TABLE IF EXISTS ventas_tienda;
+DROP TABLE IF EXISTS cajas_tienda;
+DROP TABLE IF EXISTS compra_externa_items;
+DROP TABLE IF EXISTS compras_externas;
+DROP TABLE IF EXISTS movimientos_inventario_tienda;
+DROP TABLE IF EXISTS inventario_tienda;
+DROP TABLE IF EXISTS alertas_stock_material;
+DROP TABLE IF EXISTS movimientos_inventario_taller;
+DROP TABLE IF EXISTS materiales;
+DROP TABLE IF EXISTS work_orders;
+DROP TABLE IF EXISTS semanas_nomina;
+DROP TABLE IF EXISTS lista_precios_mano_obra;
+DROP TABLE IF EXISTS empleados;
+DROP TABLE IF EXISTS orden_items;
+DROP TABLE IF EXISTS ordenes;
+DROP TABLE IF EXISTS cotizacion_items;
+DROP TABLE IF EXISTS cotizaciones;
+DROP TABLE IF EXISTS tiendas;
+DROP TABLE IF EXISTS listas_precios_clientes;
+DROP TABLE IF EXISTS clientes;
+DROP TABLE IF EXISTS producto_acabados;
+DROP TABLE IF EXISTS productos;
+DROP TABLE IF EXISTS acabados;
+DROP TABLE IF EXISTS proveedores;
+DROP TABLE IF EXISTS categorias_mueble;
+DROP TABLE IF EXISTS usuarios;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+--  db/00_base.sql
+--  Crear la base de datos y la tabla central de usuarios.
+--  EJECUTAR PRIMERO en phpMyAdmin de Laragon.
+--
+--  Principio: Los usuarios son el eje de auditoría de TODO el
+--  sistema. Cada tabla referencia usuario_id para saber QUIÉN
+--  capturó o modificó el dato. Captura una vez → úsalo en todos lados.
+-- ============================================================
+
+-- En cPanel la base de datos ya existe (noodluis_norma), no se necesita crearla.
+
+-- ── Tabla maestra de usuarios del sistema ───────────────────
+-- Roles definidos:
+--   admin            → acceso total (Sergio / Norma)
+--   gerente_tienda   → pedidos, POS, inventario tienda, reportes
+--   encargado_taller → producción, materiales, embarques
+--   cajero           → solo POS y consulta inventario tienda
+--   carpintero       → solo sus propias work_orders
+--   bodega           → entradas/salidas de materiales del taller
+CREATE TABLE usuarios (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre        VARCHAR(120)  NOT NULL,
+  email         VARCHAR(180)  NOT NULL UNIQUE,
+  password_hash VARCHAR(255)  NOT NULL,
+  rol           ENUM(
+    'admin','gerente_tienda','encargado_taller',
+    'cajero','carpintero','bodega','repartidor'
+  ) NOT NULL,
+  activo        TINYINT(1)    NOT NULL DEFAULT 1,
+  creado_en     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- El empleado vinculado (nullable: no todos los usuarios son empleados de taller)
+  empleado_id   INT UNSIGNED  NULL,
+
+  INDEX idx_email (email),
+  INDEX idx_rol   (rol)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- (Seed de usuarios se inserta más abajo)
+
+
+-- ============================================================
+--  db/01_catalogo.sql
+--  Catálogo de productos, acabados, clientes y proveedores.
+--
+--  PRINCIPIO "captura una vez, úsalo en muchos lugares":
+--  ─────────────────────────────────────────────────────
+--  • `categorias_mueble` → referenciada por productos, work_orders
+--    y lista_precios_mano_obra. La categoría se captura UNA VEZ aquí.
+--  • `proveedores` → referenciada por materiales, compras_externas
+--    y productos (cuando el origen es externo). Un proveedor vive
+--    en un solo lugar.
+--  • `productos` es el ÚNICO origen de verdad de un artículo:
+--    su nombre, código, medidas base y precio de lista. Cualquier
+--    cotización, orden, venta o embarque apunta a este registro;
+--    nunca se re-escribe la descripción del producto en otro lado.
+--  • `acabados` → una paleta definida aquí, usada en cotizaciones,
+--    orden_items y work_orders sin duplicar el nombre del acabado.
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Categorías de mueble ──────────────────────────────────
+-- Origen único del clasificador de productos.
+-- Usado en: productos, lista_precios_mano_obra, reportes.
+CREATE TABLE categorias_mueble (
+  id     TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(60) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- (Seed de categorías se inserta más abajo)
+
+
+-- ── 2. Proveedores ───────────────────────────────────────────
+-- Origen único de proveedor. Referenciado por materiales (taller)
+-- y compras_externas (tienda). Un mismo proveedor NO se registra dos veces.
+CREATE TABLE proveedores (
+  id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre                VARCHAR(160) NOT NULL,
+  razon_social          VARCHAR(200) NULL,
+  rfc                   VARCHAR(15)  NULL UNIQUE,
+  tipo                  ENUM(
+    'materia_prima','quimicos','herramienta',
+    'muebles_externos','artesanias','servicios'
+  ) NOT NULL,
+  ciudad                VARCHAR(80)  NULL,
+  pais                  VARCHAR(60)  NOT NULL DEFAULT 'México',
+  telefono              VARCHAR(25)  NULL,
+  email                 VARCHAR(180) NULL,
+  contacto_nombre       VARCHAR(120) NULL,
+  lead_time_dias        TINYINT UNSIGNED NULL COMMENT 'Días promedio de entrega',
+  metodo_pago_preferido VARCHAR(60)  NULL,
+  notas                 TEXT         NULL,
+  activo                TINYINT(1)   NOT NULL DEFAULT 1,
+  creado_por            INT UNSIGNED NOT NULL,
+  creado_en             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_tipo   (tipo),
+  INDEX idx_activo (activo),
+  CONSTRAINT fk_prov_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 3. Acabados ──────────────────────────────────────────────
+-- Paleta de acabados definida UNA VEZ.
+-- Referenciada en: producto_acabados, cotizacion_items, orden_items.
+-- Nunca se escribe "Alder #2" duplicado en cada orden; solo el ID aquí.
+CREATE TABLE acabados (
+  id            SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre        VARCHAR(80)  NOT NULL UNIQUE,
+  tipo          ENUM(
+    'mancha','laca','cera','pintura','distres',
+    'cardeado','natural','fashion'
+  ) NOT NULL,
+  codigo_color  VARCHAR(40)  NULL COMMENT 'Ej. Alder #2, Santa Fe',
+  descripcion   TEXT         NULL,
+  activo        TINYINT(1)   NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. Productos ─────────────────────────────────────────────
+-- ÚNICA fuente de verdad de un artículo.
+-- Nombre, SKU, medidas base y precio de lista se capturan aquí
+-- y se REUTILIZAN en cotizaciones, órdenes, inventario y ventas.
+CREATE TABLE productos (
+  id                   INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  codigo_sku           VARCHAR(40)  NOT NULL UNIQUE,
+  nombre               VARCHAR(160) NOT NULL,
+  descripcion          TEXT         NULL,
+  categoria_id         TINYINT UNSIGNED NOT NULL,
+  origen               ENUM(
+    'taller','compra_externa','artesania','pieza_unica'
+  ) NOT NULL DEFAULT 'taller',
+  es_pieza_unica       TINYINT(1)   NOT NULL DEFAULT 0
+    COMMENT 'Si TRUE: stock max 1, no reordenable igual',
+  tipo_orden_taller    ENUM('linea','linea_especial','especial','n/a')
+    NOT NULL DEFAULT 'linea',
+  -- Medidas base en pulgadas (JSON: {alto, ancho, fondo})
+  medidas_base         JSON         NULL,
+  -- Lista de especificaciones estándar (cajones, molduras, etc.)
+  habilitaciones       JSON         NULL,
+  -- URLs de fotos (array JSON de strings)
+  foto_url             JSON         NULL,
+  precio_venta_base    DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Precio de lista sugerido',
+  precio_costo_base    DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Costo estimado de producción o compra',
+  -- Solo para productos de origen externo
+  proveedor_externo_id INT UNSIGNED  NULL,
+  activo               TINYINT(1)    NOT NULL DEFAULT 1,
+  creado_por           INT UNSIGNED  NOT NULL,
+  creado_en            TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_sku       (codigo_sku),
+  INDEX idx_categoria (categoria_id),
+  INDEX idx_origen    (origen),
+  INDEX idx_activo    (activo),
+  CONSTRAINT fk_prod_categoria  FOREIGN KEY (categoria_id)         REFERENCES categorias_mueble(id),
+  CONSTRAINT fk_prod_proveedor  FOREIGN KEY (proveedor_externo_id) REFERENCES proveedores(id),
+  CONSTRAINT fk_prod_creado_por FOREIGN KEY (creado_por)           REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 5. Producto ↔ Acabados (N:N) ────────────────────────────
+-- Relaciona qué acabados están disponibles para cada producto.
+-- El acabado_id apunta a la tabla `acabados` —nunca texto libre.
+CREATE TABLE producto_acabados (
+  producto_id  INT UNSIGNED      NOT NULL,
+  acabado_id   SMALLINT UNSIGNED NOT NULL,
+  es_default   TINYINT(1)        NOT NULL DEFAULT 0,
+  PRIMARY KEY (producto_id, acabado_id),
+  CONSTRAINT fk_pa_producto FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pa_acabado  FOREIGN KEY (acabado_id)  REFERENCES acabados(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 6. Clientes ──────────────────────────────────────────────
+-- Dato de cliente capturado UNA VEZ.
+-- Reutilizado en: cotizaciones, ordenes, ventas_tienda, embarques.
+-- El campo `saldo_pendiente` se calcula dinámicamente vía query;
+-- aquí solo se almacena el límite de crédito para referencia.
+CREATE TABLE clientes (
+  id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre                VARCHAR(160) NOT NULL,
+  razon_social          VARCHAR(200) NULL,
+  rfc                   VARCHAR(15)  NULL UNIQUE,
+  tipo                  ENUM(
+    'mayorista','tienda_propia','disenador','publico_general'
+  ) NOT NULL DEFAULT 'publico_general',
+  email                 VARCHAR(180) NULL,
+  telefono              VARCHAR(25)  NULL,
+  ciudad                VARCHAR(80)  NULL,
+  pais                  VARCHAR(60)  NOT NULL DEFAULT 'México',
+  tipo_pago_preferido   ENUM(
+    'efectivo','transferencia','cheque','credito'
+  ) NOT NULL DEFAULT 'efectivo',
+  credito_activo        TINYINT(1)   NOT NULL DEFAULT 0,
+  limite_credito        DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  notas                 TEXT         NULL,
+  activo                TINYINT(1)   NOT NULL DEFAULT 1,
+  creado_por            INT UNSIGNED NOT NULL,
+  creado_en             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_tipo   (tipo),
+  INDEX idx_activo (activo),
+  CONSTRAINT fk_cli_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+--  db/02_ordenes.sql
+--  Cotizaciones, Órdenes de Producción e Ítems relacionados.
+--
+--  TRAZABILIDAD:
+--  ─────────────────────────────────────────────────────────
+--  Flujo canónico:
+--   cotizacion → (aprobada) → orden → orden_items → work_orders
+--
+--  • La cotización conserva todos los ítems con precio estimado.
+--  • Al convertirla en orden, se COPIA la referencia (cliente_id,
+--    producto_id, acabado_id, especificaciones) sin re-capturar datos.
+--  • La orden es el documento que dispara producción. Sus ítems
+--    son la base para generar work_orders automáticamente.
+--  • Ningún campo de "nombre de cliente" o "nombre de producto"
+--    se escribe en texto libre aquí; siempre es un FK.
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Tiendas ───────────────────────────────────────────────
+-- Definidas como entidades propias para filtrar inventarios,
+-- ventas y embarques por ubicación física.
+-- Referenciadas en: ordenes, cotizaciones, inventario_tienda,
+--  ventas_tienda, embarques.
+CREATE TABLE tiendas (
+  id            SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre        VARCHAR(100) NOT NULL UNIQUE,
+  ciudad        VARCHAR(80)  NOT NULL,
+  direccion     VARCHAR(255) NULL,
+  telefono      VARCHAR(25)  NULL,
+  activa        TINYINT(1)   NOT NULL DEFAULT 1,
+  creado_en     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- (Seed de tiendas se inserta más abajo)
+
+
+-- ── 2. Cotizaciones ──────────────────────────────────────────
+-- Documento previo a la orden. Al aprobarla se convierte en orden
+-- sin re-capturar datos de cliente ni ítems.
+CREATE TABLE cotizaciones (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cliente_id        INT UNSIGNED      NOT NULL,
+  tienda_origen_id  SMALLINT UNSIGNED NOT NULL COMMENT 'Tienda que genera la cotización',
+  fecha             DATE              NOT NULL,
+  vigencia_hasta    DATE              NULL,
+  estatus           ENUM(
+    'borrador','enviada','aprobada','rechazada','convertida'
+  ) NOT NULL DEFAULT 'borrador',
+  notas             TEXT              NULL,
+  total_estimado    DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  creado_por        INT UNSIGNED      NOT NULL,
+  creado_en         TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en    TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_cliente (cliente_id),
+  INDEX idx_estatus (estatus),
+  CONSTRAINT fk_cot_cliente  FOREIGN KEY (cliente_id)       REFERENCES clientes(id),
+  CONSTRAINT fk_cot_tienda   FOREIGN KEY (tienda_origen_id) REFERENCES tiendas(id),
+  CONSTRAINT fk_cot_creado   FOREIGN KEY (creado_por)       REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 3. Cotización ítems ──────────────────────────────────────
+CREATE TABLE cotizacion_items (
+  id                         INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+  cotizacion_id              INT UNSIGNED    NOT NULL,
+  producto_id                INT UNSIGNED    NOT NULL
+    COMMENT 'FK a productos — nunca texto libre',
+  cantidad                   DECIMAL(8,2)    NOT NULL DEFAULT 1,
+  acabado_id                 SMALLINT UNSIGNED NULL
+    COMMENT 'FK a acabados — nunca texto libre',
+  -- JSON para medidas o ajustes que difieren de las medidas base del producto
+  especificaciones_custom    JSON            NULL
+    COMMENT '{alto, ancho, fondo, ajustes_especiales}',
+  precio_unitario_estimado   DECIMAL(10,2)   NOT NULL DEFAULT 0.00,
+  subtotal                   DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
+
+  INDEX idx_cot  (cotizacion_id),
+  INDEX idx_prod (producto_id),
+  CONSTRAINT fk_ci_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ci_producto   FOREIGN KEY (producto_id)   REFERENCES productos(id),
+  CONSTRAINT fk_ci_acabado    FOREIGN KEY (acabado_id)    REFERENCES acabados(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. Órdenes de producción ─────────────────────────────────
+-- Originadas por conversión de cotización (cotizacion_id NOT NULL)
+-- o capturadas directamente (cotizacion_id NULL).
+-- cliente_id y tienda_origen_id se toman del FK —sin re-capturar.
+CREATE TABLE ordenes (
+  id                      INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  cotizacion_id           INT UNSIGNED      NULL
+    COMMENT 'NULL = orden directa sin cotización previa',
+  cliente_id              INT UNSIGNED      NOT NULL,
+  tienda_origen_id        SMALLINT UNSIGNED NOT NULL,
+  tipo_orden              ENUM('linea','linea_especial','especial') NOT NULL DEFAULT 'linea',
+  fecha_creacion          DATE              NOT NULL,
+  fecha_entrega_estimada  DATE              NULL,
+  fecha_entrega_real      DATE              NULL,
+  estatus                 ENUM(
+    'borrador','confirmada','en_produccion',
+    'lista','embarcada','entregada','cancelada'
+  ) NOT NULL DEFAULT 'borrador',
+  -- Todos los documentos/etiquetas se generan EN ESPAÑOL (requerimiento de negocio)
+  idioma_orden            ENUM('es','en') NOT NULL DEFAULT 'es',
+  notas                   TEXT              NULL,
+  descuento_global        DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  total                   DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  creado_por              INT UNSIGNED      NOT NULL,
+  creado_en               TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en          TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_cliente  (cliente_id),
+  INDEX idx_estatus  (estatus),
+  INDEX idx_tienda   (tienda_origen_id),
+  CONSTRAINT fk_ord_cotizacion FOREIGN KEY (cotizacion_id)   REFERENCES cotizaciones(id),
+  CONSTRAINT fk_ord_cliente    FOREIGN KEY (cliente_id)       REFERENCES clientes(id),
+  CONSTRAINT fk_ord_tienda     FOREIGN KEY (tienda_origen_id) REFERENCES tiendas(id),
+  CONSTRAINT fk_ord_creado     FOREIGN KEY (creado_por)       REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 5. Orden ítems ───────────────────────────────────────────
+-- Cada item de una orden es la unidad mínima de producción.
+-- Genera (1) work_order por empleado especializado.
+-- TRAZABILIDAD: si nació de cotizacion_item, se conserva referencia.
+CREATE TABLE orden_items (
+  id                      INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  orden_id                INT UNSIGNED      NOT NULL,
+  -- Si viene de conversión de cotización, apuntamos al item original
+  cotizacion_item_id      INT UNSIGNED      NULL
+    COMMENT 'Trazabilidad: ítem de cotización de origen',
+  producto_id             INT UNSIGNED      NOT NULL
+    COMMENT 'FK a productos — fuente única del nombre/sku/medidas base',
+  cantidad                DECIMAL(8,2)      NOT NULL DEFAULT 1,
+  acabado_id              SMALLINT UNSIGNED NULL,
+  especificaciones_custom JSON              NULL
+    COMMENT '{alto, ancho, fondo, ajustes_especiales}',
+  precio_unitario         DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  descuento_item          DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  subtotal                DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  estatus_item            ENUM(
+    'pendiente','en_produccion','terminado','embarcado'
+  ) NOT NULL DEFAULT 'pendiente',
+
+  INDEX idx_orden   (orden_id),
+  INDEX idx_producto(producto_id),
+  CONSTRAINT fk_oi_orden          FOREIGN KEY (orden_id)          REFERENCES ordenes(id) ON DELETE CASCADE,
+  CONSTRAINT fk_oi_cot_item       FOREIGN KEY (cotizacion_item_id)REFERENCES cotizacion_items(id),
+  CONSTRAINT fk_oi_producto       FOREIGN KEY (producto_id)       REFERENCES productos(id),
+  CONSTRAINT fk_oi_acabado        FOREIGN KEY (acabado_id)        REFERENCES acabados(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+--  db/03_produccion.sql
+--  Empleados, Semanas de Nómina, Work Orders y Lista de Precios.
+--
+--  TRAZABILIDAD:
+--  ─────────────────────────────────────────────────────────
+--  Flujo canónico de producción:
+--   orden_item → work_order (asignada a empleado) → terminada →
+--   semana_nomina → cierre de semana → monto_pago calculado.
+--
+--  PRINCIPIO "captura una vez":
+--  • `empleados` define nombre, rol y tarifa base UNA VEZ.
+--    La work_order apunta al empleado; nunca re-escribe su nombre.
+--  • `lista_precios_mano_obra` es la ÚNICA tabla donde viven los
+--    precios por categoría. Al calcular nómina se consulta aquí;
+--    no se guarda el precio en cada work_order hasta el cierre.
+--  • `semanas_nomina` define el período de corte. Las work_orders
+--    saben a qué semana pertenecen por FK, no por fechas duplicadas.
+--  • `rechazos` en work_orders registra calidad sin tabla aparte;
+--    es un contador incremental que no pierde historial.
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Empleados ─────────────────────────────────────────────
+-- Fuente única de datos de trabajadores del taller.
+-- Referenciados en: work_orders (como ejecutor y como asignador),
+--  tiendas (como encargado), usuarios.empleado_id.
+CREATE TABLE empleados (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre          VARCHAR(120) NOT NULL,
+  rol             ENUM(
+    'carpintero','pintor','tapicero','tallador','embalaje','encargado'
+  ) NOT NULL,
+  -- Especialidades: qué categorías de mueble puede trabajar
+  -- JSON array: ["sillas","camas","mesas","acabados","talla","embalaje"]
+  especialidades  JSON         NOT NULL ,
+  tarifa_base     DECIMAL(8,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Tarifa base por pieza para cálculo inicial de nómina',
+  activo          TINYINT(1)   NOT NULL DEFAULT 1,
+  fecha_ingreso   DATE         NULL,
+  creado_en       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_rol    (rol),
+  INDEX idx_activo (activo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ahora que existe la tabla empleados, agregamos la FK en usuarios
+ALTER TABLE usuarios
+  ADD CONSTRAINT fk_usr_empleado
+    FOREIGN KEY (empleado_id) REFERENCES empleados(id);
+
+-- Actualizar tiendas para poder asignarle un encargado
+ALTER TABLE tiendas
+  ADD COLUMN encargado_id INT UNSIGNED NULL,
+  ADD CONSTRAINT fk_tienda_encargado FOREIGN KEY (encargado_id) REFERENCES empleados(id);
+
+
+-- ── 2. Lista de precios de mano de obra ──────────────────────
+-- ÚNICA tabla donde viven los precios de producción por rol y categoría.
+-- Al calcular el monto de una work_order se busca aquí el precio vigente;
+-- no se almacena el precio en cada work_order hasta el cierre semanal.
+CREATE TABLE lista_precios_mano_obra (
+  id              INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  rol             ENUM(
+    'carpintero','pintor','tapicero','tallador','embalaje','encargado'
+  ) NOT NULL,
+  categoria_id    TINYINT UNSIGNED  NOT NULL
+    COMMENT 'FK a categorias_mueble — el precio aplica por categoría de mueble',
+  precio_por_pieza DECIMAL(8,2)     NOT NULL DEFAULT 0.00,
+  vigente_desde   DATE              NOT NULL,
+  -- No hay vigente_hasta: el precio activo es el de mayor vigente_desde <= hoy
+  creado_por      INT UNSIGNED      NOT NULL,
+  creado_en       TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_rol_cat (rol, categoria_id),
+  CONSTRAINT fk_lpm_categoria  FOREIGN KEY (categoria_id) REFERENCES categorias_mueble(id),
+  CONSTRAINT fk_lpm_creado_por FOREIGN KEY (creado_por)   REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 3. Semanas de nómina ─────────────────────────────────────
+-- Períodos de corte. Las work_orders se asignan aquí por FK.
+-- REGLA: si una work_order se termina después del fecha_corte,
+--   se asigna a la SIGUIENTE semana (lógica en la API, no en la BD).
+CREATE TABLE semanas_nomina (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  fecha_inicio  DATE         NOT NULL,
+  fecha_corte   DATETIME     NOT NULL
+    COMMENT 'Hasta este momento se cuentan piezas en esta semana',
+  estatus       ENUM('abierta','cerrada') NOT NULL DEFAULT 'abierta',
+  total_pagado  DECIMAL(12,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Calculado al cerrar la semana; no se actualiza manualmente',
+  cerrado_por   INT UNSIGNED  NULL,
+  cerrado_en    TIMESTAMP     NULL,
+  creado_en     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_estatus (estatus),
+  CONSTRAINT fk_sn_cerrado_por FOREIGN KEY (cerrado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. Work Orders ───────────────────────────────────────────
+-- Unidad de trabajo individual. Cada work_order:
+--  • Viene de UN orden_item específico (trazabilidad hacia el pedido original).
+--  • Es asignada a UN empleado con su rol correspondiente.
+--  • Pertenece a UNA semana_nomina.
+--  • Su monto_pago se calcula al cerrar la semana (consulta lista_precios_mano_obra).
+--
+-- PRINCIPIO: el encargado NO re-captura el nombre del producto
+-- ni del cliente. Toda esa información está en el orden_item → orden → cliente.
+CREATE TABLE work_orders (
+  id                INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  orden_item_id     INT UNSIGNED      NOT NULL
+    COMMENT 'Trazabilidad completa hacia pedido original',
+  empleado_id       INT UNSIGNED      NOT NULL
+    COMMENT 'Quién ejecuta la pieza',
+  asignado_por      INT UNSIGNED      NOT NULL
+    COMMENT 'FK a empleados (encargado que asigna)',
+  semana_nomina_id  INT UNSIGNED      NOT NULL
+    COMMENT 'FK a semanas_nomina — determina período de pago',
+  fecha_asignacion  DATE              NOT NULL,
+  fecha_inicio_real DATE              NULL,
+  fecha_terminado   DATETIME          NULL,
+  estatus           ENUM(
+    'pendiente','en_progreso','en_revision','terminado','pagado'
+  ) NOT NULL DEFAULT 'pendiente',
+  cantidad_asignada DECIMAL(8,2)      NOT NULL DEFAULT 1.00
+    COMMENT 'Cantidad de piezas asignadas de esta partida',
+  costo_mano_obra_unitario DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Tarifa unitaria pactada/fijada al asignar',
+  -- Calculado: cantidad_asignada * costo_mano_obra_unitario (actualizado al asignar/cerrar)
+  monto_pago        DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  notas_calidad     TEXT              NULL,
+  -- Contador de rechazos: cuántas veces regresó al carpintero para corrección
+  rechazos          TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+  creado_por        INT UNSIGNED      NOT NULL,
+  creado_en         TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en    TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_empleado  (empleado_id),
+  INDEX idx_semana    (semana_nomina_id),
+  INDEX idx_estatus   (estatus),
+  INDEX idx_orden_item(orden_item_id),
+  CONSTRAINT fk_wo_orden_item    FOREIGN KEY (orden_item_id)    REFERENCES orden_items(id),
+  CONSTRAINT fk_wo_empleado      FOREIGN KEY (empleado_id)      REFERENCES empleados(id),
+  CONSTRAINT fk_wo_asignado_por  FOREIGN KEY (asignado_por)     REFERENCES empleados(id),
+  CONSTRAINT fk_wo_semana        FOREIGN KEY (semana_nomina_id) REFERENCES semanas_nomina(id),
+  CONSTRAINT fk_wo_creado_por    FOREIGN KEY (creado_por)       REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+--  db/04_inventario_taller.sql
+--  Materiales del taller, movimientos y alertas de stock.
+--
+--  TRAZABILIDAD Y PRINCIPIO "captura una vez":
+--  ────────────────────────────────────────────
+--  • El `stock_actual` de `materiales` NO se actualiza directamente.
+--    SIEMPRE se hace a través de `movimientos_inventario_taller`.
+--    El stock real = SUM(entradas) - SUM(salidas) de los movimientos.
+--    El campo stock_actual se actualiza por trigger o por la API
+--    tras cada movimiento — NUNCA por UPDATE manual.
+--
+--  • Cada movimiento apunta a su `referencia_tipo` y `referencia_id`
+--    para saber exactamente POR QUÉ entró o salió el material:
+--    - 'compra'             → referencia_id = compra a proveedor
+--    - 'consumo_produccion' → referencia_id = work_order_id
+--    - 'ajuste_manual'      → referencia_id = NULL (solo con notas)
+--
+--  • Las `alertas_stock_material` se GENERAN automáticamente cuando
+--    stock_actual <= stock_minimo; el usuario solo las "atiende".
+--    Nunca se captura manualmente la alerta. Un mismo material no
+--    puede tener dos alertas activas del mismo tipo (INDEX UNIQUE).
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Materiales ────────────────────────────────────────────
+-- Fuente única de datos de materiales e insumos del taller.
+-- Referenciado en: movimientos_inventario_taller, alertas_stock_material.
+CREATE TABLE materiales (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre            VARCHAR(140) NOT NULL,
+  tipo              ENUM(
+    'madera','quimico','insumo','herramienta'
+  ) NOT NULL,
+  subtipo           VARCHAR(80)  NULL
+    COMMENT 'Ej: pino, alder, laca, clavo decorativo',
+  unidad_medida     VARCHAR(30)  NOT NULL
+    COMMENT 'Ej: paca, cubeta, caja, litro, pieza',
+  proveedor_id      INT UNSIGNED NOT NULL
+    COMMENT 'FK a proveedores — único lugar donde vive el proveedor',
+  stock_actual      DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'NUNCA actualizar directamente. Solo vía movimientos.',
+  stock_minimo      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  stock_maximo      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  costo_unitario    DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Último costo de compra registrado',
+  codigo_referencia VARCHAR(60)  NULL
+    COMMENT 'Código del proveedor o código interno',
+  notas             TEXT         NULL,
+  activo            TINYINT(1)   NOT NULL DEFAULT 1,
+  creado_por        INT UNSIGNED NOT NULL,
+  creado_en         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_tipo     (tipo),
+  INDEX idx_proveedor(proveedor_id),
+  CONSTRAINT fk_mat_proveedor  FOREIGN KEY (proveedor_id) REFERENCES proveedores(id),
+  CONSTRAINT fk_mat_creado_por FOREIGN KEY (creado_por)   REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 2. Movimientos de inventario del taller ──────────────────
+-- ÚNICA forma de modificar el stock de materiales.
+-- Cada movimiento es inmutable: no se edita ni elimina (auditoria).
+-- La API actualiza stock_actual en `materiales` DESPUÉS de insertar aquí.
+CREATE TABLE movimientos_inventario_taller (
+  id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  material_id         INT UNSIGNED NOT NULL,
+  tipo_movimiento     ENUM('entrada','salida','ajuste') NOT NULL,
+  cantidad            DECIMAL(10,2) NOT NULL
+    COMMENT 'Positivo siempre; el tipo_movimiento define la dirección',
+  costo_unitario_mov  DECIMAL(10,2) NOT NULL DEFAULT 0.00
+    COMMENT 'Costo al momento del movimiento (puede diferir del costo_unitario base)',
+  referencia_tipo     ENUM(
+    'compra','consumo_produccion','ajuste_manual'
+  ) NOT NULL,
+  -- Apunta al ID del documento de origen según referencia_tipo:
+  --   compra             → ID de compra a proveedor (tabla futura o notas)
+  --   consumo_produccion → work_orders.id
+  --   ajuste_manual      → NULL
+  referencia_id       INT UNSIGNED NULL,
+  fecha               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  usuario_id          INT UNSIGNED NOT NULL
+    COMMENT 'Quién registró el movimiento',
+  notas               TEXT         NULL,
+
+  INDEX idx_material  (material_id),
+  INDEX idx_tipo_mov  (tipo_movimiento),
+  INDEX idx_ref_tipo  (referencia_tipo, referencia_id),
+  INDEX idx_fecha     (fecha),
+  CONSTRAINT fk_mit_material FOREIGN KEY (material_id) REFERENCES materiales(id),
+  CONSTRAINT fk_mit_usuario  FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── Trigger: actualizar stock_actual luego de cada movimiento ──
+DELIMITER $$
+
+CREATE TRIGGER trg_actualizar_stock_taller
+AFTER INSERT ON movimientos_inventario_taller
+FOR EACH ROW
+BEGIN
+  IF NEW.tipo_movimiento = 'entrada' THEN
+    UPDATE materiales SET stock_actual = stock_actual + NEW.cantidad WHERE id = NEW.material_id;
+  ELSEIF NEW.tipo_movimiento = 'salida' THEN
+    UPDATE materiales SET stock_actual = stock_actual - NEW.cantidad WHERE id = NEW.material_id;
+  ELSE
+    -- ajuste: la cantidad puede ser positiva (corrección hacia arriba) o se usa el campo
+    -- Para ajuste, la API pasa el delta firmado. Aquí asumimos que 'ajuste' siempre es delta.
+    UPDATE materiales SET stock_actual = stock_actual + NEW.cantidad WHERE id = NEW.material_id;
+  END IF;
+END$$
+
+DELIMITER ;
+
+
+-- ── 3. Alertas de stock de material ──────────────────────────
+-- Se generan automáticamente, nunca manualmente.
+-- UNIQUE en (material_id, tipo_alerta, atendida=0) evita duplicados activos.
+CREATE TABLE alertas_stock_material (
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  material_id       INT UNSIGNED NOT NULL,
+  tipo_alerta       ENUM('minimo','agotado') NOT NULL,
+  fecha_generacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  atendida          TINYINT(1)   NOT NULL DEFAULT 0,
+  fecha_atencion    TIMESTAMP    NULL,
+  atendida_por      INT UNSIGNED NULL,
+
+  -- Solo puede haber UNA alerta activa del mismo tipo por material
+  UNIQUE KEY uq_alerta_activa (material_id, tipo_alerta, atendida),
+  INDEX idx_atendida   (atendida),
+  CONSTRAINT fk_alerta_material    FOREIGN KEY (material_id)  REFERENCES materiales(id),
+  CONSTRAINT fk_alerta_atendida_por FOREIGN KEY (atendida_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── Trigger: generar alerta automáticamente al actualizar stock ──
+DELIMITER $$
+
+CREATE TRIGGER trg_generar_alerta_stock
+AFTER UPDATE ON materiales
+FOR EACH ROW
+BEGIN
+  -- Alerta de agotado
+  IF NEW.stock_actual <= 0 THEN
+    INSERT IGNORE INTO alertas_stock_material (material_id, tipo_alerta)
+    VALUES (NEW.id, 'agotado');
+  -- Alerta de mínimo (solo si no está agotado)
+  ELSEIF NEW.stock_actual <= NEW.stock_minimo THEN
+    INSERT IGNORE INTO alertas_stock_material (material_id, tipo_alerta)
+    VALUES (NEW.id, 'minimo');
+  END IF;
+END$$
+
+DELIMITER ;
+
+
+-- ============================================================
+--  db/05_tienda_pos.sql
+--  Inventario de tienda, compras externas, POS y cajas.
+--
+--  TRAZABILIDAD Y PRINCIPIO "captura una vez":
+--  ────────────────────────────────────────────
+--  • `inventario_tienda` NUNCA se captura manualmente con cantidad.
+--    Su estado es consecuencia de DOS flujos rastreables:
+--    a) embarque_id → recepción de productos del taller.
+--    b) compra_externa_id → ingreso de productos externos.
+--    La `cantidad_disponible` se actualiza por trigger o API
+--    sólo al procesar movimientos en `movimientos_inventario_tienda`.
+--
+--  • Cada venta descuenta el inventario vía `movimientos_inventario_tienda`
+--    referenciando el `venta_id`. El stock jamás se toca directamente.
+--
+--  • Si `es_pieza_unica = TRUE` en el producto, al venderlo el trigger
+--    marca `productos.activo = 0` automáticamente. Un solo punto de control.
+--
+--  • `cajas_tienda`: El total_efectivo_esperado se calcula desde los
+--    pagos de venta; el operador solo captura total_efectivo_contado.
+--    La diferencia la calcula la BD.
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Inventario de tienda ──────────────────────────────────
+-- Cada fila = un producto en una tienda, con su origen rastreado.
+CREATE TABLE inventario_tienda (
+  id                    INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  tienda_id             SMALLINT UNSIGNED NOT NULL,
+  producto_id           INT UNSIGNED      NOT NULL,
+  cantidad_disponible   DECIMAL(10,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'NUNCA actualizar directamente — solo vía movimientos',
+  cantidad_reservada    DECIMAL(10,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'Reservada por ventas pendientes de cobro',
+  origen_stock          ENUM(
+    'embarque_taller','compra_externa','artesania','pieza_unica'
+  ) NOT NULL,
+  costo_unitario        DECIMAL(10,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'Costo real de ingreso al inventario de tienda',
+  precio_venta          DECIMAL(10,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'Puede diferir del precio_venta_base del producto',
+  -- Apunta al embarque O a la compra externa de origen — nunca ambos
+  lote_referencia_tipo  ENUM('embarque','compra_externa') NULL,
+  lote_referencia_id    INT UNSIGNED      NULL,
+  ultima_actualizacion  TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_tienda_producto_origen (tienda_id, producto_id, origen_stock),
+  INDEX idx_tienda   (tienda_id),
+  INDEX idx_producto (producto_id),
+  CONSTRAINT fk_it_tienda   FOREIGN KEY (tienda_id)   REFERENCES tiendas(id),
+  CONSTRAINT fk_it_producto FOREIGN KEY (producto_id) REFERENCES productos(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 2. Movimientos de inventario de tienda ───────────────────
+-- ÚNICA forma de cambiar el stock en tienda. Inmutable (no se edita).
+CREATE TABLE movimientos_inventario_tienda (
+  id                    INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  inventario_tienda_id  INT UNSIGNED      NOT NULL,
+  tipo                  ENUM(
+    'entrada','venta','devolucion','ajuste','traspaso'
+  ) NOT NULL,
+  cantidad              DECIMAL(10,2)     NOT NULL,
+  referencia_tipo       ENUM(
+    'embarque','compra_externa','venta','traspaso','ajuste_manual'
+  ) NOT NULL,
+  referencia_id         INT UNSIGNED      NULL
+    COMMENT 'ID de embarque, venta, compra_externa o NULL para ajuste manual',
+  fecha                 DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  usuario_id            INT UNSIGNED      NOT NULL,
+  notas                 TEXT              NULL,
+
+  INDEX idx_inv_tienda (inventario_tienda_id),
+  INDEX idx_ref        (referencia_tipo, referencia_id),
+  CONSTRAINT fk_mit2_inv     FOREIGN KEY (inventario_tienda_id) REFERENCES inventario_tienda(id),
+  CONSTRAINT fk_mit2_usuario FOREIGN KEY (usuario_id)           REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Trigger: actualizar cantidad_disponible en inventario_tienda
+DELIMITER $$
+
+CREATE TRIGGER trg_actualizar_stock_tienda
+AFTER INSERT ON movimientos_inventario_tienda
+FOR EACH ROW
+BEGIN
+  IF NEW.tipo IN ('entrada','devolucion') THEN
+    UPDATE inventario_tienda
+    SET cantidad_disponible = cantidad_disponible + NEW.cantidad
+    WHERE id = NEW.inventario_tienda_id;
+  ELSEIF NEW.tipo = 'venta' THEN
+    UPDATE inventario_tienda
+    SET cantidad_disponible = cantidad_disponible - NEW.cantidad
+    WHERE id = NEW.inventario_tienda_id;
+  ELSEIF NEW.tipo = 'ajuste' THEN
+    UPDATE inventario_tienda
+    SET cantidad_disponible = cantidad_disponible + NEW.cantidad
+    WHERE id = NEW.inventario_tienda_id;
+  END IF;
+END$$
+
+DELIMITER ;
+
+
+-- ── 3. Compras externas ──────────────────────────────────────
+-- Registro de compras de oportunidad (remates, artesanías, etc.)
+-- Al confirmar una compra_externa, la API genera entradas en inventario_tienda.
+CREATE TABLE compras_externas (
+  id                  INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  proveedor_id        INT UNSIGNED      NOT NULL,
+  tienda_destino_id   SMALLINT UNSIGNED NOT NULL,
+  fecha_compra        DATE              NOT NULL,
+  folio_factura       VARCHAR(60)       NULL,
+  total_compra        DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  estatus             ENUM(
+    'registrada','recibida','en_inventario'
+  ) NOT NULL DEFAULT 'registrada',
+  notas               TEXT              NULL
+    COMMENT 'Contexto: feria artesanal, lote de liquidación, etc.',
+  usuario_id          INT UNSIGNED      NOT NULL,
+  creado_en           TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_proveedor (proveedor_id),
+  INDEX idx_tienda    (tienda_destino_id),
+  CONSTRAINT fk_ce_proveedor FOREIGN KEY (proveedor_id)      REFERENCES proveedores(id),
+  CONSTRAINT fk_ce_tienda    FOREIGN KEY (tienda_destino_id) REFERENCES tiendas(id),
+  CONSTRAINT fk_ce_usuario   FOREIGN KEY (usuario_id)        REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 4. Ítems de compra externa ───────────────────────────────
+CREATE TABLE compra_externa_items (
+  id                      INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
+  compra_externa_id       INT UNSIGNED  NOT NULL,
+  -- Si el producto ya existe en catálogo, se usa su ID
+  producto_id             INT UNSIGNED  NULL
+    COMMENT 'NULL si es pieza única nueva — se registra en productos al guardar',
+  descripcion_libre       TEXT          NULL
+    COMMENT 'Para piezas sin SKU previo. Al guardar, API crea producto y llena producto_id',
+  cantidad                DECIMAL(8,2)  NOT NULL DEFAULT 1,
+  costo_unitario          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  precio_venta_sugerido   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  es_pieza_unica          TINYINT(1)    NOT NULL DEFAULT 0,
+  foto_url                JSON          NULL
+    COMMENT 'Array de URLs de fotos tomadas en el momento de la compra',
+
+  INDEX idx_compra   (compra_externa_id),
+  INDEX idx_producto (producto_id),
+  CONSTRAINT fk_cei_compra   FOREIGN KEY (compra_externa_id) REFERENCES compras_externas(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cei_producto FOREIGN KEY (producto_id)       REFERENCES productos(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 5. Cajas de tienda ───────────────────────────────────────
+CREATE TABLE cajas_tienda (
+  id                        INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  tienda_id                 SMALLINT UNSIGNED NOT NULL,
+  nombre                    VARCHAR(60)       NOT NULL DEFAULT 'Caja 1',
+  fondo_inicial             DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  fecha_apertura            DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_cierre              DATETIME          NULL,
+  total_efectivo_esperado   DECIMAL(12,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'Calculado: fondo_inicial + total ventas en efectivo del día',
+  total_efectivo_contado    DECIMAL(12,2)     NOT NULL DEFAULT 0.00
+    COMMENT 'Capturado por el cajero al cierre',
+  diferencia                DECIMAL(10,2)     GENERATED ALWAYS AS
+    (total_efectivo_contado - total_efectivo_esperado) STORED
+    COMMENT 'Calculado automáticamente por la BD',
+  estatus                   ENUM('abierta','cerrada') NOT NULL DEFAULT 'abierta',
+  usuario_apertura_id       INT UNSIGNED      NOT NULL,
+  usuario_cierre_id         INT UNSIGNED      NULL,
+
+  INDEX idx_tienda  (tienda_id),
+  INDEX idx_estatus (estatus),
+  CONSTRAINT fk_caja_tienda    FOREIGN KEY (tienda_id)           REFERENCES tiendas(id),
+  CONSTRAINT fk_caja_apertura  FOREIGN KEY (usuario_apertura_id) REFERENCES usuarios(id),
+  CONSTRAINT fk_caja_cierre    FOREIGN KEY (usuario_cierre_id)   REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 6. Ventas de tienda (POS) ────────────────────────────────
+CREATE TABLE ventas_tienda (
+  id                    INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  tienda_id             SMALLINT UNSIGNED NOT NULL,
+  -- FK nullable al cliente registrado (NULL = venta al público general)
+  cliente_id            INT UNSIGNED      NULL
+    COMMENT 'NULL = venta sin cliente registrado',
+  cliente_nombre_libre  VARCHAR(160)      NULL
+    COMMENT 'Solo cuando cliente_id es NULL',
+  caja_id               INT UNSIGNED      NOT NULL,
+  fecha_venta           DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  estatus               ENUM(
+    'borrador','confirmada','cancelada'
+  ) NOT NULL DEFAULT 'borrador',
+  subtotal              DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  descuento_total       DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  impuestos             DECIMAL(10,2)     NOT NULL DEFAULT 0.00,
+  total                 DECIMAL(12,2)     NOT NULL DEFAULT 0.00,
+  motivo_cancelacion    TEXT              NULL,
+  notas                 TEXT              NULL,
+  usuario_cajero_id     INT UNSIGNED      NOT NULL,
+
+  INDEX idx_tienda  (tienda_id),
+  INDEX idx_cliente (cliente_id),
+  INDEX idx_caja    (caja_id),
+  INDEX idx_fecha   (fecha_venta),
+  CONSTRAINT fk_vt_tienda   FOREIGN KEY (tienda_id)         REFERENCES tiendas(id),
+  CONSTRAINT fk_vt_cliente  FOREIGN KEY (cliente_id)        REFERENCES clientes(id),
+  CONSTRAINT fk_vt_caja     FOREIGN KEY (caja_id)           REFERENCES cajas_tienda(id),
+  CONSTRAINT fk_vt_cajero   FOREIGN KEY (usuario_cajero_id) REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 7. Ítems de venta ────────────────────────────────────────
+-- Cada ítem apunta al inventario_tienda específico (trazabilidad de lote)
+-- Y al producto (para nombre/sku sin re-capturo).
+CREATE TABLE venta_items (
+  id                    INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
+  venta_id              INT UNSIGNED  NOT NULL,
+  inventario_tienda_id  INT UNSIGNED  NOT NULL
+    COMMENT 'Trazabilidad: de qué lote/origen salió el producto',
+  producto_id           INT UNSIGNED  NOT NULL
+    COMMENT 'FK — nunca texto libre con el nombre del producto',
+  cantidad              DECIMAL(8,2)  NOT NULL DEFAULT 1,
+  precio_unitario       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  descuento_item        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  subtotal              DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+
+  INDEX idx_venta    (venta_id),
+  INDEX idx_inv      (inventario_tienda_id),
+  INDEX idx_producto (producto_id),
+  CONSTRAINT fk_vi_venta     FOREIGN KEY (venta_id)             REFERENCES ventas_tienda(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vi_inv       FOREIGN KEY (inventario_tienda_id) REFERENCES inventario_tienda(id),
+  CONSTRAINT fk_vi_producto  FOREIGN KEY (producto_id)          REFERENCES productos(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 8. Pagos de venta ────────────────────────────────────────
+-- Soporte para pago mixto: múltiples métodos por venta.
+-- El total de pagos debe igualar ventas_tienda.total (validado en API).
+CREATE TABLE pagos_venta (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  venta_id   INT UNSIGNED NOT NULL,
+  metodo     ENUM(
+    'efectivo','transferencia','tarjeta','cheque','credito_cliente'
+  ) NOT NULL,
+  monto      DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  referencia VARCHAR(120)  NULL
+    COMMENT 'Folio de transferencia, número de cheque, etc.',
+  fecha      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_venta (venta_id),
+  CONSTRAINT fk_pv_venta FOREIGN KEY (venta_id) REFERENCES ventas_tienda(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Trigger: al confirmar venta, registrar movimiento de inventario (llamado desde API)
+-- NOTE: El trigger de descuento en inventario se maneja desde la API PHP
+-- para poder validar stock antes de ejecutar. Aquí solo hay el trigger de pieza_unica.
+
+-- Trigger: si pieza única se vende (confirmada), desactivar el producto
+DELIMITER $$
+
+CREATE TRIGGER trg_pieza_unica_vendida
+AFTER UPDATE ON ventas_tienda
+FOR EACH ROW
+BEGIN
+  IF NEW.estatus = 'confirmada' AND OLD.estatus != 'confirmada' THEN
+    -- Deshabilitar productos de pieza única vendidos en esta venta
+    UPDATE productos p
+    INNER JOIN venta_items vi ON vi.producto_id = p.id AND vi.venta_id = NEW.id
+    SET p.activo = 0
+    WHERE p.es_pieza_unica = 1;
+  END IF;
+END$$
+
+DELIMITER ;
+
+
+-- ============================================================
+--  db/06_logistica.sql
+--  Embarques, ítems de embarque y devoluciones.
+--
+--  TRAZABILIDAD:
+--  ─────────────────────────────────────────────────────────
+--  Flujo canónico de embarque:
+--   orden_items (terminados) → embarque → embarque_items →
+--   confirmación_recepcion → inventario_tienda (entrada)
+--
+--  • Cada embarque_item apunta al orden_item que lo originó,
+--    cerrando el ciclo: pedido → producción → embarque → tienda.
+--  • Al confirmar recepción, la API crea automáticamente el
+--    movimiento de entrada en inventario_tienda, sin re-capturo.
+--  • `diferencia` en embarque_items detecta faltantes.
+--    Nunca se asume que lo enviado = lo recibido. Si hay diferencia,
+--    queda documentada y trazada al embarque específico.
+--
+--  Flujo de devolución:
+--   venta_tienda o orden_item → devolucion →
+--   (según estatus) inventario_tienda o merma
+-- ============================================================
+
+-- (usando la BD seleccionada en phpMyAdmin)
+
+-- ── 1. Embarques ─────────────────────────────────────────────
+CREATE TABLE embarques (
+  id                    INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  -- Nullable: puede haber embarques de reposición sin orden formal
+  orden_id              INT UNSIGNED      NULL,
+  tienda_destino_id     SMALLINT UNSIGNED NOT NULL,
+  fecha_embarque        DATE              NOT NULL,
+  placas_trailer        VARCHAR(20)       NULL,
+  transportista         VARCHAR(120)      NULL,
+  carta_porte_url       VARCHAR(500)      NULL,
+  folio_carta_porte     VARCHAR(60)       NULL,
+  estatus               ENUM(
+    'preparando','embarcado','en_transito','entregado'
+  ) NOT NULL DEFAULT 'preparando',
+  usuario_embarque_id   INT UNSIGNED      NOT NULL,
+  creado_en             TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en        TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_tienda_dest (tienda_destino_id),
+  INDEX idx_orden       (orden_id),
+  INDEX idx_estatus     (estatus),
+  CONSTRAINT fk_emb_orden   FOREIGN KEY (orden_id)           REFERENCES ordenes(id),
+  CONSTRAINT fk_emb_tienda  FOREIGN KEY (tienda_destino_id)  REFERENCES tiendas(id),
+  CONSTRAINT fk_emb_usuario FOREIGN KEY (usuario_embarque_id)REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 2. Ítems de embarque ─────────────────────────────────────
+-- Trazabilidad completa: orden_item → embarque_item → inventario_tienda
+CREATE TABLE embarque_items (
+  id                  INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
+  embarque_id         INT UNSIGNED  NOT NULL,
+  orden_item_id       INT UNSIGNED  NULL
+    COMMENT 'NULL solo para reposiciones sin orden formal',
+  producto_id         INT UNSIGNED  NOT NULL
+    COMMENT 'FK directa para facilitar consultas; redunda con orden_item pero es necesaria',
+  cantidad_embarcada  DECIMAL(8,2)  NOT NULL DEFAULT 0,
+  etiqueta_generada   TINYINT(1)    NOT NULL DEFAULT 0,
+  embarcado           TINYINT(1)    NOT NULL DEFAULT 0,
+  -- Recepción en tienda
+  cantidad_danada     DECIMAL(8,2)  NOT NULL DEFAULT 0.00
+    COMMENT 'Cantidad de piezas recibidas con daños físicos o de calidad',
+  recibido_en_tienda  TINYINT(1)    NOT NULL DEFAULT 0,
+  cantidad_recibida   DECIMAL(8,2)  NOT NULL DEFAULT 0.00,
+  diferencia          DECIMAL(8,2)  GENERATED ALWAYS AS
+    (cantidad_recibida - cantidad_embarcada) STORED
+    COMMENT 'Negativo = faltante; Positivo = sobrante (anómalo)',
+
+  INDEX idx_embarque  (embarque_id),
+  INDEX idx_ord_item  (orden_item_id),
+  INDEX idx_producto  (producto_id),
+  CONSTRAINT fk_ei_embarque  FOREIGN KEY (embarque_id)   REFERENCES embarques(id)    ON DELETE CASCADE,
+  CONSTRAINT fk_ei_ord_item  FOREIGN KEY (orden_item_id) REFERENCES orden_items(id),
+  CONSTRAINT fk_ei_producto  FOREIGN KEY (producto_id)   REFERENCES productos(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ── 3. Devoluciones ──────────────────────────────────────────
+-- Cubre dos orígenes: venta_tienda (cliente devuelve) u orden_produccion (pieza defectuosa).
+-- La referencia_id apunta al documento de origen según el campo `origen`.
+CREATE TABLE devoluciones (
+  id            INT UNSIGNED      AUTO_INCREMENT PRIMARY KEY,
+  origen        ENUM(
+    'venta_tienda','orden_produccion'
+  ) NOT NULL,
+  referencia_id INT UNSIGNED      NOT NULL
+    COMMENT 'venta_id (si origen=venta_tienda) u orden_item_id (si origen=orden_produccion)',
+  producto_id   INT UNSIGNED      NOT NULL,
+  cantidad      DECIMAL(8,2)      NOT NULL DEFAULT 1,
+  motivo        TEXT              NOT NULL,
+  estatus       ENUM(
+    'recibida','en_reparacion','reintegrada_inventario','descartada_merma'
+  ) NOT NULL DEFAULT 'recibida',
+  tienda_id     SMALLINT UNSIGNED NOT NULL
+    COMMENT 'Tienda donde se recibe la devolución',
+  fecha         DATE              NOT NULL,
+  usuario_id    INT UNSIGNED      NOT NULL,
+  notas         TEXT              NULL,
+  creado_en     TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_origen    (origen, referencia_id),
+  INDEX idx_producto  (producto_id),
+  INDEX idx_tienda    (tienda_id),
+  CONSTRAINT fk_dev_producto FOREIGN KEY (producto_id) REFERENCES productos(id),
+  CONSTRAINT fk_dev_tienda   FOREIGN KEY (tienda_id)   REFERENCES tiendas(id),
+  CONSTRAINT fk_dev_usuario  FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+INSERT INTO usuarios (id, nombre, email, password_hash, rol) VALUES
+  (1, 'Administrador', 'admin@decor.mx', '$2y$10$O9GdUADRhbDfjCXpYYxvveO1rtazHSlQmdwHrBLkTrw61mWu.wVgu', 'admin'),
+  (2, 'Laura Mendoza', 'tienda@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'gerente_tienda'),
+  (3, 'Víctor Manuel', 'taller@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'encargado_taller'),
+  (4, 'Juan López', 'reparto@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'repartidor');
+
+INSERT INTO categorias_mueble (id, nombre) VALUES
+  (1, 'Armories'),
+  (2, 'Bars'),
+  (3, 'Barstools'),
+  (4, 'Bench'),
+  (5, 'Bistros'),
+  (6, 'Bookcases'),
+  (7, 'Buffet'),
+  (8, 'CD''S'),
+  (9, 'Chairs'),
+  (10, 'Coffee Tables'),
+  (11, 'Desk'),
+  (12, 'End Table'),
+  (13, 'Jelly´s'),
+  (14, 'Nightstand'),
+  (15, 'Sideboard'),
+  (16, 'Sofa Table'),
+  (17, 'Tables and islands'),
+  (18, 'Tv stand'),
+  (19, 'Varios'),
+  (20, 'dresser''s, chest & mirror'),
+  (21, 'headboard & beds'),
+  (22, 'hutch''s'),
+  (23, 'siso');
+
+INSERT INTO acabados (id, nombre, tipo, activo) VALUES
+  (1, 'Santa Fe', 'mancha', 1),
+  (2, 'Alder', 'mancha', 1),
+  (3, 'Dark Walnut', 'mancha', 1),
+  (4, 'Natural', 'mancha', 1),
+  (5, 'Distress White', 'mancha', 1),
+  (6, 'Rústico', 'mancha', 1),
+  (7, 'Cardeado', 'mancha', 1),
+  (8, 'Distrés Polilla', 'mancha', 1),
+  (9, 'Glass Laca', 'mancha', 1),
+  (10, 'Semi-Glass', 'mancha', 1),
+  (11, 'Mate', 'mancha', 1),
+  (12, 'Con Cera', 'mancha', 1),
+  (13, 'Phoenix', 'mancha', 1),
+  (14, 'Fino', 'mancha', 1),
+  (15, 'Manchado Natural', 'mancha', 1),
+  (16, 'Laqueado Claro', 'mancha', 1),
+  (17, 'Encerado', 'mancha', 1);
+
+INSERT INTO clientes (id, nombre, tipo, email, telefono, activo, creado_por) VALUES
+  (1, 'CASA CRISTAL', 'mayorista', 'casa.cristal@cliente.mx', '+52 614 100 2000', 1, 1),
+  (2, 'MONTERREY', 'mayorista', 'monterrey@cliente.mx', '+52 615 137 2111', 1, 1),
+  (3, 'PEPE MTZ', 'mayorista', 'pepe.mtz@cliente.mx', '+52 616 174 2222', 1, 1),
+  (4, 'RUIDOSO', 'mayorista', 'ruidoso@cliente.mx', '+52 617 211 2333', 1, 1),
+  (5, 'SAN ANGELO', 'mayorista', 'san.angelo@cliente.mx', '+52 618 248 2444', 1, 1);
+
+INSERT INTO tiendas (id, nombre, ciudad, direccion, telefono, activa) VALUES
+  (1, 'Sucursal Matriz (Centro)', 'Chihuahua', 'Av. Juárez #1234, Col. Centro', '+52 614 123 4567', 1),
+  (2, 'Sucursal Norte', 'Chihuahua', 'Blvd. Ortiz Mena #5678, Col. San Felipe', '+52 614 234 5678', 1),
+  (3, 'Sucursal Sur', 'Chihuahua', 'Periférico de la Juventud #9012, Col. Saucito', '+52 614 345 6789', 1);
+
+INSERT INTO empleados (id, nombre, rol, tarifa_base, activo) VALUES
+  (1, 'Víctor Manuel López', 'encargado', 0, 1),
+  (2, 'José García Ramírez', 'carpintero', 350, 1),
+  (3, 'Miguel Hernández Soto', 'carpintero', 380, 1),
+  (4, 'Carlos Martínez Ruiz', 'carpintero', 400, 1),
+  (5, 'Roberto Sánchez Díaz', 'pintor', 320, 1),
+  (6, 'Fernando Torres Luna', 'tapicero', 360, 1),
+  (7, 'Alberto Morales Cruz', 'carpintero', 370, 1),
+  (8, 'Pedro Jiménez Flores', 'embalaje', 280, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (1, 'DCR-0001', 'FANCY TIN NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 22, "fondo": 16}', 133, 93.1, 1, 1),
+  (2, 'DCR-0002', 'CROSS NIGHTSTAND', 14, 'taller', '{"alto": 25, "ancho": 21, "fondo": 16}', 115, 80.5, 1, 1),
+  (3, 'DCR-0003', 'NAIL NIGHTSTAND', 14, 'taller', '{"alto": 24, "ancho": 20, "fondo": 20}', 133, 93.1, 1, 1),
+  (4, 'DCR-0004', 'CHIHUAHUA NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 20, "fondo": 17}', 121, 84.7, 1, 1),
+  (5, 'DCR-0005', 'MARIO''S NIGHTSTAND', 14, 'taller', '{"alto": 27, "ancho": 23, "fondo": 20}', 75, 52.5, 1, 1),
+  (6, 'DCR-0006', 'GLASS & TILE NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 20, "fondo": 16}', 133, 93.1, 1, 1),
+  (7, 'DCR-0007', '3-DWRS FANCY TIN NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 20, "fondo": 16}', 167, 116.9, 1, 1),
+  (8, 'DCR-0008', '6-DRWS FANCY TIN NIGHTSTAND', 14, 'taller', '{"alto": 25, "ancho": 22, "fondo": 19}', 282, 197.4, 1, 1),
+  (9, 'DCR-0009', '2-DRW IRON BASE NIGHTSTAND', 14, 'taller', '{"alto": 25, "ancho": 20, "fondo": 16}', 138, 96.6, 1, 1),
+  (10, 'DCR-0010', 'KACHINA NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 24, "fondo": 19}', 179, 125.3, 1, 1),
+  (11, 'DCR-0011', 'KACHINA NIGHTSTAND DOUBLE', 14, 'taller', '{"alto": 27, "ancho": 24, "fondo": 18}', 242, 169.4, 1, 1),
+  (12, 'DCR-0012', '48" SANTA FE HUTCH', 22, 'taller', '{"alto": 73, "ancho": 60, "fondo": 19}', 564, 394.8, 1, 1),
+  (13, 'DCR-0013', '60" SANTA FE HUTCH', 22, 'taller', '{"alto": 81, "ancho": 42, "fondo": 21}', 679, 475.3, 1, 1),
+  (14, 'DCR-0014', '72" SANTA FE HUTCH', 22, 'taller', '{"alto": 72, "ancho": 40, "fondo": 19}', 794, 555.8, 1, 1),
+  (15, 'DCR-0015', 'CURIO HUTCH', 22, 'taller', '{"alto": 75, "ancho": 38, "fondo": 20}', 207, 144.9, 1, 1),
+  (16, 'DCR-0016', 'CURIO HUTCH SINGLE TOP ONLY', 22, 'taller', '{"alto": 82, "ancho": 50, "fondo": 22}', 110, 77.0, 1, 1),
+  (17, 'DCR-0017', 'CURIO HUTCH SINGLE BOTTOM ONLY', 22, 'taller', '{"alto": 77, "ancho": 57, "fondo": 21}', 121, 84.7, 1, 1),
+  (18, 'DCR-0018', 'CURIO HUTCH DOUBLE', 22, 'taller', '{"alto": 74, "ancho": 53, "fondo": 21}', 282, 197.4, 1, 1),
+  (19, 'DCR-0019', 'CURIO HUTCH DOUBLE BOTTOM ONLY', 22, 'taller', '{"alto": 73, "ancho": 40, "fondo": 19}', 156, 109.2, 1, 1),
+  (20, 'DCR-0020', 'CURIO HUTCH DOUBLE TOP ONLY', 22, 'taller', '{"alto": 82, "ancho": 55, "fondo": 22}', 144, 100.8, 1, 1),
+  (21, 'DCR-0021', 'SANTA FE HUTCH BOTTOM ONLY 48"', 22, 'taller', '{"alto": 76, "ancho": 42, "fondo": 19}', 334, 233.8, 1, 1),
+  (22, 'DCR-0022', 'SANTA FE HUTCH BOTTOM ONLY 60"', 22, 'taller', '{"alto": 76, "ancho": 48, "fondo": 20}', 391, 273.7, 1, 1),
+  (23, 'DCR-0023', 'SANTA FE HUTCH BOTTOM ONLY 72"', 22, 'taller', '{"alto": 83, "ancho": 41, "fondo": 18}', 449, 314.3, 1, 1),
+  (24, 'DCR-0024', 'SANTA FE HUTCH TOP ONLY 60"', 22, 'taller', '{"alto": 73, "ancho": 43, "fondo": 18}', 299, 209.3, 1, 1),
+  (25, 'DCR-0025', 'SANTA FE HUTCH TOP ONLY 48"', 22, 'taller', '{"alto": 72, "ancho": 38, "fondo": 18}', 242, 169.4, 1, 1),
+  (26, 'DCR-0026', 'SHAKER TIN HUTCH', 22, 'taller', '{"alto": 80, "ancho": 46, "fondo": 22}', 759, 531.3, 1, 1),
+  (27, 'DCR-0027', '60" TV STAND W/PANEL', 22, 'taller', '{"alto": 80, "ancho": 55, "fondo": 22}', 260, 182.0, 1, 1),
+  (28, 'DCR-0028', 'TAOS CD GLASS', 8, 'taller', '{"alto": 48, "ancho": 20, "fondo": 12}', 184, 128.8, 1, 1),
+  (29, 'DCR-0029', 'TAOS CD IRON', 8, 'taller', '{"alto": 45, "ancho": 24, "fondo": 15}', 202, 141.4, 1, 1),
+  (30, 'DCR-0030', 'TAOS CD DOUBLE GLASS', 8, 'taller', '{"alto": 38, "ancho": 18, "fondo": 13}', 276, 193.2, 1, 1),
+  (31, 'DCR-0031', 'TAOS CD DOUBLE IRON', 8, 'taller', '{"alto": 41, "ancho": 20, "fondo": 13}', 299, 209.3, 1, 1),
+  (32, 'DCR-0032', 'CD DOME GLASS', 8, 'taller', '{"alto": 36, "ancho": 18, "fondo": 15}', 184, 128.8, 1, 1),
+  (33, 'DCR-0033', 'CD DOME DOUBLE GLASS', 8, 'taller', '{"alto": 45, "ancho": 20, "fondo": 12}', 276, 193.2, 1, 1),
+  (34, 'DCR-0034', 'CD DOME W/IRON', 8, 'taller', '{"alto": 40, "ancho": 19, "fondo": 14}', 202, 141.4, 1, 1),
+  (35, 'DCR-0035', 'CD DOME DOUBLEW/IRON', 8, 'taller', '{"alto": 45, "ancho": 23, "fondo": 15}', 299, 209.3, 1, 1),
+  (36, 'DCR-0036', 'CHIHUAHUA BUFFET', 7, 'taller', '{"alto": 36, "ancho": 63, "fondo": 18}', 253, 177.1, 1, 1),
+  (37, 'DCR-0037', 'SHAKER TIN BOTTOM ONLY', 7, 'taller', '{"alto": 39, "ancho": 57, "fondo": 21}', 414, 289.8, 1, 1),
+  (38, 'DCR-0038', '6 FT. CROSS BUFFET', 7, 'taller', '{"alto": 40, "ancho": 69, "fondo": 20}', 0, 0.0, 1, 1),
+  (39, 'DCR-0039', 'CROSS BUFFET', 7, 'taller', '{"alto": 38, "ancho": 70, "fondo": 20}', 317, 221.9, 1, 1),
+  (40, 'DCR-0040', '4-TILE BUFFET', 7, 'taller', '{"alto": 41, "ancho": 59, "fondo": 20}', 426, 298.2, 1, 1),
+  (41, 'DCR-0041', '3-TILE BUFFET', 7, 'taller', '{"alto": 38, "ancho": 62, "fondo": 19}', 403, 282.1, 1, 1),
+  (42, 'DCR-0042', '2-TILE BUFFET', 7, 'taller', '{"alto": 37, "ancho": 60, "fondo": 21}', 380, 266.0, 1, 1),
+  (43, 'DCR-0043', 'TAPER LEGS BUFFET NO SHELF', 7, 'taller', '{"alto": 38, "ancho": 54, "fondo": 22}', 179, 125.3, 1, 1),
+  (44, 'DCR-0044', 'TAPER LEGS BUFFET W/SHELF', 7, 'taller', '{"alto": 37, "ancho": 53, "fondo": 19}', 202, 141.4, 1, 1),
+  (45, 'DCR-0045', 'SHAKER BUFFET', 7, 'taller', '{"alto": 38, "ancho": 71, "fondo": 18}', 679, 475.3, 1, 1),
+  (46, 'DCR-0046', '48" SANTA FE BUFFET', 7, 'taller', '{"alto": 39, "ancho": 60, "fondo": 22}', 334, 233.8, 1, 1),
+  (47, 'DCR-0047', '60" SANTA FE BUFFET', 7, 'taller', '{"alto": 41, "ancho": 68, "fondo": 18}', 391, 273.7, 1, 1),
+  (48, 'DCR-0048', '72" SANTA FE BUFFET', 7, 'taller', '{"alto": 38, "ancho": 58, "fondo": 19}', 449, 314.3, 1, 1),
+  (49, 'DCR-0049', '60X36X20 DOUBLE PLAIN JELLY', 13, 'taller', '{"alto": 48, "ancho": 25, "fondo": 16}', 420, 294.0, 1, 1),
+  (50, 'DCR-0050', 'TALL DOUBLE JELLY W/FANCY TIN', 13, 'taller', '{"alto": 60, "ancho": 36, "fondo": 16}', 317, 221.9, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (51, 'DCR-0051', 'TALL DOUBLE JELLY W/CROSS', 13, 'taller', '{"alto": 49, "ancho": 25, "fondo": 14}', 236, 165.2, 1, 1),
+  (52, 'DCR-0052', '60X36X20 DOBLE CROSS JELLY', 13, 'taller', '{"alto": 58, "ancho": 28, "fondo": 18}', 420, 294.0, 1, 1),
+  (53, 'DCR-0053', 'TALL JELLY W/ TIN RUSTIC', 13, 'taller', '{"alto": 56, "ancho": 45, "fondo": 18}', 156, 109.2, 1, 1),
+  (54, 'DCR-0054', 'SHORT JELLY W/TIN RUSTIC', 13, 'taller', '{"alto": 69, "ancho": 34, "fondo": 17}', 144, 100.8, 1, 1),
+  (55, 'DCR-0055', '60X36X20 DOUBLE TIN JELLY', 13, 'taller', '{"alto": 72, "ancho": 42, "fondo": 18}', 420, 294.0, 1, 1),
+  (56, 'DCR-0056', 'TALL ARCH JELLY', 13, 'taller', '{"alto": 60, "ancho": 32, "fondo": 18}', 202, 141.4, 1, 1),
+  (57, 'DCR-0057', 'SHORT JELLY W/SUN', 13, 'taller', '{"alto": 48, "ancho": 45, "fondo": 16}', 144, 100.8, 1, 1),
+  (58, 'DCR-0058', 'TALL JELLY W/SUN', 13, 'taller', '{"alto": 51, "ancho": 27, "fondo": 18}', 156, 109.2, 1, 1),
+  (59, 'DCR-0059', 'KACHINA TALL JELLY', 13, 'taller', '{"alto": 49, "ancho": 40, "fondo": 16}', 213, 149.1, 1, 1),
+  (60, 'DCR-0060', 'KACHINA DOUBLE TALL JELLY', 13, 'taller', '{"alto": 68, "ancho": 26, "fondo": 17}', 328, 229.6, 1, 1),
+  (61, 'DCR-0061', 'CHIHUAHUA DOUBLE JELLY W/TIN', 13, 'taller', '{"alto": 48, "ancho": 38, "fondo": 15}', 205, 143.5, 1, 1),
+  (62, 'DCR-0062', 'CHIHUAHUA DOUBLE JELLY W/GLASS', 13, 'taller', '{"alto": 53, "ancho": 28, "fondo": 16}', 205, 143.5, 1, 1),
+  (63, 'DCR-0063', 'CHIHUAHUA DOUBLE JELLY W/SCREEN', 13, 'taller', '{"alto": 52, "ancho": 27, "fondo": 16}', 205, 143.5, 1, 1),
+  (64, 'DCR-0064', 'KACHINA SHORT JELLY', 13, 'taller', '{"alto": 53, "ancho": 32, "fondo": 18}', 184, 128.8, 1, 1),
+  (65, 'DCR-0065', 'KACHINA SHORT DOUBLE JELLY', 13, 'taller', '{"alto": 61, "ancho": 40, "fondo": 16}', 299, 209.3, 1, 1),
+  (66, 'DCR-0066', 'TALL JELLY FANCY TIN', 13, 'taller', '{"alto": 49, "ancho": 28, "fondo": 15}', 202, 141.4, 1, 1),
+  (67, 'DCR-0067', 'SHORT JELLY FANCY TIN', 13, 'taller', '{"alto": 49, "ancho": 27, "fondo": 15}', 144, 100.8, 1, 1),
+  (68, 'DCR-0068', 'TALL PLAIN DOUBLE JELLY', 13, 'taller', '{"alto": 61, "ancho": 45, "fondo": 14}', 420, 294.0, 1, 1),
+  (69, 'DCR-0069', 'PLAIN TALL JELLY', 13, 'taller', '{"alto": 58, "ancho": 36, "fondo": 16}', 156, 109.2, 1, 1),
+  (70, 'DCR-0070', 'PLAIN SHORT JELLY', 13, 'taller', '{"alto": 51, "ancho": 33, "fondo": 18}', 133, 93.1, 1, 1),
+  (71, 'DCR-0071', 'CROSS TALL JELLY', 13, 'taller', '{"alto": 62, "ancho": 41, "fondo": 15}', 156, 109.2, 1, 1),
+  (72, 'DCR-0072', 'CROSS SHORT JELLY', 13, 'taller', '{"alto": 65, "ancho": 33, "fondo": 18}', 133, 93.1, 1, 1),
+  (73, 'DCR-0073', '60 " CHILI JELYY', 13, 'taller', '{"alto": 70, "ancho": 41, "fondo": 18}', 150, 105.0, 1, 1),
+  (74, 'DCR-0074', '48" CHILI CABINET', 13, 'taller', '{"alto": 61, "ancho": 26, "fondo": 18}', 115, 80.5, 1, 1),
+  (75, 'DCR-0075', 'JARILLA JELLY 36"', 13, 'taller', '{"alto": 63, "ancho": 33, "fondo": 15}', 171, 119.7, 1, 1),
+  (76, 'DCR-0076', 'JARILLA JELLY 48"', 13, 'taller', '{"alto": 61, "ancho": 40, "fondo": 15}', 182, 127.4, 1, 1),
+  (77, 'DCR-0077', 'JARILLA JELLY 60"', 13, 'taller', '{"alto": 72, "ancho": 33, "fondo": 15}', 194, 135.8, 1, 1),
+  (78, 'DCR-0078', 'CROSS SHORT DOUBLE JELLY', 13, 'taller', '{"alto": 70, "ancho": 46, "fondo": 15}', 202, 141.4, 1, 1),
+  (79, 'DCR-0079', 'SHORT PLAIN DOUBLE JELLY', 13, 'taller', '{"alto": 69, "ancho": 29, "fondo": 15}', 205, 143.5, 1, 1),
+  (80, 'DCR-0080', 'CROSS TALL DOUBLE JELLY', 13, 'taller', '{"alto": 69, "ancho": 33, "fondo": 14}', 299, 209.3, 1, 1),
+  (81, 'DCR-0081', 'ROPE COFFEE TABLE W/GLASS', 10, 'taller', '{"alto": 17, "ancho": 43, "fondo": 31}', 317, 221.9, 1, 1),
+  (82, 'DCR-0082', 'NAIL COFFEE TABLE', 10, 'taller', '{"alto": 18, "ancho": 51, "fondo": 25}', 236, 165.2, 1, 1),
+  (83, 'DCR-0083', 'TAPER LEGS COFFEE TABLE', 10, 'taller', '{"alto": 17, "ancho": 49, "fondo": 29}', 144, 100.8, 1, 1),
+  (84, 'DCR-0084', 'TAPER LEGS END TABLE', 12, 'taller', '{"alto": 26, "ancho": 21, "fondo": 22}', 98, 68.6, 1, 1),
+  (85, 'DCR-0085', 'NAIL END TABLE', 12, 'taller', '{"alto": 22, "ancho": 21, "fondo": 25}', 127, 88.9, 1, 1),
+  (86, 'DCR-0086', 'ROPE END TABLE', 12, 'taller', '{"alto": 26, "ancho": 22, "fondo": 23}', 167, 116.9, 1, 1),
+  (87, 'DCR-0087', 'TAPER LEGS SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 63, "fondo": 14}', 156, 109.2, 1, 1),
+  (88, 'DCR-0088', 'ROPE SOFA TABLE W/GLASS', 16, 'taller', '{"alto": 29, "ancho": 55, "fondo": 14}', 317, 221.9, 1, 1),
+  (89, 'DCR-0089', '3-TILE SOFA TABLE W/IRON & SHELF', 16, 'taller', '{"alto": 32, "ancho": 68, "fondo": 16}', 259, 181.3, 1, 1),
+  (90, 'DCR-0090', 'HALFMOON SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 72, "fondo": 18}', 144, 100.8, 1, 1),
+  (91, 'DCR-0091', 'TAPER LEGS SOFA TABLE', 16, 'taller', '{"alto": 30, "ancho": 54, "fondo": 17}', 156, 109.2, 1, 1),
+  (92, 'DCR-0092', 'CHIHUAHUA SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 64, "fondo": 18}', 259, 181.3, 1, 1),
+  (93, 'DCR-0093', 'NAIL SOFA TABLE', 16, 'taller', '{"alto": 28, "ancho": 68, "fondo": 15}', 260, 182.0, 1, 1),
+  (94, 'DCR-0094', '2-TILE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 30, "ancho": 54, "fondo": 14}', 213, 149.1, 1, 1),
+  (95, 'DCR-0095', '3-TILE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 31, "ancho": 65, "fondo": 15}', 255, 178.5, 1, 1),
+  (96, 'DCR-0096', '4-TILE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 32, "ancho": 58, "fondo": 18}', 299, 209.3, 1, 1),
+  (97, 'DCR-0097', '2-TILE IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 69, "fondo": 16}', 296, 207.2, 1, 1),
+  (98, 'DCR-0098', '3-TILE IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 60, "fondo": 17}', 319, 223.3, 1, 1),
+  (99, 'DCR-0099', '4-TILE IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 67, "fondo": 17}', 342, 239.4, 1, 1),
+  (100, 'DCR-0100', '4-TILE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 29, "ancho": 71, "fondo": 17}', 365, 255.5, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (101, 'DCR-0101', '72" OX YOKE SOFA TABLE ( NO TILE)', 16, 'taller', '{"alto": 32, "ancho": 48, "fondo": 17}', 0, 0.0, 1, 1),
+  (102, 'DCR-0102', 'TARAHUMARA SOFA TABLE 36"', 16, 'taller', '{"alto": 31, "ancho": 48, "fondo": 14}', 0, 0.0, 1, 1),
+  (103, 'DCR-0103', 'TARAHUMARA SOFA TABLE 48"', 16, 'taller', '{"alto": 31, "ancho": 58, "fondo": 17}', 0, 0.0, 1, 1),
+  (104, 'DCR-0104', 'TARAHUMARA SOFA TABLE 60"', 16, 'taller', '{"alto": 32, "ancho": 50, "fondo": 18}', 0, 0.0, 1, 1),
+  (105, 'DCR-0105', '24X13X48 CURIO BOOKCASE', 6, 'taller', '{"alto": 47, "ancho": 20, "fondo": 13}', 0, 0.0, 1, 1),
+  (106, 'DCR-0106', '30X13X60 CURIO BOOKCASE', 6, 'taller', '{"alto": 64, "ancho": 34, "fondo": 15}', 0, 0.0, 1, 1),
+  (107, 'DCR-0107', '42X13X60 CURIO BOOKCASE', 6, 'taller', '{"alto": 58, "ancho": 37, "fondo": 16}', 0, 0.0, 1, 1),
+  (108, 'DCR-0108', 'CHIHUAHUA BOOKCASE', 6, 'taller', '{"alto": 58, "ancho": 33, "fondo": 18}', 334, 233.8, 1, 1),
+  (109, 'DCR-0109', '18" CURIO BOOKCASE', 6, 'taller', '{"alto": 70, "ancho": 58, "fondo": 13}', 133, 93.1, 1, 1),
+  (110, 'DCR-0110', '24" CURIO BOOKCASE', 6, 'taller', '{"alto": 82, "ancho": 22, "fondo": 17}', 150, 105.0, 1, 1),
+  (111, 'DCR-0111', '30" CURIO BOOKCASE', 6, 'taller', '{"alto": 37, "ancho": 23, "fondo": 14}', 167, 116.9, 1, 1),
+  (112, 'DCR-0112', '36" CURIO BOOKCASE', 6, 'taller', '{"alto": 48, "ancho": 25, "fondo": 15}', 184, 128.8, 1, 1),
+  (113, 'DCR-0113', '48" CURIO BOOKCASE', 6, 'taller', '{"alto": 37, "ancho": 41, "fondo": 16}', 202, 141.4, 1, 1),
+  (114, 'DCR-0114', '18" TARAHUMARA BOOKCASE', 6, 'taller', '{"alto": 51, "ancho": 24, "fondo": 14}', 144, 100.8, 1, 1),
+  (115, 'DCR-0115', '24" TARAHUMARA BOOKCASE', 6, 'taller', '{"alto": 62, "ancho": 53, "fondo": 12}', 167, 116.9, 1, 1),
+  (116, 'DCR-0116', '30" TARAHUMARA BOOKCASE', 6, 'taller', '{"alto": 58, "ancho": 39, "fondo": 16}', 179, 125.3, 1, 1),
+  (117, 'DCR-0117', '36" TARAHUMARA BOOKCASE', 6, 'taller', '{"alto": 58, "ancho": 45, "fondo": 14}', 213, 149.1, 1, 1),
+  (118, 'DCR-0118', '48" TARAHUMARA BOOKCASE', 6, 'taller', '{"alto": 40, "ancho": 59, "fondo": 14}', 236, 165.2, 1, 1),
+  (119, 'DCR-0119', '18" CURIO BOOKCASE 60 H', 6, 'taller', '{"alto": 45, "ancho": 41, "fondo": 16}', 121, 84.7, 1, 1),
+  (120, 'DCR-0120', '24" CURIO BOOKCASE 60 H', 6, 'taller', '{"alto": 41, "ancho": 31, "fondo": 12}', 138, 96.6, 1, 1),
+  (121, 'DCR-0121', '30" CURIO BOOKCASE 60 H', 6, 'taller', '{"alto": 82, "ancho": 28, "fondo": 17}', 156, 109.2, 1, 1),
+  (122, 'DCR-0122', '36" CURIO BOOKCASE 60 H', 6, 'taller', '{"alto": 54, "ancho": 31, "fondo": 14}', 167, 116.9, 1, 1),
+  (123, 'DCR-0123', '42" CURIO BOOKCASE 60 H', 6, 'taller', '{"alto": 55, "ancho": 21, "fondo": 13}', 179, 125.3, 1, 1),
+  (124, 'DCR-0124', '48" CURIO BOOKCASE 60H', 6, 'taller', '{"alto": 55, "ancho": 38, "fondo": 17}', 190, 133.0, 1, 1),
+  (125, 'DCR-0125', '18" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 80, "ancho": 31, "fondo": 15}', 104, 72.8, 1, 1),
+  (126, 'DCR-0126', '24" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 37, "ancho": 57, "fondo": 12}', 121, 84.7, 1, 1),
+  (127, 'DCR-0127', '30" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 71, "ancho": 35, "fondo": 13}', 133, 93.1, 1, 1),
+  (128, 'DCR-0128', '36" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 72, "ancho": 34, "fondo": 16}', 156, 109.2, 1, 1),
+  (129, 'DCR-0129', '42" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 59, "ancho": 30, "fondo": 13}', 167, 116.9, 1, 1),
+  (130, 'DCR-0130', '48" CURIO BOOKCASE 48 H', 6, 'taller', '{"alto": 72, "ancho": 19, "fondo": 15}', 190, 133.0, 1, 1),
+  (131, 'DCR-0131', '3-DWR CHEST W/EXT.RAIL', 20, 'taller', '{"alto": 39, "ancho": 43, "fondo": 18}', 294, 205.8, 1, 1),
+  (132, 'DCR-0132', '4-DWR CHEST W/EXT RIEL', 20, 'taller', '{"alto": 42, "ancho": 63, "fondo": 19}', 357, 249.9, 1, 1),
+  (133, 'DCR-0133', 'PANEL DRESSER 48" 5-DWRS', 20, 'taller', '{"alto": 48, "ancho": 61, "fondo": 19}', 472, 330.4, 1, 1),
+  (134, 'DCR-0134', 'PANEL DRESSER 48" 5-DWR W/TIN', 20, 'taller', '{"alto": 37, "ancho": 60, "fondo": 20}', 506, 354.2, 1, 1),
+  (135, 'DCR-0135', 'PANEL DRESSER 60" 6-DWRS', 20, 'taller', '{"alto": 45, "ancho": 59, "fondo": 18}', 512, 358.4, 1, 1),
+  (136, 'DCR-0136', 'PANEL DRESSER 60" 7-DWRS', 20, 'taller', '{"alto": 41, "ancho": 48, "fondo": 18}', 535, 374.5, 1, 1),
+  (137, 'DCR-0137', 'PANEL DRESSER 60" 7-DWRS W/TIN', 20, 'taller', '{"alto": 38, "ancho": 64, "fondo": 22}', 587, 410.9, 1, 1),
+  (138, 'DCR-0138', 'BUTT BENCH 1-SEAT', 4, 'taller', '{"alto": 20, "ancho": 59, "fondo": 14}', 52, 36.4, 1, 1),
+  (139, 'DCR-0139', 'BUTT BENCH 2-SEAT', 4, 'taller', '{"alto": 19, "ancho": 63, "fondo": 16}', 69, 48.3, 1, 1),
+  (140, 'DCR-0140', 'BUTT BENCH 3-SEAT', 4, 'taller', '{"alto": 18, "ancho": 48, "fondo": 18}', 87, 60.9, 1, 1),
+  (141, 'DCR-0141', 'BUTT BENCH 4-SEAT', 4, 'taller', '{"alto": 20, "ancho": 67, "fondo": 16}', 104, 72.8, 1, 1),
+  (142, 'DCR-0142', '48" ROSETTA BENCH', 4, 'taller', '{"alto": 18, "ancho": 63, "fondo": 19}', 190, 133.0, 1, 1),
+  (143, 'DCR-0143', 'TAOS BENCH', 4, 'taller', '{"alto": 18, "ancho": 68, "fondo": 18}', 179, 125.3, 1, 1),
+  (144, 'DCR-0144', 'IRON BASE PUPITRE DESK', 11, 'taller', '{"alto": 30, "ancho": 42, "fondo": 29}', 317, 221.9, 1, 1),
+  (145, 'DCR-0145', 'IRON BASE DESK', 11, 'taller', '{"alto": 32, "ancho": 55, "fondo": 27}', 282, 197.4, 1, 1),
+  (146, 'DCR-0146', 'SPINDEL DESK 36"', 11, 'taller', '{"alto": 31, "ancho": 51, "fondo": 20}', 184, 128.8, 1, 1),
+  (147, 'DCR-0147', 'SPINDEL DESK 48"', 11, 'taller', '{"alto": 30, "ancho": 58, "fondo": 23}', 207, 144.9, 1, 1),
+  (148, 'DCR-0148', 'TAOS CHAIR', 9, 'taller', '{"alto": 37, "ancho": 22, "fondo": 21}', 92, 64.4, 1, 1),
+  (149, 'DCR-0149', 'TAOS ARM CHAIR', 9, 'taller', '{"alto": 38, "ancho": 20, "fondo": 20}', 104, 72.8, 1, 1),
+  (150, 'DCR-0150', 'ROSETTA CHAIR', 9, 'taller', '{"alto": 36, "ancho": 18, "fondo": 22}', 98, 68.6, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (151, 'DCR-0151', 'ROSETTA ARM CHAIR', 9, 'taller', '{"alto": 38, "ancho": 22, "fondo": 20}', 110, 77.0, 1, 1),
+  (152, 'DCR-0152', 'OX YOKE CHAIR', 9, 'taller', '{"alto": 40, "ancho": 18, "fondo": 19}', 121, 84.7, 1, 1),
+  (153, 'DCR-0153', 'OX YOKE CHAIR W/LEATHER', 9, 'taller', '{"alto": 40, "ancho": 19, "fondo": 19}', 133, 93.1, 1, 1),
+  (154, 'DCR-0154', 'TARAHUMARA CHAIR', 9, 'taller', '{"alto": 37, "ancho": 20, "fondo": 20}', 98, 68.6, 1, 1),
+  (155, 'DCR-0155', 'TARAHUMARA ARM CHAIR', 9, 'taller', '{"alto": 43, "ancho": 19, "fondo": 18}', 110, 77.0, 1, 1),
+  (156, 'DCR-0156', 'ROSETTA BARSTOOL', 3, 'taller', '{"alto": 28, "ancho": 20, "fondo": 20}', 110, 77.0, 1, 1),
+  (157, 'DCR-0157', 'TARAHUMARA BARSTOOL', 3, 'taller', '{"alto": 36, "ancho": 20, "fondo": 19}', 110, 77.0, 1, 1),
+  (158, 'DCR-0158', '30" HARLEY BARSTOOL', 3, 'taller', '{"alto": 25, "ancho": 19, "fondo": 18}', 138, 96.6, 1, 1),
+  (159, 'DCR-0159', '30" PLAIN BARSTOOL', 3, 'taller', '{"alto": 29, "ancho": 20, "fondo": 16}', 92, 64.4, 1, 1),
+  (160, 'DCR-0160', 'TAOS BARSTOOL', 3, 'taller', '{"alto": 35, "ancho": 17, "fondo": 18}', 104, 72.8, 1, 1),
+  (161, 'DCR-0161', 'OX YOKE BARSTOOL', 3, 'taller', '{"alto": 30, "ancho": 20, "fondo": 19}', 127, 88.9, 1, 1),
+  (162, 'DCR-0162', '60" DINING TABLE', 17, 'taller', '{"alto": 30, "ancho": 59, "fondo": 46}', 460, 322.0, 1, 1),
+  (163, 'DCR-0163', '72" DINING TABLE', 17, 'taller', '{"alto": 31, "ancho": 44, "fondo": 33}', 495, 346.5, 1, 1),
+  (164, 'DCR-0164', '84" DINING TABLE', 17, 'taller', '{"alto": 30, "ancho": 48, "fondo": 47}', 529, 370.3, 1, 1),
+  (165, 'DCR-0165', '8 FT. DINING TABLE', 17, 'taller', '{"alto": 32, "ancho": 61, "fondo": 34}', 564, 394.8, 1, 1),
+  (166, 'DCR-0166', '72" YUGO DINING TABLE', 17, 'taller', '{"alto": 32, "ancho": 44, "fondo": 30}', 644, 450.8, 1, 1),
+  (167, 'DCR-0167', 'TERRACOTA KITCHEN ISLAND 6-TILE', 17, 'taller', '{"alto": 34, "ancho": 51, "fondo": 31}', 535, 374.5, 1, 1),
+  (168, 'DCR-0168', 'TERRACOTA KITCHEN ISLAND 4-TILE', 17, 'taller', '{"alto": 33, "ancho": 58, "fondo": 44}', 414, 289.8, 1, 1),
+  (169, 'DCR-0169', '48" PLAIN BAR', 2, 'taller', '{"alto": 47, "ancho": 60, "fondo": 24}', 472, 330.4, 1, 1),
+  (170, 'DCR-0170', '48" CORONA BAR', 2, 'taller', '{"alto": 47, "ancho": 79, "fondo": 21}', 512, 358.4, 1, 1),
+  (171, 'DCR-0171', '72" CORONA BAR', 2, 'taller', '{"alto": 45, "ancho": 94, "fondo": 26}', 604, 422.8, 1, 1),
+  (172, 'DCR-0172', '48" HARLEY BAR', 2, 'taller', '{"alto": 47, "ancho": 83, "fondo": 24}', 610, 427.0, 1, 1),
+  (173, 'DCR-0173', '72" HARLEY BAR', 2, 'taller', '{"alto": 47, "ancho": 96, "fondo": 26}', 696, 487.2, 1, 1),
+  (174, 'DCR-0174', 'MEDICINE CABINET', 19, 'taller', '{"alto": 46, "ancho": 31, "fondo": 23}', 55, 38.5, 1, 1),
+  (175, 'DCR-0175', 'KACHINA MEDICINE CABINET', 19, 'taller', '{"alto": 39, "ancho": 41, "fondo": 12}', 80, 56.0, 1, 1),
+  (176, 'DCR-0176', 'CURIO CORNER', 19, 'taller', '{"alto": 36, "ancho": 29, "fondo": 22}', 156, 109.2, 1, 1),
+  (177, 'DCR-0177', 'MED CORNER CABINET', 19, 'taller', '{"alto": 40, "ancho": 28, "fondo": 22}', 282, 197.4, 1, 1),
+  (178, 'DCR-0178', 'LARGE CORNER CABINET', 19, 'taller', '{"alto": 48, "ancho": 44, "fondo": 14}', 443, 310.1, 1, 1),
+  (179, 'DCR-0179', 'LG BATEAS', 19, 'taller', '{"alto": 24, "ancho": 32, "fondo": 18}', 25, 17.5, 1, 1),
+  (180, 'DCR-0180', 'BATEAS', 19, 'taller', '{"alto": 29, "ancho": 30, "fondo": 21}', 13, 9.1, 1, 1),
+  (181, 'DCR-0181', 'PULLS', 19, 'taller', '{"alto": 28, "ancho": 37, "fondo": 21}', 3, 2.1, 1, 1),
+  (182, 'DCR-0182', 'CONCHOS NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 20, "fondo": 18}', 242, 169.4, 1, 1),
+  (183, 'DCR-0183', 'RAISE PANEL NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 21, "fondo": 19}', 115, 80.5, 1, 1),
+  (184, 'DCR-0184', 'CROSS NIGHTSTAND 1-DWR', 14, 'taller', '{"alto": 24, "ancho": 22, "fondo": 20}', 127, 88.9, 1, 1),
+  (185, 'DCR-0185', 'CACHINA NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 24, "fondo": 20}', 173, 121.1, 1, 1),
+  (186, 'DCR-0186', '3-DWR NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 21, "fondo": 20}', 141, 98.7, 1, 1),
+  (187, 'DCR-0187', '2-DWR IRON BASE NIGHTSTAND', 14, 'taller', '{"alto": 27, "ancho": 21, "fondo": 20}', 138, 96.6, 1, 1),
+  (188, 'DCR-0188', 'GLASS NIGHTSTAND', 14, 'taller', '{"alto": 27, "ancho": 22, "fondo": 20}', 121, 84.7, 1, 1),
+  (189, 'DCR-0189', 'GLASS & SLATTE NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 20, "fondo": 19}', 133, 93.1, 1, 1),
+  (190, 'DCR-0190', 'WESTER NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 21, "fondo": 16}', 133, 93.1, 1, 1),
+  (191, 'DCR-0191', 'COW HIDE NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 20, "fondo": 17}', 299, 209.3, 1, 1),
+  (192, 'DCR-0192', 'FANCY TIN NIGHTSTAND 3 DRWS.', 14, 'taller', '{"alto": 24, "ancho": 22, "fondo": 19}', 147, 102.9, 1, 1),
+  (193, 'DCR-0193', 'NIGHTSTAND W/ STAR', 14, 'taller', '{"alto": 27, "ancho": 22, "fondo": 19}', 138, 96.6, 1, 1),
+  (194, 'DCR-0194', 'FANCY TIN NIGHTSTAND 6 DRWS.', 14, 'taller', '{"alto": 26, "ancho": 22, "fondo": 19}', 279, 195.3, 1, 1),
+  (195, 'DCR-0195', '4 DWR NIGHTSTAND 2-SM 2-LG', 14, 'taller', '{"alto": 28, "ancho": 21, "fondo": 18}', 184, 128.8, 1, 1),
+  (196, 'DCR-0196', 'SPANISH NIGHTSTAND', 14, 'taller', '{"alto": 27, "ancho": 23, "fondo": 20}', 182, 127.4, 1, 1),
+  (197, 'DCR-0197', 'HONDO NIGHTSTAND', 14, 'taller', '{"alto": 25, "ancho": 24, "fondo": 18}', 228, 159.6, 1, 1),
+  (198, 'DCR-0198', 'DOUBLE CURIO HUTCH', 22, 'taller', '{"alto": 73, "ancho": 41, "fondo": 19}', 282, 197.4, 1, 1),
+  (199, 'DCR-0199', 'TRASTERITO', 22, 'taller', '{"alto": 76, "ancho": 38, "fondo": 20}', 221, 154.7, 1, 1),
+  (200, 'DCR-0200', 'TRASTERITO W/DOOR', 22, 'taller', '{"alto": 82, "ancho": 46, "fondo": 18}', 221, 154.7, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (201, 'DCR-0201', '6 DRW. TRASTERITO', 22, 'taller', '{"alto": 77, "ancho": 45, "fondo": 21}', 240, 168.0, 1, 1),
+  (202, 'DCR-0202', 'SINGLE CD W/GLASS DOOR', 8, 'taller', '{"alto": 47, "ancho": 23, "fondo": 12}', 196, 137.2, 1, 1),
+  (203, 'DCR-0203', 'DOUBLE CD W/GLASS DOOR', 8, 'taller', '{"alto": 46, "ancho": 20, "fondo": 15}', 259, 181.3, 1, 1),
+  (204, 'DCR-0204', 'SINGLE CD W/IRON DOOR', 8, 'taller', '{"alto": 42, "ancho": 19, "fondo": 14}', 199, 139.3, 1, 1),
+  (205, 'DCR-0205', 'DOUBLE CD W/IRON DOOR', 8, 'taller', '{"alto": 39, "ancho": 18, "fondo": 13}', 297, 207.9, 1, 1),
+  (206, 'DCR-0206', 'TAOS CD W/GLASS DOOR', 8, 'taller', '{"alto": 45, "ancho": 23, "fondo": 15}', 166, 116.2, 1, 1),
+  (207, 'DCR-0207', 'TAOS CD W/IRON DOOR', 8, 'taller', '{"alto": 46, "ancho": 18, "fondo": 15}', 199, 139.3, 1, 1),
+  (208, 'DCR-0208', 'WESTER SINGLE CD', 8, 'taller', '{"alto": 48, "ancho": 23, "fondo": 12}', 221, 154.7, 1, 1),
+  (209, 'DCR-0209', 'WESTER DOUBLE CD', 8, 'taller', '{"alto": 48, "ancho": 24, "fondo": 15}', 304, 212.8, 1, 1),
+  (210, 'DCR-0210', 'WESTER DOUBLE CD W/IRON DOOR', 8, 'taller', '{"alto": 39, "ancho": 23, "fondo": 15}', 334, 233.8, 1, 1),
+  (211, 'DCR-0211', '2-DOOR SLATTE SIDEBOARD', 15, 'taller', '{"alto": 38, "ancho": 65, "fondo": 19}', 263, 184.1, 1, 1),
+  (212, 'DCR-0212', '3-DOOR SLATTE SIDEBOARD', 15, 'taller', '{"alto": 36, "ancho": 51, "fondo": 20}', 371, 259.7, 1, 1),
+  (213, 'DCR-0213', '4-DOOR SLATTE SIDEBOARD', 15, 'taller', '{"alto": 34, "ancho": 64, "fondo": 19}', 518, 362.6, 1, 1),
+  (214, 'DCR-0214', '5-DOOR SLATTE SIDEBOARD', 15, 'taller', '{"alto": 40, "ancho": 50, "fondo": 19}', 587, 410.9, 1, 1),
+  (215, 'DCR-0215', '6-DOOR SLATTE SIDEBOARD', 15, 'taller', '{"alto": 40, "ancho": 65, "fondo": 18}', 661, 462.7, 1, 1),
+  (216, 'DCR-0216', '2-DOOR TILE SIDEBOARD', 15, 'taller', '{"alto": 36, "ancho": 49, "fondo": 16}', 268, 187.6, 1, 1),
+  (217, 'DCR-0217', '3-DOOR TILE SIDEBOARD', 15, 'taller', '{"alto": 37, "ancho": 49, "fondo": 17}', 351, 245.7, 1, 1),
+  (218, 'DCR-0218', '4-DOOR TILE SIDEBOARD', 15, 'taller', '{"alto": 40, "ancho": 66, "fondo": 19}', 437, 305.9, 1, 1),
+  (219, 'DCR-0219', '5-DOOR TILE SIDEBOARD', 15, 'taller', '{"alto": 37, "ancho": 66, "fondo": 16}', 518, 362.6, 1, 1),
+  (220, 'DCR-0220', '6-DOOR TILE SIDEBOARD', 15, 'taller', '{"alto": 36, "ancho": 64, "fondo": 20}', 602, 421.4, 1, 1),
+  (221, 'DCR-0221', '2 TILE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 37, "ancho": 57, "fondo": 17}', 279, 195.3, 1, 1),
+  (222, 'DCR-0222', '3 TILE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 38, "ancho": 55, "fondo": 18}', 368, 257.6, 1, 1),
+  (223, 'DCR-0223', '4 TILE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 39, "ancho": 56, "fondo": 17}', 458, 320.6, 1, 1),
+  (224, 'DCR-0224', '2 SLATTE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 36, "ancho": 52, "fondo": 19}', 274, 191.8, 1, 1),
+  (225, 'DCR-0225', '3 SLATTE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 36, "ancho": 52, "fondo": 16}', 389, 272.3, 1, 1),
+  (226, 'DCR-0226', '4 SLATTE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 40, "ancho": 61, "fondo": 19}', 543, 380.1, 1, 1),
+  (227, 'DCR-0227', '5 SLATTE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 36, "ancho": 61, "fondo": 17}', 617, 431.9, 1, 1),
+  (228, 'DCR-0228', '6 SLATTE SIDEBOARD W/FANCY TIN', 15, 'taller', '{"alto": 35, "ancho": 58, "fondo": 16}', 697, 487.9, 1, 1),
+  (229, 'DCR-0229', '1-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 36, "ancho": 60, "fondo": 16}', 249, 174.3, 1, 1),
+  (230, 'DCR-0230', '2-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 37, "ancho": 66, "fondo": 16}', 362, 253.4, 1, 1),
+  (231, 'DCR-0231', '3-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 37, "ancho": 54, "fondo": 18}', 520, 364.0, 1, 1),
+  (232, 'DCR-0232', '4-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 40, "ancho": 56, "fondo": 16}', 718, 502.6, 1, 1),
+  (233, 'DCR-0233', '5-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 39, "ancho": 66, "fondo": 17}', 835, 584.5, 1, 1),
+  (234, 'DCR-0234', '6-DOOR SLATTE SIDEBOARD W/COOPER', 15, 'taller', '{"alto": 36, "ancho": 62, "fondo": 17}', 960, 672.0, 1, 1),
+  (235, 'DCR-0235', '6-DOOR SLATTE SIDEBOARD W/GLASS DOOR', 15, 'taller', '{"alto": 40, "ancho": 65, "fondo": 18}', 695, 486.5, 1, 1),
+  (236, 'DCR-0236', '5-DOOR SIDEBOARD SOLID TOP', 15, 'taller', '{"alto": 35, "ancho": 56, "fondo": 19}', 587, 410.9, 1, 1),
+  (237, 'DCR-0237', '5-TILE SIDEBOARD (NO TILE)', 15, 'taller', '{"alto": 38, "ancho": 53, "fondo": 16}', 503, 352.1, 1, 1),
+  (238, 'DCR-0238', 'MISSION BUFFET 3 DRWS.', 7, 'taller', '{"alto": 38, "ancho": 72, "fondo": 19}', 409, 286.3, 1, 1),
+  (239, 'DCR-0239', 'TAPER LEG''S BUFFET', 7, 'taller', '{"alto": 37, "ancho": 59, "fondo": 20}', 175, 122.5, 1, 1),
+  (240, 'DCR-0240', 'MISSION BUFFET W/TOP', 7, 'taller', '{"alto": 39, "ancho": 67, "fondo": 22}', 451, 315.7, 1, 1),
+  (241, 'DCR-0241', 'CACHINA BUFFEET', 7, 'taller', '{"alto": 41, "ancho": 49, "fondo": 21}', 516, 361.2, 1, 1),
+  (242, 'DCR-0242', 'NAIL BUFFET', 7, 'taller', '{"alto": 41, "ancho": 65, "fondo": 21}', 412, 288.4, 1, 1),
+  (243, 'DCR-0243', '36" IRON BASE BUFFET W/DRWS', 7, 'taller', '{"alto": 41, "ancho": 51, "fondo": 18}', 299, 209.3, 1, 1),
+  (244, 'DCR-0244', '48" IRON BASE BUFFET W/DRWS.', 7, 'taller', '{"alto": 38, "ancho": 71, "fondo": 20}', 337, 235.9, 1, 1),
+  (245, 'DCR-0245', '60" IRON BASE BUFFET W/DRWS', 7, 'taller', '{"alto": 39, "ancho": 59, "fondo": 19}', 378, 264.6, 1, 1),
+  (246, 'DCR-0246', '72" IRON BASE BUFFET W/DRWS.', 7, 'taller', '{"alto": 39, "ancho": 71, "fondo": 21}', 417, 291.9, 1, 1),
+  (247, 'DCR-0247', 'PUEBLA BUFFET W/IRONBASE', 7, 'taller', '{"alto": 42, "ancho": 69, "fondo": 19}', 236, 165.2, 1, 1),
+  (248, 'DCR-0248', 'PUEBLA BUFFET', 7, 'taller', '{"alto": 39, "ancho": 57, "fondo": 21}', 175, 122.5, 1, 1),
+  (249, 'DCR-0249', 'BUFFET W/DRWS.', 7, 'taller', '{"alto": 41, "ancho": 60, "fondo": 18}', 364, 254.8, 1, 1),
+  (250, 'DCR-0250', '6DRWS. BUFFET', 7, 'taller', '{"alto": 42, "ancho": 60, "fondo": 19}', 378, 264.6, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (251, 'DCR-0251', 'SHAKER BUFFET XL', 7, 'taller', '{"alto": 36, "ancho": 58, "fondo": 19}', 426, 298.2, 1, 1),
+  (252, 'DCR-0252', 'SM TWIG BUFFET 36X18X36', 7, 'taller', '{"alto": 41, "ancho": 49, "fondo": 22}', 267, 186.9, 1, 1),
+  (253, 'DCR-0253', 'TALL ARCH CAVA', 13, 'taller', '{"alto": 72, "ancho": 43, "fondo": 16}', 322, 225.4, 1, 1),
+  (254, 'DCR-0254', 'SHORT ARCH JELLY', 13, 'taller', '{"alto": 62, "ancho": 35, "fondo": 16}', 167, 116.9, 1, 1),
+  (255, 'DCR-0255', 'CHIHUAHUA JELLY', 13, 'taller', '{"alto": 49, "ancho": 44, "fondo": 17}', 132, 92.4, 1, 1),
+  (256, 'DCR-0256', 'CHIHUAHUA DOUBLE JELLY', 13, 'taller', '{"alto": 66, "ancho": 28, "fondo": 16}', 199, 139.3, 1, 1),
+  (257, 'DCR-0257', '48" CHILI JELLY', 13, 'taller', '{"alto": 71, "ancho": 31, "fondo": 14}', 103, 72.1, 1, 1),
+  (258, 'DCR-0258', '60" CHILI JELLY', 13, 'taller', '{"alto": 50, "ancho": 44, "fondo": 17}', 132, 92.4, 1, 1),
+  (259, 'DCR-0259', '48" CHILI DOUBLE JELLY', 13, 'taller', '{"alto": 66, "ancho": 40, "fondo": 18}', 199, 139.3, 1, 1),
+  (260, 'DCR-0260', '60" CHILI DOUBLE JELLY', 13, 'taller', '{"alto": 58, "ancho": 39, "fondo": 15}', 270, 189.0, 1, 1),
+  (261, 'DCR-0261', 'FANCY TIN SHORT JELLY', 13, 'taller', '{"alto": 57, "ancho": 26, "fondo": 15}', 160, 112.0, 1, 1),
+  (262, 'DCR-0262', 'FANCY TIN TALL JELLY', 13, 'taller', '{"alto": 61, "ancho": 41, "fondo": 14}', 199, 139.3, 1, 1),
+  (263, 'DCR-0263', 'DOUBLE FANCY TIN TALL JELLY', 13, 'taller', '{"alto": 58, "ancho": 42, "fondo": 18}', 316, 221.2, 1, 1),
+  (264, 'DCR-0264', 'TALL CACHINA JELLY', 13, 'taller', '{"alto": 71, "ancho": 34, "fondo": 17}', 210, 147.0, 1, 1),
+  (265, 'DCR-0265', 'SHORT CACHINA JELLY', 13, 'taller', '{"alto": 69, "ancho": 44, "fondo": 15}', 184, 128.8, 1, 1),
+  (266, 'DCR-0266', 'DOUBLE CACHINA JELLY', 13, 'taller', '{"alto": 65, "ancho": 24, "fondo": 17}', 329, 230.3, 1, 1),
+  (267, 'DCR-0267', '8-PANEL TALL JELLY', 13, 'taller', '{"alto": 64, "ancho": 26, "fondo": 17}', 168, 117.6, 1, 1),
+  (268, 'DCR-0268', 'RUSTIC TIN SHORT JELLY', 13, 'taller', '{"alto": 62, "ancho": 34, "fondo": 15}', 132, 92.4, 1, 1),
+  (269, 'DCR-0269', 'RUSTIC TIN TALL JELLY', 13, 'taller', '{"alto": 58, "ancho": 30, "fondo": 15}', 155, 108.5, 1, 1),
+  (270, 'DCR-0270', 'ARCH TOP IRON BASE JELLY', 13, 'taller', '{"alto": 57, "ancho": 41, "fondo": 17}', 209, 146.3, 1, 1),
+  (271, 'DCR-0271', '48" WESTERN JELLY', 13, 'taller', '{"alto": 57, "ancho": 39, "fondo": 15}', 159, 111.3, 1, 1),
+  (272, 'DCR-0272', 'PIE SAFE', 13, 'taller', '{"alto": 50, "ancho": 48, "fondo": 14}', 188, 131.6, 1, 1),
+  (273, 'DCR-0273', 'TALL PIE SAFE', 13, 'taller', '{"alto": 61, "ancho": 24, "fondo": 15}', 270, 189.0, 1, 1),
+  (274, 'DCR-0274', 'CHEST LINGERIE 5 DRW.', 13, 'taller', '{"alto": 61, "ancho": 30, "fondo": 15}', 216, 151.2, 1, 1),
+  (275, 'DCR-0275', 'CHEST LINGERIE 5 DRWS 2-SM 3-LG', 13, 'taller', '{"alto": 51, "ancho": 48, "fondo": 14}', 311, 217.7, 1, 1),
+  (276, 'DCR-0276', '72" TWIG JELLY CABINET', 13, 'taller', '{"alto": 72, "ancho": 26, "fondo": 16}', 291, 203.7, 1, 1),
+  (277, 'DCR-0277', '60" TWIG JELLY CABINET', 13, 'taller', '{"alto": 66, "ancho": 39, "fondo": 15}', 195, 136.5, 1, 1),
+  (278, 'DCR-0278', '48" TWIG JELLY CABINET', 13, 'taller', '{"alto": 54, "ancho": 37, "fondo": 17}', 181, 126.7, 1, 1),
+  (279, 'DCR-0279', 'SM TWIG JELLY CABINET', 13, 'taller', '{"alto": 57, "ancho": 46, "fondo": 17}', 171, 119.7, 1, 1),
+  (280, 'DCR-0280', 'TWIG MICROWAVE', 13, 'taller', '{"alto": 63, "ancho": 46, "fondo": 15}', 217, 151.9, 1, 1),
+  (281, 'DCR-0281', 'WALL TASCATE COFFEE TABLE TURQ. INLAY', 10, 'taller', '{"alto": 19, "ancho": 44, "fondo": 38}', 367, 256.9, 1, 1),
+  (282, 'DCR-0282', 'TURN LEGS ROUND COFFEE TABLE 38"', 10, 'taller', '{"alto": 18, "ancho": 36, "fondo": 24}', 310, 217.0, 1, 1),
+  (283, 'DCR-0283', 'TASCATE COFFEE TABLE W/IRON BASE TURQ. INLAY', 10, 'taller', '{"alto": 20, "ancho": 45, "fondo": 40}', 475, 332.5, 1, 1),
+  (284, 'DCR-0284', 'OX YOKE SLATTE COFFEE TABLE', 10, 'taller', '{"alto": 16, "ancho": 46, "fondo": 29}', 409, 286.3, 1, 1),
+  (285, 'DCR-0285', 'TARAHUMARA OX YOKE COFFEE TABLE', 10, 'taller', '{"alto": 20, "ancho": 45, "fondo": 30}', 226, 158.2, 1, 1),
+  (286, 'DCR-0286', 'SHADOW COFFEE TABLE', 10, 'taller', '{"alto": 18, "ancho": 54, "fondo": 40}', 374, 261.8, 1, 1),
+  (287, 'DCR-0287', '2 X 4 FANCY TIN COFFEE TABLE', 10, 'taller', '{"alto": 19, "ancho": 54, "fondo": 29}', 371, 259.7, 1, 1),
+  (288, 'DCR-0288', '2 SLATTE X 3 SLATTE TIN COFFE', 10, 'taller', '{"alto": 19, "ancho": 38, "fondo": 28}', 317, 221.9, 1, 1),
+  (289, 'DCR-0289', '4'' X 4'' FANCY TIN COFFEE TABLE', 10, 'taller', '{"alto": 18, "ancho": 36, "fondo": 31}', 329, 230.3, 1, 1),
+  (290, 'DCR-0290', '42" X 42" SLATTE COFFEE TABLE', 10, 'taller', '{"alto": 20, "ancho": 42, "fondo": 42}', 414, 289.8, 1, 1),
+  (291, 'DCR-0291', '2 X 4 FANCY IRON BASE COFFEE TABLE', 10, 'taller', '{"alto": 16, "ancho": 54, "fondo": 28}', 414, 289.8, 1, 1),
+  (292, 'DCR-0292', '2 X 3 FANCY IRON BASE COFFEE TABLE', 10, 'taller', '{"alto": 19, "ancho": 41, "fondo": 41}', 394, 275.8, 1, 1),
+  (293, 'DCR-0293', 'COFFEE BULLET TABLE', 10, 'taller', '{"alto": 16, "ancho": 41, "fondo": 39}', 210, 147.0, 1, 1),
+  (294, 'DCR-0294', '"X" COFFEE 48X30X18', 10, 'taller', '{"alto": 18, "ancho": 37, "fondo": 38}', 251, 175.7, 1, 1),
+  (295, 'DCR-0295', 'WESTER STAR END TABLE', 12, 'taller', '{"alto": 26, "ancho": 24, "fondo": 26}', 161, 112.7, 1, 1),
+  (296, 'DCR-0296', 'SHADOW END TABLE', 12, 'taller', '{"alto": 24, "ancho": 21, "fondo": 20}', 255, 178.5, 1, 1),
+  (297, 'DCR-0297', '26" X 26" FANCY TIN END TABLE W/SLATTE', 12, 'taller', '{"alto": 25, "ancho": 21, "fondo": 25}', 161, 112.7, 1, 1),
+  (298, 'DCR-0298', '22" X 22" FANCY TIN END TABLE W/SLATTE', 12, 'taller', '{"alto": 23, "ancho": 24, "fondo": 21}', 158, 110.6, 1, 1),
+  (299, 'DCR-0299', 'TURN LEG END TABLE W/LACQUER', 12, 'taller', '{"alto": 23, "ancho": 21, "fondo": 23}', 152, 106.4, 1, 1),
+  (300, 'DCR-0300', 'OX YOKE SLATTE END TABLE', 12, 'taller', '{"alto": 22, "ancho": 20, "fondo": 22}', 217, 151.9, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (301, 'DCR-0301', 'WALL TASCATE END TABLE INTAKE TURQ.', 12, 'taller', '{"alto": 23, "ancho": 24, "fondo": 25}', 184, 128.8, 1, 1),
+  (302, 'DCR-0302', 'WALL TASCATE END TABLE INTAKE TURQ. IRONBASE', 12, 'taller', '{"alto": 24, "ancho": 20, "fondo": 23}', 237, 165.9, 1, 1),
+  (303, 'DCR-0303', 'OX YOKE END TABLE 24X24', 12, 'taller', '{"alto": 22, "ancho": 20, "fondo": 21}', 328, 229.6, 1, 1),
+  (304, 'DCR-0304', 'TARAHUMARA OX YOKE END TABLE', 12, 'taller', '{"alto": 23, "ancho": 25, "fondo": 21}', 143, 100.1, 1, 1),
+  (305, 'DCR-0305', 'END BULLET TABLE', 12, 'taller', '{"alto": 22, "ancho": 20, "fondo": 25}', 113, 79.1, 1, 1),
+  (306, 'DCR-0306', '"X" END TABLE 22X22X24', 12, 'taller', '{"alto": 24, "ancho": 23, "fondo": 26}', 130, 91.0, 1, 1),
+  (307, 'DCR-0307', 'IRON BASE 22X22 FANCY TIN END TABLE W/SLATTE', 12, 'taller', '{"alto": 24, "ancho": 20, "fondo": 21}', 259, 181.3, 1, 1),
+  (308, 'DCR-0308', 'WALL TASCATE SOFA TABLE INTAKE TURQ.', 16, 'taller', '{"alto": 30, "ancho": 64, "fondo": 14}', 367, 256.9, 1, 1),
+  (309, 'DCR-0309', 'WESTER STAR SOFA TABLE', 16, 'taller', '{"alto": 28, "ancho": 57, "fondo": 15}', 336, 235.2, 1, 1),
+  (310, 'DCR-0310', 'SHADOW SOFA TABLE', 16, 'taller', '{"alto": 30, "ancho": 61, "fondo": 14}', 374, 261.8, 1, 1),
+  (311, 'DCR-0311', 'HALF MOON SOFA TABLE', 16, 'taller', '{"alto": 31, "ancho": 64, "fondo": 14}', 132, 92.4, 1, 1),
+  (312, 'DCR-0312', 'TURN LEGS SOFA TABLE', 16, 'taller', '{"alto": 28, "ancho": 48, "fondo": 18}', 295, 206.5, 1, 1),
+  (313, 'DCR-0313', '5 FT. OX YOKE SOFA TABLE W/SLATTE', 16, 'taller', '{"alto": 30, "ancho": 67, "fondo": 14}', 413, 289.1, 1, 1),
+  (314, 'DCR-0314', '4 FT. OX YOKE SOFA TABLE W/SLATTE', 16, 'taller', '{"alto": 28, "ancho": 68, "fondo": 18}', 451, 315.7, 1, 1),
+  (315, 'DCR-0315', 'WALL TASCATE SOFA TABLE INTAKE TURQ. IRONBASE', 16, 'taller', '{"alto": 30, "ancho": 71, "fondo": 17}', 475, 332.5, 1, 1),
+  (316, 'DCR-0316', '5 TILE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 31, "ancho": 65, "fondo": 14}', 340, 238.0, 1, 1),
+  (317, 'DCR-0317', '2-SLATTE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 31, "ancho": 62, "fondo": 15}', 226, 158.2, 1, 1),
+  (318, 'DCR-0318', '3-SLATTE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 71, "fondo": 14}', 306, 214.2, 1, 1),
+  (319, 'DCR-0319', '4-SLATTE IRON BASE SOFA TABLE', 16, 'taller', '{"alto": 30, "ancho": 63, "fondo": 15}', 352, 246.4, 1, 1),
+  (320, 'DCR-0320', '2-SLATTE WESTER SOFA TABLE', 16, 'taller', '{"alto": 32, "ancho": 70, "fondo": 15}', 268, 187.6, 1, 1),
+  (321, 'DCR-0321', '3-SLATTE WESTER SOFA TABLE', 16, 'taller', '{"alto": 32, "ancho": 64, "fondo": 18}', 306, 214.2, 1, 1),
+  (322, 'DCR-0322', '4-SLATTE WESTER SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 63, "fondo": 14}', 352, 246.4, 1, 1),
+  (323, 'DCR-0323', '2 TILE FANCY TIN SOFA TABLE', 16, 'taller', '{"alto": 28, "ancho": 60, "fondo": 17}', 216, 151.2, 1, 1),
+  (324, 'DCR-0324', '3 TILE FANCY TIN SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 50, "fondo": 18}', 262, 183.4, 1, 1),
+  (325, 'DCR-0325', '4 FANCY TIN SOFA TABLE', 16, 'taller', '{"alto": 32, "ancho": 61, "fondo": 15}', 305, 213.5, 1, 1),
+  (326, 'DCR-0326', '2 SLATTE FANCY TIN TABLE', 16, 'taller', '{"alto": 30, "ancho": 71, "fondo": 17}', 229, 160.3, 1, 1),
+  (327, 'DCR-0327', '3 SLATTE FANCY TIN SOFA TABLE', 16, 'taller', '{"alto": 32, "ancho": 57, "fondo": 16}', 316, 221.2, 1, 1),
+  (328, 'DCR-0328', '4 SLATTE FANCY TIN SOFA TABLE', 16, 'taller', '{"alto": 29, "ancho": 61, "fondo": 15}', 360, 252.0, 1, 1),
+  (329, 'DCR-0329', '2 SOLID TOP IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 29, "ancho": 56, "fondo": 14}', 226, 158.2, 1, 1),
+  (330, 'DCR-0330', '3 SOLID TOP IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 70, "fondo": 16}', 306, 214.2, 1, 1),
+  (331, 'DCR-0331', '4 SOLID TOP IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 32, "ancho": 61, "fondo": 14}', 352, 246.4, 1, 1),
+  (332, 'DCR-0332', '2 TILE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 68, "fondo": 15}', 233, 163.1, 1, 1),
+  (333, 'DCR-0333', '3 TILE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 53, "fondo": 15}', 319, 223.3, 1, 1),
+  (334, 'DCR-0334', '4 TILE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 29, "ancho": 48, "fondo": 17}', 367, 256.9, 1, 1),
+  (335, 'DCR-0335', '5 TILE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 52, "fondo": 17}', 414, 289.8, 1, 1),
+  (336, 'DCR-0336', '2 SLATTE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 52, "fondo": 18}', 236, 165.2, 1, 1),
+  (337, 'DCR-0337', '3 SLATTE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 28, "ancho": 67, "fondo": 14}', 324, 226.8, 1, 1),
+  (338, 'DCR-0338', '4 SLATTE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 70, "fondo": 15}', 374, 261.8, 1, 1),
+  (339, 'DCR-0339', '5 SLATTE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 66, "fondo": 17}', 424, 296.8, 1, 1),
+  (340, 'DCR-0340', '6 SLATTE IRONBASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 30, "ancho": 71, "fondo": 15}', 472, 330.4, 1, 1),
+  (341, 'DCR-0341', 'TARAHUMARA OX YOKE SOFA TABLE', 16, 'taller', '{"alto": 28, "ancho": 69, "fondo": 15}', 226, 158.2, 1, 1),
+  (342, 'DCR-0342', '"X" SOFA TABLE 60X16X30', 16, 'taller', '{"alto": 29, "ancho": 52, "fondo": 14}', 297, 207.9, 1, 1),
+  (343, 'DCR-0343', '36''X 36"CURIO BOOKCASE', 6, 'taller', '{"alto": 51, "ancho": 29, "fondo": 15}', 104, 72.8, 1, 1),
+  (344, 'DCR-0344', '18" DENTAL BOOKCASE', 6, 'taller', '{"alto": 67, "ancho": 42, "fondo": 15}', 152, 106.4, 1, 1),
+  (345, 'DCR-0345', '24" DENTAL BOOKCASE', 6, 'taller', '{"alto": 40, "ancho": 40, "fondo": 15}', 165, 115.5, 1, 1),
+  (346, 'DCR-0346', '30" DENTAL BOOKCASE', 6, 'taller', '{"alto": 53, "ancho": 52, "fondo": 18}', 196, 137.2, 1, 1),
+  (347, 'DCR-0347', '36" DENTAL BOOKCASE', 6, 'taller', '{"alto": 47, "ancho": 38, "fondo": 17}', 207, 144.9, 1, 1),
+  (348, 'DCR-0348', '48" DENTAL BOOKCASE', 6, 'taller', '{"alto": 75, "ancho": 29, "fondo": 12}', 249, 174.3, 1, 1),
+  (349, 'DCR-0349', 'BOOKCASE SIMPLE 60X15X36', 6, 'taller', '{"alto": 48, "ancho": 54, "fondo": 13}', 184, 128.8, 1, 1),
+  (350, 'DCR-0350', '18" DOME BOOKCASE', 6, 'taller', '{"alto": 58, "ancho": 45, "fondo": 18}', 167, 116.9, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (351, 'DCR-0351', '24" DOME BOOKCASE', 6, 'taller', '{"alto": 76, "ancho": 37, "fondo": 15}', 198, 138.6, 1, 1),
+  (352, 'DCR-0352', '30" DOME BOOKCASE', 6, 'taller', '{"alto": 72, "ancho": 52, "fondo": 18}', 228, 159.6, 1, 1),
+  (353, 'DCR-0353', '36" DOME BOOKCASE', 6, 'taller', '{"alto": 39, "ancho": 39, "fondo": 14}', 244, 170.8, 1, 1),
+  (354, 'DCR-0354', '48" DOME BOOKCASE', 6, 'taller', '{"alto": 83, "ancho": 41, "fondo": 13}', 289, 202.3, 1, 1),
+  (355, 'DCR-0355', '18" ARCH BOOKCASE', 6, 'taller', '{"alto": 76, "ancho": 31, "fondo": 18}', 198, 138.6, 1, 1),
+  (356, 'DCR-0356', '24" ARCH BOOKCASE', 6, 'taller', '{"alto": 72, "ancho": 18, "fondo": 15}', 228, 159.6, 1, 1),
+  (357, 'DCR-0357', '30" ARCH BOOKCASE', 6, 'taller', '{"alto": 79, "ancho": 45, "fondo": 16}', 243, 170.1, 1, 1),
+  (358, 'DCR-0358', '36" ARCH BOOKCASE', 6, 'taller', '{"alto": 50, "ancho": 39, "fondo": 14}', 267, 186.9, 1, 1),
+  (359, 'DCR-0359', '48" ARCH BOOKCASE', 6, 'taller', '{"alto": 48, "ancho": 20, "fondo": 17}', 289, 202.3, 1, 1),
+  (360, 'DCR-0360', '18" SIERRA BOOKCASE', 6, 'taller', '{"alto": 51, "ancho": 50, "fondo": 14}', 138, 96.6, 1, 1),
+  (361, 'DCR-0361', '24" SIERRA BOOKCASE', 6, 'taller', '{"alto": 80, "ancho": 58, "fondo": 18}', 159, 111.3, 1, 1),
+  (362, 'DCR-0362', '30" SIERRA BOOKCASE', 6, 'taller', '{"alto": 69, "ancho": 49, "fondo": 14}', 184, 128.8, 1, 1),
+  (363, 'DCR-0363', '36" SIERRA BOOKCASE', 6, 'taller', '{"alto": 39, "ancho": 48, "fondo": 13}', 213, 149.1, 1, 1),
+  (364, 'DCR-0364', '48" SIERRA BOOKCASE', 6, 'taller', '{"alto": 42, "ancho": 53, "fondo": 17}', 243, 170.1, 1, 1),
+  (365, 'DCR-0365', 'TARAHUMARA BOOKCASE 30"', 6, 'taller', '{"alto": 71, "ancho": 36, "fondo": 12}', 168, 117.6, 1, 1),
+  (366, 'DCR-0366', 'TARAHUMARA BOOKCASE 36"', 6, 'taller', '{"alto": 50, "ancho": 55, "fondo": 14}', 187, 130.9, 1, 1),
+  (367, 'DCR-0367', 'TARAHUMARA BOOKCASE 48"', 6, 'taller', '{"alto": 77, "ancho": 53, "fondo": 16}', 244, 170.8, 1, 1),
+  (368, 'DCR-0368', '36" TWIG BOOKCASE', 6, 'taller', '{"alto": 46, "ancho": 28, "fondo": 12}', 148, 103.6, 1, 1),
+  (369, 'DCR-0369', '18" TWIG BOOKCASE', 6, 'taller', '{"alto": 42, "ancho": 56, "fondo": 14}', 133, 93.1, 1, 1),
+  (370, 'DCR-0370', 'SHORT BOOK ZUNI', 6, 'taller', '{"alto": 76, "ancho": 33, "fondo": 12}', 127, 88.9, 1, 1),
+  (371, 'DCR-0371', 'BOOKCASE SIMPLE 60X15X48', 6, 'taller', '{"alto": 56, "ancho": 39, "fondo": 13}', 184, 128.8, 1, 1),
+  (372, 'DCR-0372', '24" OX YOKE BOOKCASE', 6, 'taller', '{"alto": 57, "ancho": 18, "fondo": 18}', 228, 159.6, 1, 1),
+  (373, 'DCR-0373', '36" OX YOKE BOOKCASE', 6, 'taller', '{"alto": 73, "ancho": 40, "fondo": 16}', 259, 181.3, 1, 1),
+  (374, 'DCR-0374', '48" OX YOKE BOOKCASE', 6, 'taller', '{"alto": 81, "ancho": 42, "fondo": 17}', 289, 202.3, 1, 1),
+  (375, 'DCR-0375', '24" TWIG BOOKCASE', 6, 'taller', '{"alto": 69, "ancho": 48, "fondo": 14}', 140, 98.0, 1, 1),
+  (376, 'DCR-0376', '48" TWIG BOOKCASE', 6, 'taller', '{"alto": 61, "ancho": 55, "fondo": 17}', 166, 116.2, 1, 1),
+  (377, 'DCR-0377', '60X18X84 CURIO BOOKCASE', 6, 'taller', '{"alto": 69, "ancho": 35, "fondo": 17}', 368, 257.6, 1, 1),
+  (378, 'DCR-0378', 'CROSS ARMOIRE 22" DEEP', 1, 'taller', '{"alto": 70, "ancho": 42, "fondo": 24}', 449, 314.3, 1, 1),
+  (379, 'DCR-0379', 'FANCY TIN ARMOIRE 22" DEEP', 1, 'taller', '{"alto": 70, "ancho": 38, "fondo": 23}', 449, 314.3, 1, 1),
+  (380, 'DCR-0380', '5-DWR WARDROBE ARMOIRE', 1, 'taller', '{"alto": 70, "ancho": 41, "fondo": 21}', 496, 347.2, 1, 1),
+  (381, 'DCR-0381', '5-DWR RIGHT WARDROBE ARMOIRE 2-DOOR', 1, 'taller', '{"alto": 74, "ancho": 54, "fondo": 23}', 472, 330.4, 1, 1),
+  (382, 'DCR-0382', 'CACHINA ARMOIRE', 1, 'taller', '{"alto": 69, "ancho": 46, "fondo": 24}', 582, 407.4, 1, 1),
+  (383, 'DCR-0383', '42" IRON BASE ARMOIRE', 1, 'taller', '{"alto": 68, "ancho": 47, "fondo": 24}', 531, 371.7, 1, 1),
+  (384, 'DCR-0384', '48" IRON BASE ARMOIRE', 1, 'taller', '{"alto": 68, "ancho": 46, "fondo": 22}', 567, 396.9, 1, 1),
+  (385, 'DCR-0385', 'RAISE PANEL ARMOIRE 44X22X72', 1, 'taller', '{"alto": 75, "ancho": 46, "fondo": 22}', 575, 402.5, 1, 1),
+  (386, 'DCR-0386', '4-DWR UNDER WARDROBE ARMOIRE 2-DOOR', 1, 'taller', '{"alto": 76, "ancho": 43, "fondo": 22}', 578, 404.6, 1, 1),
+  (387, 'DCR-0387', 'CACHINA QUEEN BED', 21, 'taller', '{"alto": 57, "ancho": 55, "fondo": 3}', 0, 0.0, 1, 1),
+  (388, 'DCR-0388', 'CACHINA QUEEN HEADBOARD', 21, 'taller', '{"alto": 56, "ancho": 75, "fondo": 4}', 374, 261.8, 1, 1),
+  (389, 'DCR-0389', 'COW BOY HEADBOARD', 21, 'taller', '{"alto": 50, "ancho": 70, "fondo": 3}', 395, 276.5, 1, 1),
+  (390, 'DCR-0390', 'BAKARU HEADBOARD TWIN', 21, 'taller', '{"alto": 61, "ancho": 75, "fondo": 6}', 320, 224.0, 1, 1),
+  (391, 'DCR-0391', 'BAKARU HEADBOARD QUEEN', 21, 'taller', '{"alto": 57, "ancho": 79, "fondo": 6}', 374, 261.8, 1, 1),
+  (392, 'DCR-0392', 'BAKARU HEADBOARD KING', 21, 'taller', '{"alto": 62, "ancho": 69, "fondo": 3}', 428, 299.6, 1, 1),
+  (393, 'DCR-0393', 'QUEEN HEADBOARD W/PANELS', 21, 'taller', '{"alto": 62, "ancho": 70, "fondo": 6}', 268, 187.6, 1, 1),
+  (394, 'DCR-0394', 'COWHIDE KING BED', 21, 'taller', '{"alto": 60, "ancho": 76, "fondo": 6}', 1495, 1046.5, 1, 1),
+  (395, 'DCR-0395', 'COWHIDE QUEEN BED', 21, 'taller', '{"alto": 59, "ancho": 75, "fondo": 2}', 1392, 974.4, 1, 1),
+  (396, 'DCR-0396', 'COWHIDE CUT OUT KING BED', 21, 'taller', '{"alto": 48, "ancho": 69, "fondo": 5}', 1495, 1046.5, 1, 1),
+  (397, 'DCR-0397', 'COWHIDE CUT OUT QUEEN BED', 21, 'taller', '{"alto": 54, "ancho": 75, "fondo": 3}', 1392, 974.4, 1, 1),
+  (398, 'DCR-0398', 'PUEBLO HEADBOARD QUEEN', 21, 'taller', '{"alto": 49, "ancho": 55, "fondo": 3}', 299, 209.3, 1, 1),
+  (399, 'DCR-0399', 'PUEBLO HEADBOARD KING', 21, 'taller', '{"alto": 51, "ancho": 67, "fondo": 2}', 328, 229.6, 1, 1),
+  (400, 'DCR-0400', 'CONCHOS KS BED', 21, 'taller', '{"alto": 60, "ancho": 65, "fondo": 4}', 1169, 818.3, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (401, 'DCR-0401', 'CONCHOS CHEST', 21, 'taller', '{"alto": 57, "ancho": 67, "fondo": 2}', 893, 625.1, 1, 1),
+  (402, 'DCR-0402', 'PUEBLO HEADBOARD FULL', 21, 'taller', '{"alto": 54, "ancho": 75, "fondo": 4}', 259, 181.3, 1, 1),
+  (403, 'DCR-0403', 'HB/FB PUEBLO COMPLETE BED QS', 21, 'taller', '{"alto": 58, "ancho": 69, "fondo": 5}', 587, 410.9, 1, 1),
+  (404, 'DCR-0404', 'HB/FB PUEBLO COMPLETE BED KS', 21, 'taller', '{"alto": 59, "ancho": 70, "fondo": 5}', 662, 463.4, 1, 1),
+  (405, 'DCR-0405', 'HONDO KS COMPLETE BED', 21, 'taller', '{"alto": 52, "ancho": 55, "fondo": 3}', 1100, 770.0, 1, 1),
+  (406, 'DCR-0406', 'HONDO QS COMPLETE BED', 21, 'taller', '{"alto": 57, "ancho": 74, "fondo": 2}', 1035, 724.5, 1, 1),
+  (407, 'DCR-0407', '6-DWR DRESSER', 20, 'taller', '{"alto": 47, "ancho": 65, "fondo": 22}', 460, 322.0, 1, 1),
+  (408, 'DCR-0408', '7-DWR DRESSER', 20, 'taller', '{"alto": 40, "ancho": 65, "fondo": 19}', 483, 338.1, 1, 1),
+  (409, 'DCR-0409', 'COWHIDE DRESSER W/MIRROR', 20, 'taller', '{"alto": 48, "ancho": 54, "fondo": 18}', 1016, 711.2, 1, 1),
+  (410, 'DCR-0410', 'COWHIDE DRESSER NO MIRROR', 20, 'taller', '{"alto": 43, "ancho": 49, "fondo": 18}', 925, 647.5, 1, 1),
+  (411, 'DCR-0411', 'COWHIDE CHEST', 20, 'taller', '{"alto": 46, "ancho": 43, "fondo": 22}', 855, 598.5, 1, 1),
+  (412, 'DCR-0412', 'CONCHOS DRESSER', 20, 'taller', '{"alto": 48, "ancho": 57, "fondo": 21}', 961, 672.7, 1, 1),
+  (413, 'DCR-0413', 'COWHIDE MIRROR', 20, 'taller', '{"alto": 39, "ancho": 62, "fondo": 22}', 173, 121.1, 1, 1),
+  (414, 'DCR-0414', '5-DWR CHEST 2-SM 3-LG', 20, 'taller', '{"alto": 42, "ancho": 59, "fondo": 20}', 358, 250.6, 1, 1),
+  (415, 'DCR-0415', '4-DWR CHEST', 20, 'taller', '{"alto": 48, "ancho": 39, "fondo": 18}', 260, 182.0, 1, 1),
+  (416, 'DCR-0416', '3- DWR CHEST', 20, 'taller', '{"alto": 47, "ancho": 53, "fondo": 21}', 0, 0.0, 1, 1),
+  (417, 'DCR-0417', 'HONDO CHEST', 20, 'taller', '{"alto": 38, "ancho": 48, "fondo": 22}', 615, 430.5, 1, 1),
+  (418, 'DCR-0418', 'HONDO DRESSER', 20, 'taller', '{"alto": 38, "ancho": 45, "fondo": 18}', 642, 449.4, 1, 1),
+  (419, 'DCR-0419', 'HONDO MIRROR', 20, 'taller', '{"alto": 44, "ancho": 37, "fondo": 21}', 138, 96.6, 1, 1),
+  (420, 'DCR-0420', 'OLD DOOR BENCH LARGE', 4, 'taller', '{"alto": 18, "ancho": 44, "fondo": 20}', 334, 233.8, 1, 1),
+  (421, 'DCR-0421', 'BENCH TASCATE INLAY 72X20X18', 4, 'taller', '{"alto": 19, "ancho": 43, "fondo": 16}', 318, 222.6, 1, 1),
+  (422, 'DCR-0422', '36" ROSETTE BENCH', 4, 'taller', '{"alto": 19, "ancho": 47, "fondo": 20}', 161, 112.7, 1, 1),
+  (423, 'DCR-0423', '48" ROSETTE BENCH', 4, 'taller', '{"alto": 19, "ancho": 52, "fondo": 17}', 167, 116.9, 1, 1),
+  (424, 'DCR-0424', '60" ROSETTE BENCH', 4, 'taller', '{"alto": 20, "ancho": 61, "fondo": 15}', 180, 126.0, 1, 1),
+  (425, 'DCR-0425', '48" CORONA BENCH', 4, 'taller', '{"alto": 19, "ancho": 46, "fondo": 17}', 320, 224.0, 1, 1),
+  (426, 'DCR-0426', '60" CORONA BENCH', 4, 'taller', '{"alto": 18, "ancho": 69, "fondo": 18}', 340, 238.0, 1, 1),
+  (427, 'DCR-0427', '72" CORONA BENCH', 4, 'taller', '{"alto": 20, "ancho": 67, "fondo": 19}', 364, 254.8, 1, 1),
+  (428, 'DCR-0428', 'COW HIDE BENCH', 4, 'taller', '{"alto": 20, "ancho": 46, "fondo": 16}', 397, 277.9, 1, 1),
+  (429, 'DCR-0429', '48" TARAHUMARA BENCH', 4, 'taller', '{"alto": 18, "ancho": 39, "fondo": 17}', 167, 116.9, 1, 1),
+  (430, 'DCR-0430', '54"OX YOKE BENCH W/LEATHER', 4, 'taller', '{"alto": 18, "ancho": 61, "fondo": 15}', 329, 230.3, 1, 1),
+  (431, 'DCR-0431', '3 DRW. BENCH', 4, 'taller', '{"alto": 19, "ancho": 68, "fondo": 17}', 234, 163.8, 1, 1),
+  (432, 'DCR-0432', '60" CROOS BENCH', 4, 'taller', '{"alto": 19, "ancho": 44, "fondo": 18}', 328, 229.6, 1, 1),
+  (433, 'DCR-0433', '8 FT. TASCATE BENCH TURQ. INLAY', 4, 'taller', '{"alto": 19, "ancho": 37, "fondo": 14}', 385, 269.5, 1, 1),
+  (434, 'DCR-0434', 'BENCH TASCATE INLAY 48X20X18', 4, 'taller', '{"alto": 18, "ancho": 63, "fondo": 19}', 251, 175.7, 1, 1),
+  (435, 'DCR-0435', 'BENCH TASCATE INLAY 60X20X18', 4, 'taller', '{"alto": 18, "ancho": 65, "fondo": 19}', 268, 187.6, 1, 1),
+  (436, 'DCR-0436', '72" OX YOKE BENCH W/LEATHER', 4, 'taller', '{"alto": 18, "ancho": 53, "fondo": 17}', 363, 254.1, 1, 1),
+  (437, 'DCR-0437', '2-DWR SPINDEL DESK 48"', 11, 'taller', '{"alto": 31, "ancho": 40, "fondo": 30}', 297, 207.9, 1, 1),
+  (438, 'DCR-0438', 'IRON BASE DESK 18" DEEP', 11, 'taller', '{"alto": 31, "ancho": 53, "fondo": 18}', 255, 178.5, 1, 1),
+  (439, 'DCR-0439', 'IRON BASE DESK 24" DEEP', 11, 'taller', '{"alto": 31, "ancho": 46, "fondo": 21}', 275, 192.5, 1, 1),
+  (440, 'DCR-0440', 'COWHIDE EXECUTIVE DESK', 11, 'taller', '{"alto": 32, "ancho": 40, "fondo": 20}', 961, 672.7, 1, 1),
+  (441, 'DCR-0441', 'JR. COWHIDE DESK', 11, 'taller', '{"alto": 31, "ancho": 69, "fondo": 27}', 534, 373.8, 1, 1),
+  (442, 'DCR-0442', 'COWHIDE FILE CABINET 3 DRWS', 11, 'taller', '{"alto": 31, "ancho": 68, "fondo": 22}', 410, 287.0, 1, 1),
+  (443, 'DCR-0443', 'WESTER EXECUTIVE DESK', 11, 'taller', '{"alto": 30, "ancho": 67, "fondo": 22}', 793, 555.1, 1, 1),
+  (444, 'DCR-0444', 'SECRETARY DESK', 11, 'taller', '{"alto": 32, "ancho": 53, "fondo": 20}', 393, 275.1, 1, 1),
+  (445, 'DCR-0445', 'JR. WESTERN DESK', 11, 'taller', '{"alto": 32, "ancho": 67, "fondo": 18}', 460, 322.0, 1, 1),
+  (446, 'DCR-0446', '54" RUSTIC SIERRA DESK', 11, 'taller', '{"alto": 32, "ancho": 67, "fondo": 29}', 243, 170.1, 1, 1),
+  (447, 'DCR-0447', '60" RUSTIC SIERRA DESK', 11, 'taller', '{"alto": 32, "ancho": 68, "fondo": 20}', 274, 191.8, 1, 1),
+  (448, 'DCR-0448', '3-DWR IRON BASE DESK', 11, 'taller', '{"alto": 31, "ancho": 55, "fondo": 21}', 343, 240.1, 1, 1),
+  (449, 'DCR-0449', '5-DWR IRON BASE DESK', 11, 'taller', '{"alto": 30, "ancho": 55, "fondo": 23}', 395, 276.5, 1, 1),
+  (450, 'DCR-0450', 'SOUTHWEST CHAIR', 9, 'taller', '{"alto": 38, "ancho": 20, "fondo": 18}', 122, 85.4, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (451, 'DCR-0451', 'SOUTHWEST CHAIR W/LEATHER', 9, 'taller', '{"alto": 38, "ancho": 19, "fondo": 22}', 165, 115.5, 1, 1),
+  (452, 'DCR-0452', 'TURN LEGS WESTERN CHAIR', 9, 'taller', '{"alto": 44, "ancho": 19, "fondo": 21}', 103, 72.1, 1, 1),
+  (453, 'DCR-0453', 'RICARDO CHAIR', 9, 'taller', '{"alto": 37, "ancho": 19, "fondo": 18}', 79, 55.3, 1, 1),
+  (454, 'DCR-0454', 'RICARDO ARM CHAIR', 9, 'taller', '{"alto": 37, "ancho": 20, "fondo": 18}', 90, 63.0, 1, 1),
+  (455, 'DCR-0455', 'RICARDO CHAIR W/LACQUER', 9, 'taller', '{"alto": 39, "ancho": 18, "fondo": 20}', 90, 63.0, 1, 1),
+  (456, 'DCR-0456', 'MEXICAN CHAIR', 9, 'taller', '{"alto": 44, "ancho": 21, "fondo": 19}', 103, 72.1, 1, 1),
+  (457, 'DCR-0457', 'CORONA CHAIR', 9, 'taller', '{"alto": 44, "ancho": 19, "fondo": 19}', 79, 55.3, 1, 1),
+  (458, 'DCR-0458', 'PLAIN CHAIR', 9, 'taller', '{"alto": 37, "ancho": 20, "fondo": 19}', 69, 48.3, 1, 1),
+  (459, 'DCR-0459', 'CHAIR FOR DESK', 9, 'taller', '{"alto": 42, "ancho": 19, "fondo": 22}', 103, 72.1, 1, 1),
+  (460, 'DCR-0460', 'COWHIDE CHAIR FOR DESK', 9, 'taller', '{"alto": 36, "ancho": 21, "fondo": 18}', 133, 93.1, 1, 1),
+  (461, 'DCR-0461', 'CURVE MEZCALERO CHAIR', 9, 'taller', '{"alto": 41, "ancho": 19, "fondo": 18}', 88, 61.6, 1, 1),
+  (462, 'DCR-0462', 'MEZCALERO CHAIR W/LEATHER', 9, 'taller', '{"alto": 40, "ancho": 19, "fondo": 22}', 138, 96.6, 1, 1),
+  (463, 'DCR-0463', 'MEZCALERO CHAIR W/COOPER WOOD SEAT', 9, 'taller', '{"alto": 38, "ancho": 21, "fondo": 21}', 115, 80.5, 1, 1),
+  (464, 'DCR-0464', 'MEZCALERO CHAIR W/COOPER & LEATHER', 9, 'taller', '{"alto": 38, "ancho": 22, "fondo": 21}', 160, 112.0, 1, 1),
+  (465, 'DCR-0465', 'OFFICE CHAIR', 9, 'taller', '{"alto": 36, "ancho": 19, "fondo": 21}', 544, 380.8, 1, 1),
+  (466, 'DCR-0466', 'WINGBACK CHAIR', 9, 'taller', '{"alto": 40, "ancho": 19, "fondo": 19}', 544, 380.8, 1, 1),
+  (467, 'DCR-0467', 'RUSTIC CHAIR', 9, 'taller', '{"alto": 36, "ancho": 20, "fondo": 21}', 88, 61.6, 1, 1),
+  (468, 'DCR-0468', 'RUSTIC CHAIR W/LEATHER', 9, 'taller', '{"alto": 42, "ancho": 21, "fondo": 21}', 138, 96.6, 1, 1),
+  (469, 'DCR-0469', 'TASCATE CHAIR W/LEATHER TURQ. INLAY', 9, 'taller', '{"alto": 41, "ancho": 18, "fondo": 21}', 226, 158.2, 1, 1),
+  (470, 'DCR-0470', 'JUAREZ YOKE TOOLED CHAIR W/LACQUER', 9, 'taller', '{"alto": 41, "ancho": 18, "fondo": 21}', 310, 217.0, 1, 1),
+  (471, 'DCR-0471', 'TASCATE CHAIR W/WRAPPED LEATHER', 9, 'taller', '{"alto": 38, "ancho": 19, "fondo": 20}', 165, 115.5, 1, 1),
+  (472, 'DCR-0472', 'MEZCALERO CHAIR W/WRAPPED LEATHER', 9, 'taller', '{"alto": 39, "ancho": 19, "fondo": 22}', 165, 115.5, 1, 1),
+  (473, 'DCR-0473', 'ROSETTA CURVE BACK CHAIR W/LEATHER', 9, 'taller', '{"alto": 44, "ancho": 22, "fondo": 20}', 165, 115.5, 1, 1),
+  (474, 'DCR-0474', 'MEZCALERO CURVE CACHINA STRIP CHAIR W/LEATHER', 9, 'taller', '{"alto": 44, "ancho": 18, "fondo": 19}', 141, 98.7, 1, 1),
+  (475, 'DCR-0475', 'SINGLE ROCKING CHAIR', 9, 'taller', '{"alto": 42, "ancho": 18, "fondo": 18}', 184, 128.8, 1, 1),
+  (476, 'DCR-0476', 'DOUBLE ROCKING CHAIR', 9, 'taller', '{"alto": 38, "ancho": 22, "fondo": 19}', 259, 181.3, 1, 1),
+  (477, 'DCR-0477', 'STAR BARSTOOL', 3, 'taller', '{"alto": 26, "ancho": 20, "fondo": 19}', 79, 55.3, 1, 1),
+  (478, 'DCR-0478', 'MEXICAN BARSTOOL', 17, 'taller', '{"alto": 30, "ancho": 71, "fondo": 39}', 103, 72.1, 1, 1),
+  (479, 'DCR-0479', 'MEXICAN BARSTOOL 30"', 17, 'taller', '{"alto": 34, "ancho": 61, "fondo": 35}', 103, 72.1, 1, 1),
+  (480, 'DCR-0480', 'CORONA BARSTOOL 26''''', 17, 'taller', '{"alto": 33, "ancho": 71, "fondo": 31}', 79, 55.3, 1, 1),
+  (481, 'DCR-0481', 'CORONA BARSTOOL 30"', 17, 'taller', '{"alto": 31, "ancho": 57, "fondo": 41}', 79, 55.3, 1, 1),
+  (482, 'DCR-0482', 'TECATE BARSTOOL 30"', 17, 'taller', '{"alto": 35, "ancho": 63, "fondo": 41}', 79, 55.3, 1, 1),
+  (483, 'DCR-0483', 'XX LAGER BARSTOOL 30"', 17, 'taller', '{"alto": 31, "ancho": 47, "fondo": 38}', 88, 61.6, 1, 1),
+  (484, 'DCR-0484', 'BUDWEISER BARSTOOL 30"', 17, 'taller', '{"alto": 30, "ancho": 46, "fondo": 48}', 88, 61.6, 1, 1),
+  (485, 'DCR-0485', 'HARLEY BARSTOOLS 26"', 17, 'taller', '{"alto": 34, "ancho": 58, "fondo": 28}', 141, 98.7, 1, 1),
+  (486, 'DCR-0486', 'HARLEY BARSTOOLS 30"', 17, 'taller', '{"alto": 35, "ancho": 65, "fondo": 32}', 141, 98.7, 1, 1),
+  (487, 'DCR-0487', 'PLAIN BARSTOOL 24"', 17, 'taller', '{"alto": 35, "ancho": 40, "fondo": 39}', 73, 51.1, 1, 1),
+  (488, 'DCR-0488', 'PLAIN BARSTOOL 30"', 17, 'taller', '{"alto": 34, "ancho": 43, "fondo": 31}', 73, 51.1, 1, 1),
+  (489, 'DCR-0489', 'PLAIN BARSTOOL 26"', 17, 'taller', '{"alto": 33, "ancho": 71, "fondo": 35}', 73, 51.1, 1, 1),
+  (490, 'DCR-0490', 'COWHIDE SWIVEL BARSTOOL', 17, 'taller', '{"alto": 36, "ancho": 66, "fondo": 48}', 276, 193.2, 1, 1),
+  (491, 'DCR-0491', '24" STOOLS W/LEATHER', 17, 'taller', '{"alto": 33, "ancho": 39, "fondo": 28}', 110, 77.0, 1, 1),
+  (492, 'DCR-0492', '30" STOOLS W/LEATHER', 17, 'taller', '{"alto": 31, "ancho": 69, "fondo": 45}', 110, 77.0, 1, 1),
+  (493, 'DCR-0493', 'MEZCALERO BARSTOOL 24" W/COOPER', 17, 'taller', '{"alto": 33, "ancho": 48, "fondo": 34}', 155, 108.5, 1, 1),
+  (494, 'DCR-0494', '26" PLAIN BARSTOOL W/LACQUER', 17, 'taller', '{"alto": 33, "ancho": 50, "fondo": 42}', 88, 61.6, 1, 1),
+  (495, 'DCR-0495', 'TASCATE BARSTOOL W/WRAPPED LEATHER', 17, 'taller', '{"alto": 30, "ancho": 38, "fondo": 32}', 165, 115.5, 1, 1),
+  (496, 'DCR-0496', 'TWIST BARSTOOL IRON BLACK', 17, 'taller', '{"alto": 30, "ancho": 52, "fondo": 45}', 99, 69.3, 1, 1),
+  (497, 'DCR-0497', 'IRON BASE BARSTOOL TOOLED LEATHER SEAT', 17, 'taller', '{"alto": 30, "ancho": 59, "fondo": 48}', 184, 128.8, 1, 1),
+  (498, 'DCR-0498', '30" MEZCALERO BARSTOOL W/LEATHER', 17, 'taller', '{"alto": 34, "ancho": 60, "fondo": 41}', 196, 137.2, 1, 1),
+  (499, 'DCR-0499', 'PLAIN BISTRO TABLE', 5, 'taller', '{"alto": 33, "ancho": 36, "fondo": 36}', 257, 179.9, 1, 1),
+  (500, 'DCR-0500', 'CORONA BISTRO TABLE', 5, 'taller', '{"alto": 32, "ancho": 32, "fondo": 32}', 256, 179.2, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (501, 'DCR-0501', 'STAR BISTRO TABLE', 5, 'taller', '{"alto": 32, "ancho": 32, "fondo": 31}', 268, 187.6, 1, 1),
+  (502, 'DCR-0502', 'HARLEY BISTRO TABLE', 5, 'taller', '{"alto": 32, "ancho": 34, "fondo": 35}', 288, 201.6, 1, 1),
+  (503, 'DCR-0503', 'MEXICAN BISTRO TABLE', 5, 'taller', '{"alto": 35, "ancho": 35, "fondo": 30}', 408, 285.6, 1, 1),
+  (504, 'DCR-0504', '42" TALL PLAIN BISTRO TABLE', 5, 'taller', '{"alto": 30, "ancho": 36, "fondo": 30}', 248, 173.6, 1, 1),
+  (505, 'DCR-0505', 'PLAIN BISTRO RECTANGLE', 5, 'taller', '{"alto": 34, "ancho": 36, "fondo": 33}', 357, 249.9, 1, 1),
+  (506, 'DCR-0506', 'PLAIN BISTRO RECTANGLE W/LACQUER', 5, 'taller', '{"alto": 32, "ancho": 32, "fondo": 34}', 393, 275.1, 1, 1),
+  (507, 'DCR-0507', 'TASCATE PLAIN BISTRO RECTANGLE TURQ. INLAY', 5, 'taller', '{"alto": 30, "ancho": 30, "fondo": 30}', 495, 346.5, 1, 1),
+  (508, 'DCR-0508', 'XX LAGER BISTRO TABLE', 5, 'taller', '{"alto": 36, "ancho": 35, "fondo": 31}', 256, 179.2, 1, 1),
+  (509, 'DCR-0509', '48" MEXICAN BAR', 2, 'taller', '{"alto": 43, "ancho": 62, "fondo": 23}', 516, 361.2, 1, 1),
+  (510, 'DCR-0510', '72" MEXICAN BAR', 2, 'taller', '{"alto": 42, "ancho": 65, "fondo": 21}', 601, 420.7, 1, 1),
+  (511, 'DCR-0511', '72" TECATE BAR', 2, 'taller', '{"alto": 43, "ancho": 54, "fondo": 22}', 601, 420.7, 1, 1),
+  (512, 'DCR-0512', '72" BUDWEISER BAR', 2, 'taller', '{"alto": 47, "ancho": 48, "fondo": 21}', 628, 439.6, 1, 1),
+  (513, 'DCR-0513', '48" XX LAGER BAR', 2, 'taller', '{"alto": 47, "ancho": 52, "fondo": 27}', 609, 426.3, 1, 1),
+  (514, 'DCR-0514', '72" XX LAGER BAR', 2, 'taller', '{"alto": 42, "ancho": 95, "fondo": 25}', 734, 513.8, 1, 1),
+  (515, 'DCR-0515', '72" PLAIN BAR', 2, 'taller', '{"alto": 44, "ancho": 65, "fondo": 27}', 572, 400.4, 1, 1),
+  (516, 'DCR-0516', '60" PLAIN BAR', 2, 'taller', '{"alto": 45, "ancho": 53, "fondo": 24}', 529, 370.3, 1, 1),
+  (517, 'DCR-0517', '60" PLAIN BAR W/SLATTE', 2, 'taller', '{"alto": 45, "ancho": 93, "fondo": 28}', 598, 418.6, 1, 1),
+  (518, 'DCR-0518', '72" PLAIN BAR W/SLATTE', 2, 'taller', '{"alto": 42, "ancho": 83, "fondo": 28}', 647, 452.9, 1, 1),
+  (519, 'DCR-0519', '72" PLAIN BAR W/TILE', 2, 'taller', '{"alto": 48, "ancho": 66, "fondo": 23}', 619, 433.3, 1, 1),
+  (520, 'DCR-0520', '48" PLAIN BAR W/SLATTE', 2, 'taller', '{"alto": 45, "ancho": 49, "fondo": 25}', 551, 385.7, 1, 1),
+  (521, 'DCR-0521', '48" TECATE BAR', 2, 'taller', '{"alto": 44, "ancho": 62, "fondo": 27}', 516, 361.2, 1, 1),
+  (522, 'DCR-0522', '7FT. SIERRA BAR', 2, 'taller', '{"alto": 43, "ancho": 56, "fondo": 23}', 874, 611.8, 1, 1),
+  (523, 'DCR-0523', 'CURIO CORNER CAB.', 19, 'taller', '{"alto": 48, "ancho": 48, "fondo": 19}', 152, 106.4, 1, 1),
+  (524, 'DCR-0524', 'MED.CORNER CAB.', 19, 'taller', '{"alto": 41, "ancho": 28, "fondo": 23}', 279, 195.3, 1, 1),
+  (525, 'DCR-0525', 'TALL CORNER CAB.', 19, 'taller', '{"alto": 30, "ancho": 42, "fondo": 21}', 442, 309.4, 1, 1),
+  (526, 'DCR-0526', '12X12 MARIO''S TABLE', 19, 'taller', '{"alto": 48, "ancho": 29, "fondo": 20}', 61, 42.7, 1, 1),
+  (527, 'DCR-0527', '12X24 MARIO''S TABLE', 19, 'taller', '{"alto": 33, "ancho": 24, "fondo": 18}', 76, 53.2, 1, 1),
+  (528, 'DCR-0528', '12X36 MARIO''S TABLE', 19, 'taller', '{"alto": 25, "ancho": 32, "fondo": 12}', 92, 64.4, 1, 1),
+  (529, 'DCR-0529', '12X48 MARIO''S TABLE', 19, 'taller', '{"alto": 39, "ancho": 38, "fondo": 15}', 110, 77.0, 1, 1),
+  (530, 'DCR-0530', '16X16 MARIO''S TABLE', 19, 'taller', '{"alto": 41, "ancho": 30, "fondo": 18}', 76, 53.2, 1, 1),
+  (531, 'DCR-0531', '16X24 MARIO''S TABLE', 19, 'taller', '{"alto": 40, "ancho": 45, "fondo": 22}', 96, 67.2, 1, 1),
+  (532, 'DCR-0532', '16X36 MARIO''S TABLE', 19, 'taller', '{"alto": 27, "ancho": 48, "fondo": 17}', 106, 74.2, 1, 1),
+  (533, 'DCR-0533', '16X48 MARIO''S TABLE', 19, 'taller', '{"alto": 36, "ancho": 38, "fondo": 17}', 132, 92.4, 1, 1),
+  (534, 'DCR-0534', 'SMALL COOLER', 19, 'taller', '{"alto": 27, "ancho": 40, "fondo": 17}', 241, 168.7, 1, 1),
+  (535, 'DCR-0535', 'COOLER', 19, 'taller', '{"alto": 41, "ancho": 30, "fondo": 21}', 276, 193.2, 1, 1),
+  (536, 'DCR-0536', 'CABINET LINEN 4'' CROSS 36X13X48', 23, 'taller', '{"alto": 25, "ancho": 27, "fondo": 18}', 199, 139.3, 1, 1),
+  (537, 'DCR-0537', 'CABINET LINEN 4'' FANCY TIN 36X13X48', 23, 'taller', '{"alto": 31, "ancho": 31, "fondo": 13}', 241, 168.7, 1, 1),
+  (538, 'DCR-0538', 'CABINET LINEN 4'' CROSS 36X18X48', 23, 'taller', '{"alto": 31, "ancho": 25, "fondo": 12}', 230, 161.0, 1, 1),
+  (539, 'DCR-0539', 'CABINET LINEN 4'' FANCY TIN 36X18X48', 23, 'taller', '{"alto": 27, "ancho": 27, "fondo": 18}', 275, 192.5, 1, 1),
+  (540, 'DCR-0540', 'CABINET LINEN 4'' RUSTIC TIN 36X16X48', 23, 'taller', '{"alto": 33, "ancho": 30, "fondo": 18}', 109, 76.3, 1, 1),
+  (541, 'DCR-0541', 'CABINET LINEN 5'' CROSS 36X13X60', 23, 'taller', '{"alto": 27, "ancho": 31, "fondo": 12}', 257, 179.9, 1, 1),
+  (542, 'DCR-0542', 'CABINET LINEN 5'' FANCY TIN 36X13X60', 23, 'taller', '{"alto": 24, "ancho": 30, "fondo": 12}', 299, 209.3, 1, 1),
+  (543, 'DCR-0543', 'CABINET LINEN 5'' CROSS 36X18X60', 23, 'taller', '{"alto": 29, "ancho": 32, "fondo": 18}', 299, 209.3, 1, 1),
+  (544, 'DCR-0544', 'CABINET LINEN 5'' 36X18X60', 23, 'taller', '{"alto": 33, "ancho": 24, "fondo": 15}', 343, 240.1, 1, 1),
+  (545, 'DCR-0545', 'CABINET LINEN 5" RUSTIC TIN 36X13X60', 23, 'taller', '{"alto": 32, "ancho": 33, "fondo": 14}', 274, 191.8, 1, 1),
+  (546, 'DCR-0546', 'CABINET LINEN 5'' RUSTIC TIN 36X18X60', 23, 'taller', '{"alto": 28, "ancho": 35, "fondo": 17}', 317, 221.9, 1, 1),
+  (547, 'DCR-0547', 'CABINET LINEN 6'' CROSS 36X13X72', 23, 'taller', '{"alto": 29, "ancho": 24, "fondo": 17}', 283, 198.1, 1, 1),
+  (548, 'DCR-0548', 'CABINET LINEN 6'' FANCY TIN 36X13X72', 23, 'taller', '{"alto": 36, "ancho": 36, "fondo": 12}', 324, 226.8, 1, 1),
+  (549, 'DCR-0549', 'CABINET LINEN 6'' CROSS 36X18X72', 23, 'taller', '{"alto": 24, "ancho": 32, "fondo": 17}', 343, 240.1, 1, 1),
+  (550, 'DCR-0550', 'CABINET LINEN 6'' FANCY TIN 36X18X72', 23, 'taller', '{"alto": 28, "ancho": 36, "fondo": 16}', 382, 267.4, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (551, 'DCR-0551', 'CABINET LINEN 6'' RUSTIC TIN 36X18X72', 23, 'taller', '{"alto": 30, "ancho": 32, "fondo": 13}', 358, 250.6, 1, 1),
+  (552, 'DCR-0552', '5'' TWIG CABINET LINEN', 23, 'taller', '{"alto": 27, "ancho": 34, "fondo": 14}', 242, 169.4, 1, 1),
+  (553, 'DCR-0553', '4'' TWIG CABINET LINEN', 23, 'taller', '{"alto": 35, "ancho": 33, "fondo": 13}', 217, 151.9, 1, 1),
+  (554, 'DCR-0554', 'SM TWIG CABINET LINEN', 23, 'taller', '{"alto": 32, "ancho": 25, "fondo": 17}', 196, 137.2, 1, 1),
+  (555, 'DCR-0555', '36X13X30 TWIG CABINET LINEN', 23, 'taller', '{"alto": 30, "ancho": 32, "fondo": 16}', 242, 169.4, 1, 1),
+  (556, 'DCR-0556', '1-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 25, "ancho": 29, "fondo": 12}', 199, 139.3, 1, 1),
+  (557, 'DCR-0557', '2-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 27, "ancho": 36, "fondo": 12}', 262, 183.4, 1, 1),
+  (558, 'DCR-0558', '3-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 30, "ancho": 26, "fondo": 16}', 371, 259.7, 1, 1),
+  (559, 'DCR-0559', '4-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 34, "ancho": 24, "fondo": 13}', 518, 362.6, 1, 1),
+  (560, 'DCR-0560', '5-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 29, "ancho": 27, "fondo": 15}', 587, 410.9, 1, 1),
+  (561, 'DCR-0561', '6-DOOR LAFON SIDEBOARD W/SLATTE', 23, 'taller', '{"alto": 35, "ancho": 32, "fondo": 16}', 662, 463.4, 1, 1),
+  (562, 'DCR-0562', 'LAFON IRON 2-DOOR 3-SHELF', 23, 'taller', '{"alto": 32, "ancho": 35, "fondo": 14}', 495, 346.5, 1, 1),
+  (563, 'DCR-0563', 'LAFON IRON 1-DOOR 5-SHELF', 23, 'taller', '{"alto": 28, "ancho": 33, "fondo": 16}', 479, 335.3, 1, 1),
+  (564, 'DCR-0564', 'LAFON ALL METAL DOORS', 23, 'taller', '{"alto": 36, "ancho": 28, "fondo": 13}', 495, 346.5, 1, 1),
+  (565, 'DCR-0565', 'LAFON MULTIPANEL 2-DOOR', 23, 'taller', '{"alto": 30, "ancho": 35, "fondo": 15}', 312, 218.4, 1, 1),
+  (566, 'DCR-0566', 'LAFON MULTIPANEL 4-DOOR', 23, 'taller', '{"alto": 32, "ancho": 26, "fondo": 18}', 495, 346.5, 1, 1),
+  (567, 'DCR-0567', 'RUSTIC LAFON 1-DOOR', 23, 'taller', '{"alto": 29, "ancho": 33, "fondo": 14}', 312, 218.4, 1, 1),
+  (568, 'DCR-0568', 'RUSTIC LAFON 2-DOOR', 23, 'taller', '{"alto": 30, "ancho": 30, "fondo": 13}', 495, 346.5, 1, 1),
+  (569, 'DCR-0569', '48" TWIG TV-STAND 48X18X30', 23, 'taller', '{"alto": 35, "ancho": 28, "fondo": 18}', 303, 212.1, 1, 1),
+  (570, 'DCR-0570', '60" TWIG TV-STAND', 23, 'taller', '{"alto": 28, "ancho": 36, "fondo": 12}', 331, 231.7, 1, 1),
+  (571, 'DCR-0571', '72" TWIG TV-STAND', 23, 'taller', '{"alto": 29, "ancho": 27, "fondo": 15}', 358, 250.6, 1, 1),
+  (572, 'DCR-0572', '60" TV STAND W/GLASS', 23, 'taller', '{"alto": 27, "ancho": 31, "fondo": 18}', 391, 273.7, 1, 1),
+  (573, 'DCR-0573', '72" TV STAND W/GLASS', 23, 'taller', '{"alto": 33, "ancho": 35, "fondo": 12}', 445, 311.5, 1, 1),
+  (574, 'DCR-0574', 'TV/VCR STAND W/ROPE 42X13X30', 23, 'taller', '{"alto": 31, "ancho": 31, "fondo": 18}', 259, 181.3, 1, 1),
+  (575, 'DCR-0575', 'TV STAND W/FANCY TIN 42X13X30', 23, 'taller', '{"alto": 24, "ancho": 34, "fondo": 13}', 294, 205.8, 1, 1),
+  (576, 'DCR-0576', 'TV STAND CACHINA BORDER', 23, 'taller', '{"alto": 29, "ancho": 31, "fondo": 12}', 393, 275.1, 1, 1),
+  (577, 'DCR-0577', 'TV/VCR STAND ROPE 58X18X30', 23, 'taller', '{"alto": 30, "ancho": 29, "fondo": 15}', 386, 270.2, 1, 1),
+  (578, 'DCR-0578', 'TV-VCR STAND GLASS 60X18X36', 23, 'taller', '{"alto": 25, "ancho": 33, "fondo": 18}', 394, 275.8, 1, 1),
+  (579, 'DCR-0579', 'TV/VCR STAND ROPE 60X18X36', 23, 'taller', '{"alto": 30, "ancho": 26, "fondo": 12}', 419, 293.3, 1, 1),
+  (580, 'DCR-0580', 'TV/VCR CACHINA BORDER (NO CACHINA)', 23, 'taller', '{"alto": 33, "ancho": 29, "fondo": 15}', 274, 191.8, 1, 1),
+  (581, 'DCR-0581', '60" TV STAND WOOD PANEL', 23, 'taller', '{"alto": 31, "ancho": 31, "fondo": 12}', 410, 287.0, 1, 1),
+  (582, 'DCR-0582', '60" TV-CONSOLE W/GLASS', 23, 'taller', '{"alto": 32, "ancho": 30, "fondo": 17}', 378, 264.6, 1, 1),
+  (583, 'DCR-0583', '72" TV-CONSOLE W/GLASS', 23, 'taller', '{"alto": 29, "ancho": 25, "fondo": 18}', 409, 286.3, 1, 1),
+  (584, 'DCR-0584', '60" TV-CONSOLE', 23, 'taller', '{"alto": 34, "ancho": 34, "fondo": 17}', 378, 264.6, 1, 1),
+  (585, 'DCR-0585', '72" TV-CONSOLE', 23, 'taller', '{"alto": 33, "ancho": 35, "fondo": 16}', 409, 286.3, 1, 1),
+  (586, 'DCR-0586', '60" TV-CONSOLE W/COOPER', 23, 'taller', '{"alto": 31, "ancho": 30, "fondo": 13}', 477, 333.9, 1, 1),
+  (587, 'DCR-0587', '72" TV-CONSOLE W/COOPER', 23, 'taller', '{"alto": 32, "ancho": 31, "fondo": 14}', 511, 357.7, 1, 1),
+  (588, 'DCR-0588', '60" HACIENDA TV-CONSOLE', 23, 'taller', '{"alto": 28, "ancho": 34, "fondo": 13}', 477, 333.9, 1, 1),
+  (589, 'DCR-0589', '72" HACIENDA TV-CONSOLE', 23, 'taller', '{"alto": 28, "ancho": 31, "fondo": 13}', 511, 357.7, 1, 1),
+  (590, 'DCR-0590', '48X12X32 TV TARAHUMARA', 23, 'taller', '{"alto": 30, "ancho": 35, "fondo": 17}', 257, 179.9, 1, 1),
+  (591, 'DCR-0591', '3 FT. SIERRA TV STAND', 23, 'taller', '{"alto": 34, "ancho": 35, "fondo": 13}', 270, 189.0, 1, 1),
+  (592, 'DCR-0592', '4 FT. SIERRA TV STAND', 23, 'taller', '{"alto": 31, "ancho": 32, "fondo": 17}', 283, 198.1, 1, 1),
+  (593, 'DCR-0593', '5 FT. SIERRA TV STAND', 23, 'taller', '{"alto": 35, "ancho": 29, "fondo": 16}', 294, 205.8, 1, 1),
+  (594, 'DCR-0594', '6 FT. SIERRA TV STAND', 23, 'taller', '{"alto": 28, "ancho": 32, "fondo": 16}', 304, 212.8, 1, 1),
+  (595, 'DCR-0595', '8 FT. SIERRA TV STAND', 23, 'taller', '{"alto": 31, "ancho": 28, "fondo": 16}', 380, 266.0, 1, 1),
+  (596, 'DCR-0596', '48" GOTIK DRESSER', 23, 'taller', '{"alto": 28, "ancho": 36, "fondo": 12}', 305, 213.5, 1, 1),
+  (597, 'DCR-0597', '60" GOTIK DRESSER', 23, 'taller', '{"alto": 30, "ancho": 30, "fondo": 18}', 317, 221.9, 1, 1),
+  (598, 'DCR-0598', '72" GOTIK DRESSER', 23, 'taller', '{"alto": 26, "ancho": 34, "fondo": 18}', 328, 229.6, 1, 1),
+  (599, 'DCR-0599', '84" GOTIK DRESSER', 23, 'taller', '{"alto": 27, "ancho": 26, "fondo": 16}', 340, 238.0, 1, 1),
+  (600, 'DCR-0600', '96" GOTIK DRESSER', 23, 'taller', '{"alto": 31, "ancho": 24, "fondo": 15}', 357, 249.9, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (601, 'DCR-0601', 'TARAHUMARA POT SM', 23, 'taller', '{"alto": 29, "ancho": 32, "fondo": 14}', 15, 10.5, 1, 1),
+  (602, 'DCR-0602', 'TARAHUMARA POT MED', 23, 'taller', '{"alto": 33, "ancho": 25, "fondo": 13}', 30, 21.0, 1, 1),
+  (603, 'DCR-0603', 'TARAUMARA POT LG.', 23, 'taller', '{"alto": 34, "ancho": 29, "fondo": 18}', 45, 31.5, 1, 1),
+  (604, 'DCR-0604', 'SUGAR MOULDING 2', 23, 'taller', '{"alto": 28, "ancho": 33, "fondo": 14}', 7, 4.9, 1, 1),
+  (605, 'DCR-0605', 'SUGAR MOULDING 3', 23, 'taller', '{"alto": 34, "ancho": 32, "fondo": 13}', 10, 7.0, 1, 1),
+  (606, 'DCR-0606', 'SUGAR MOULDING 4', 23, 'taller', '{"alto": 32, "ancho": 28, "fondo": 16}', 13, 9.1, 1, 1),
+  (607, 'DCR-0607', 'SUGAR MOULDING 5', 23, 'taller', '{"alto": 30, "ancho": 31, "fondo": 12}', 15, 10.5, 1, 1),
+  (608, 'DCR-0608', 'SUGAR MOULDING 6', 23, 'taller', '{"alto": 30, "ancho": 29, "fondo": 15}', 19, 13.3, 1, 1),
+  (609, 'DCR-0609', 'SUGAR MOULDING 7', 23, 'taller', '{"alto": 34, "ancho": 24, "fondo": 17}', 21, 14.7, 1, 1),
+  (610, 'DCR-0610', 'SUGAR MOULDING 8', 23, 'taller', '{"alto": 31, "ancho": 34, "fondo": 13}', 26, 18.2, 1, 1),
+  (611, 'DCR-0611', 'SUGAR MOULDING 9', 23, 'taller', '{"alto": 28, "ancho": 35, "fondo": 14}', 28, 19.6, 1, 1),
+  (612, 'DCR-0612', 'SUGAR MOULDING 10', 23, 'taller', '{"alto": 30, "ancho": 35, "fondo": 17}', 30, 21.0, 1, 1),
+  (613, 'DCR-0613', 'SUGAR MOULDING 11', 23, 'taller', '{"alto": 30, "ancho": 24, "fondo": 12}', 34, 23.8, 1, 1),
+  (614, 'DCR-0614', 'SUGAR MOULDING 12', 23, 'taller', '{"alto": 32, "ancho": 24, "fondo": 14}', 36, 25.2, 1, 1),
+  (615, 'DCR-0615', 'SUGAR MOULDING BASE', 23, 'taller', '{"alto": 35, "ancho": 31, "fondo": 18}', 7, 4.9, 1, 1),
+  (616, 'DCR-0616', 'BATEAS GRANDES', 23, 'taller', '{"alto": 29, "ancho": 24, "fondo": 13}', 27, 18.9, 1, 1),
+  (617, 'DCR-0617', 'BATEAS CHICAS', 23, 'taller', '{"alto": 25, "ancho": 35, "fondo": 15}', 14, 9.8, 1, 1),
+  (618, 'DCR-0618', 'LADDER 2''', 23, 'taller', '{"alto": 26, "ancho": 27, "fondo": 14}', 13, 9.1, 1, 1),
+  (619, 'DCR-0619', 'LADDER 3''', 23, 'taller', '{"alto": 32, "ancho": 26, "fondo": 12}', 17, 11.9, 1, 1),
+  (620, 'DCR-0620', 'LADDER 4''', 23, 'taller', '{"alto": 35, "ancho": 32, "fondo": 14}', 23, 16.1, 1, 1),
+  (621, 'DCR-0621', 'LADDER 5''', 23, 'taller', '{"alto": 36, "ancho": 24, "fondo": 13}', 29, 20.3, 1, 1),
+  (622, 'DCR-0622', 'LADDER 6''', 23, 'taller', '{"alto": 30, "ancho": 24, "fondo": 12}', 35, 24.5, 1, 1),
+  (623, 'DCR-0623', 'LADDER 7''', 23, 'taller', '{"alto": 30, "ancho": 35, "fondo": 18}', 42, 29.4, 1, 1),
+  (624, 'DCR-0624', 'LADDER 8''', 23, 'taller', '{"alto": 32, "ancho": 32, "fondo": 18}', 48, 33.6, 1, 1),
+  (625, 'DCR-0625', '2 FT. TARAHUMARA LADDER W/LEATHER', 23, 'taller', '{"alto": 33, "ancho": 30, "fondo": 13}', 36, 25.2, 1, 1),
+  (626, 'DCR-0626', '3 FT. TARAHUMARA LADDER W/LEATHER', 23, 'taller', '{"alto": 32, "ancho": 33, "fondo": 12}', 56, 39.2, 1, 1),
+  (627, 'DCR-0627', '4 FT. TARAHUMARA LADDER W/LEATHER', 23, 'taller', '{"alto": 24, "ancho": 31, "fondo": 14}', 76, 53.2, 1, 1),
+  (628, 'DCR-0628', '7 FT. TARAHUMARA LADDER W/LEATHER', 23, 'taller', '{"alto": 24, "ancho": 31, "fondo": 14}', 130, 91.0, 1, 1),
+  (629, 'DCR-0629', '15" LAMP SHAKES', 23, 'taller', '{"alto": 26, "ancho": 32, "fondo": 14}', 36, 25.2, 1, 1),
+  (630, 'DCR-0630', '18" LAMP SHAKES', 23, 'taller', '{"alto": 26, "ancho": 27, "fondo": 16}', 44, 30.8, 1, 1),
+  (631, 'DCR-0631', '20" LAMP SHAKES', 23, 'taller', '{"alto": 30, "ancho": 27, "fondo": 15}', 50, 35.0, 1, 1),
+  (632, 'DCR-0632', '24" LAMP SHAKES', 23, 'taller', '{"alto": 25, "ancho": 33, "fondo": 15}', 60, 42.0, 1, 1),
+  (633, 'DCR-0633', '36" COOPER TOP', 23, 'taller', '{"alto": 32, "ancho": 28, "fondo": 15}', 602, 421.4, 1, 1),
+  (634, 'DCR-0634', '48" COOPER TOP', 23, 'taller', '{"alto": 25, "ancho": 36, "fondo": 16}', 802, 561.4, 1, 1),
+  (635, 'DCR-0635', '60" COOPER TOP', 23, 'taller', '{"alto": 31, "ancho": 29, "fondo": 15}', 1002, 701.4, 1, 1),
+  (636, 'DCR-0636', 'HB GLASS 8X10', 23, 'taller', '{"alto": 28, "ancho": 24, "fondo": 18}', 6, 4.2, 1, 1),
+  (637, 'DCR-0637', 'HB GLASS 8X13', 23, 'taller', '{"alto": 26, "ancho": 28, "fondo": 12}', 6, 4.2, 1, 1),
+  (638, 'DCR-0638', 'MARGARITA GLASS', 23, 'taller', '{"alto": 30, "ancho": 30, "fondo": 14}', 6, 4.2, 1, 1),
+  (639, 'DCR-0639', 'TEQUILA GLASS', 23, 'taller', '{"alto": 33, "ancho": 30, "fondo": 17}', 6, 4.2, 1, 1),
+  (640, 'DCR-0640', '5 FT. CACHINA BORDER DINING TABLE', 17, 'taller', '{"alto": 35, "ancho": 44, "fondo": 35}', 479, 335.3, 1, 1),
+  (641, 'DCR-0641', 'SOUTHWEST SLATTE DINING TABLE 72"', 17, 'taller', '{"alto": 30, "ancho": 71, "fondo": 35}', 643, 450.1, 1, 1),
+  (642, 'DCR-0642', 'SOUTHWEST SLATTE DINING TABLE 84"', 17, 'taller', '{"alto": 36, "ancho": 68, "fondo": 40}', 695, 486.5, 1, 1),
+  (643, 'DCR-0643', 'TERRACOTA DINING TABLE 72"', 17, 'taller', '{"alto": 35, "ancho": 52, "fondo": 38}', 482, 337.4, 1, 1),
+  (644, 'DCR-0644', 'OX YOKE SLATTE DINING TABLE 6 FT.', 17, 'taller', '{"alto": 36, "ancho": 57, "fondo": 32}', 643, 450.1, 1, 1),
+  (645, 'DCR-0645', 'OX YOKE DINING TABLE 6 FT', 17, 'taller', '{"alto": 35, "ancho": 71, "fondo": 45}', 681, 476.7, 1, 1),
+  (646, 'DCR-0646', 'OX YOKE DINING TABLE 7FT.', 17, 'taller', '{"alto": 36, "ancho": 39, "fondo": 33}', 711, 497.7, 1, 1),
+  (647, 'DCR-0647', 'DINING TABLE 60"', 17, 'taller', '{"alto": 34, "ancho": 70, "fondo": 45}', 458, 320.6, 1, 1),
+  (648, 'DCR-0648', 'DINING TABLE 72"', 17, 'taller', '{"alto": 32, "ancho": 47, "fondo": 44}', 495, 346.5, 1, 1),
+  (649, 'DCR-0649', 'DINING TABLE 84"', 17, 'taller', '{"alto": 35, "ancho": 53, "fondo": 40}', 529, 370.3, 1, 1),
+  (650, 'DCR-0650', '60X60 DINING TABLE', 17, 'taller', '{"alto": 33, "ancho": 47, "fondo": 28}', 482, 337.4, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (651, 'DCR-0651', 'CORONA DINING TABLE', 17, 'taller', '{"alto": 35, "ancho": 36, "fondo": 31}', 257, 179.9, 1, 1),
+  (652, 'DCR-0652', 'MEXICAN DINING TABLE', 17, 'taller', '{"alto": 32, "ancho": 65, "fondo": 46}', 408, 285.6, 1, 1),
+  (653, 'DCR-0653', 'REAL SLATE DINING TABLE 72X36', 17, 'taller', '{"alto": 30, "ancho": 47, "fondo": 38}', 540, 378.0, 1, 1),
+  (654, 'DCR-0654', 'REAL SLATTE DINING TABLE 5''', 17, 'taller', '{"alto": 35, "ancho": 45, "fondo": 36}', 540, 378.0, 1, 1),
+  (655, 'DCR-0655', 'REAL SLATE DINING TABLE 6''', 17, 'taller', '{"alto": 31, "ancho": 56, "fondo": 35}', 588, 411.6, 1, 1),
+  (656, 'DCR-0656', 'REAL SLATE DINING TABLE 7''''', 17, 'taller', '{"alto": 33, "ancho": 44, "fondo": 42}', 636, 445.2, 1, 1),
+  (657, 'DCR-0657', 'REAL SLATTE DINING TABLE 8''', 17, 'taller', '{"alto": 36, "ancho": 39, "fondo": 46}', 686, 480.2, 1, 1),
+  (658, 'DCR-0658', 'REAL SLATTE DINING TABLE 9''', 17, 'taller', '{"alto": 34, "ancho": 43, "fondo": 47}', 738, 516.6, 1, 1),
+  (659, 'DCR-0659', '5 X 5 SLATTE DINING TABLE', 17, 'taller', '{"alto": 30, "ancho": 72, "fondo": 45}', 589, 412.3, 1, 1),
+  (660, 'DCR-0660', 'TERRACOTA KITCHEN ISLAND (4-tile)', 17, 'taller', '{"alto": 33, "ancho": 72, "fondo": 36}', 417, 291.9, 1, 1),
+  (661, 'DCR-0661', 'TERRACOTA KITCHEN ISLAND (6-tile)', 17, 'taller', '{"alto": 32, "ancho": 61, "fondo": 42}', 535, 374.5, 1, 1),
+  (662, 'DCR-0662', '42X42 DINING TABLE', 17, 'taller', '{"alto": 36, "ancho": 71, "fondo": 44}', 386, 270.2, 1, 1),
+  (663, 'DCR-0663', '6 FT. TASCATE DINING TALE TURQ. INLAY', 17, 'taller', '{"alto": 31, "ancho": 62, "fondo": 34}', 769, 538.3, 1, 1),
+  (664, 'DCR-0664', '7 FT. TASCATE DINING TABLE TURQ. INLAY', 17, 'taller', '{"alto": 36, "ancho": 62, "fondo": 32}', 802, 561.4, 1, 1),
+  (665, 'DCR-0665', '8 FT. TASCATE DINING TABLE TURQ. INLAY', 17, 'taller', '{"alto": 33, "ancho": 61, "fondo": 44}', 835, 584.5, 1, 1),
+  (666, 'DCR-0666', 'OX YOKE SLATTE DINING TABLE 7 FT.', 17, 'taller', '{"alto": 30, "ancho": 51, "fondo": 34}', 695, 486.5, 1, 1),
+  (667, 'DCR-0667', '7 FT. RUSTIC TABLE', 17, 'taller', '{"alto": 30, "ancho": 53, "fondo": 32}', 612, 428.4, 1, 1),
+  (668, 'DCR-0668', '8 FT. RUSTIC TABLE', 17, 'taller', '{"alto": 32, "ancho": 38, "fondo": 47}', 544, 380.8, 1, 1),
+  (669, 'DCR-0669', '9 FT. RUSTIC TABLE', 17, 'taller', '{"alto": 32, "ancho": 42, "fondo": 26}', 575, 402.5, 1, 1),
+  (670, 'DCR-0670', '10 FT. RUSTIC TABLE', 17, 'taller', '{"alto": 35, "ancho": 61, "fondo": 29}', 609, 426.3, 1, 1),
+  (671, 'DCR-0671', '48" RUSTIC ROUND TABLE', 17, 'taller', '{"alto": 32, "ancho": 40, "fondo": 36}', 920, 644.0, 1, 1),
+  (672, 'DCR-0672', '60" RUSTIC ROUND TABLE', 17, 'taller', '{"alto": 31, "ancho": 49, "fondo": 27}', 848, 593.6, 1, 1),
+  (673, 'DCR-0673', '5 FT. ROUND OX YOKE DINING W/PEDESTAL', 17, 'taller', '{"alto": 34, "ancho": 62, "fondo": 35}', 695, 486.5, 1, 1),
+  (674, 'DCR-0674', '42" ROUND DINING PEDESTAL TURN LEG', 17, 'taller', '{"alto": 33, "ancho": 44, "fondo": 47}', 351, 245.7, 1, 1),
+  (675, 'DCR-0675', '40X40 SQUARE TURN LEG SMALL DINING TABLE', 17, 'taller', '{"alto": 36, "ancho": 37, "fondo": 43}', 419, 293.3, 1, 1),
+  (676, 'DCR-0676', 'OX YOKE SLATTE DINING TABLE 8 FT', 17, 'taller', '{"alto": 35, "ancho": 43, "fondo": 27}', 747, 522.9, 1, 1),
+  (677, 'DCR-0677', 'HACIENDA NIGHTSTAND', 14, 'taller', '{"alto": 26, "ancho": 20, "fondo": 20}', 241, 168.7, 1, 1),
+  (678, 'DCR-0678', 'RUSTIC 1-DWR NIGHTSTAND', 14, 'taller', '{"alto": 25, "ancho": 21, "fondo": 17}', 165, 115.5, 1, 1),
+  (679, 'DCR-0679', 'TWIG NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 24, "fondo": 17}', 151, 105.7, 1, 1),
+  (680, 'DCR-0680', 'SINGLE CD GLASS SHORT DOOR', 8, 'taller', '{"alto": 41, "ancho": 18, "fondo": 15}', 117, 81.9, 1, 1),
+  (681, 'DCR-0681', 'DOUBLE FANCY TIN SHORT JELLY', 13, 'taller', '{"alto": 55, "ancho": 34, "fondo": 15}', 304, 212.8, 1, 1),
+  (682, 'DCR-0682', 'ARCH SHORT JELLY', 13, 'taller', '{"alto": 50, "ancho": 31, "fondo": 17}', 166, 116.2, 1, 1),
+  (683, 'DCR-0683', 'ARCH TALL CAVA', 13, 'taller', '{"alto": 49, "ancho": 27, "fondo": 17}', 323, 226.1, 1, 1),
+  (684, 'DCR-0684', 'ARCH TALL JELLY', 13, 'taller', '{"alto": 65, "ancho": 33, "fondo": 14}', 197, 137.9, 1, 1),
+  (685, 'DCR-0685', 'WALL TASCATE COFFEE TABLE INTAKE TURQ.', 10, 'taller', '{"alto": 16, "ancho": 54, "fondo": 28}', 366, 256.2, 1, 1),
+  (686, 'DCR-0686', 'END TABLE TWIG ALL SIDES 1-DOOR', 12, 'taller', '{"alto": 26, "ancho": 25, "fondo": 26}', 163, 114.1, 1, 1),
+  (687, 'DCR-0687', '4 SLATTE FANCY TIN TABLE', 16, 'taller', '{"alto": 28, "ancho": 64, "fondo": 15}', 362, 253.4, 1, 1),
+  (688, 'DCR-0688', '3-SLATTE FANCY IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 29, "ancho": 51, "fondo": 15}', 339, 237.3, 1, 1),
+  (689, 'DCR-0689', '4-SLATTE FANCY IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 31, "ancho": 63, "fondo": 16}', 391, 273.7, 1, 1),
+  (690, 'DCR-0690', '5-SLATTE FANCY IRON BASE SOFA TABLE W/SHELF', 16, 'taller', '{"alto": 32, "ancho": 71, "fondo": 18}', 338, 236.6, 1, 1),
+  (691, 'DCR-0691', '18" OX YOKE BOOKCASE', 6, 'taller', '{"alto": 61, "ancho": 27, "fondo": 12}', 197, 137.9, 1, 1),
+  (692, 'DCR-0692', '4-DWR WARDROBE ARMOIRE 2-DOOR', 1, 'taller', '{"alto": 76, "ancho": 43, "fondo": 22}', 575, 402.5, 1, 1),
+  (693, 'DCR-0693', '5-DWR WARDROBE ARMOIRE 2-DOOR', 1, 'taller', '{"alto": 69, "ancho": 42, "fondo": 24}', 471, 329.7, 1, 1),
+  (694, 'DCR-0694', 'HONDO COMPLETE BED QS', 1, 'taller', '{"alto": 72, "ancho": 48, "fondo": 23}', 1040, 728.0, 1, 1),
+  (695, 'DCR-0695', 'TWIG ARMOIRE', 1, 'taller', '{"alto": 70, "ancho": 46, "fondo": 23}', 343, 240.1, 1, 1),
+  (696, 'DCR-0696', 'CONCHOS MIRROR', 21, 'taller', '{"alto": 51, "ancho": 61, "fondo": 5}', 166, 116.2, 1, 1),
+  (697, 'DCR-0697', 'HACIENDA CHEST', 21, 'taller', '{"alto": 48, "ancho": 80, "fondo": 4}', 891, 623.7, 1, 1),
+  (698, 'DCR-0698', 'HACIENDA KS BED', 21, 'taller', '{"alto": 51, "ancho": 72, "fondo": 4}', 1167, 816.9, 1, 1),
+  (699, 'DCR-0699', 'HB HONDO KS', 21, 'taller', '{"alto": 51, "ancho": 70, "fondo": 6}', 609, 426.3, 1, 1),
+  (700, 'DCR-0700', 'HONDO COMPLETE BED', 21, 'taller', '{"alto": 51, "ancho": 76, "fondo": 6}', 1098, 768.6, 1, 1);
+
+INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
+  (701, 'DCR-0701', '3 DWR CHEST', 20, 'taller', '{"alto": 46, "ancho": 50, "fondo": 20}', 230, 161.0, 1, 1),
+  (702, 'DCR-0702', '4-DWR CHEST 2-SM 2-LG', 20, 'taller', '{"alto": 42, "ancho": 44, "fondo": 21}', 258, 180.6, 1, 1),
+  (703, 'DCR-0703', 'HACIENDA DRESSER', 20, 'taller', '{"alto": 48, "ancho": 61, "fondo": 19}', 960, 672.0, 1, 1),
+  (704, 'DCR-0704', 'HONDO CHEST 6 DWR 2-SM 4-LG', 20, 'taller', '{"alto": 46, "ancho": 43, "fondo": 22}', 500, 350.0, 1, 1),
+  (705, 'DCR-0705', 'HONDO DRESSER 6-DWR', 20, 'taller', '{"alto": 41, "ancho": 42, "fondo": 20}', 745, 521.5, 1, 1),
+  (706, 'DCR-0706', 'HONDO DRESSER 7 DWR', 20, 'taller', '{"alto": 38, "ancho": 52, "fondo": 19}', 828, 579.6, 1, 1),
+  (707, 'DCR-0707', '39X16X18 BENCH W/LEATHER (CACHINA)', 4, 'taller', '{"alto": 18, "ancho": 62, "fondo": 16}', 258, 180.6, 1, 1),
+  (708, 'DCR-0708', 'MEZCALERO CACHINA CHAIR W/LEATHER', 9, 'taller', '{"alto": 36, "ancho": 21, "fondo": 21}', 178, 124.6, 1, 1),
+  (709, 'DCR-0709', 'COLONIAL CHAIR W/LEATHER', 9, 'taller', '{"alto": 36, "ancho": 21, "fondo": 18}', 126, 88.2, 1, 1),
+  (710, 'DCR-0710', 'COLONIAL CHAIR WOOD SEAT', 9, 'taller', '{"alto": 41, "ancho": 20, "fondo": 21}', 80, 56.0, 1, 1),
+  (711, 'DCR-0711', 'FIERRO OX YOKE LEATHER SEAT', 9, 'taller', '{"alto": 38, "ancho": 18, "fondo": 19}', 155, 108.5, 1, 1),
+  (712, 'DCR-0712', 'FIERRO OX YOKE WOOD SEAT', 9, 'taller', '{"alto": 37, "ancho": 21, "fondo": 20}', 126, 88.2, 1, 1),
+  (713, 'DCR-0713', 'PLAIN CURVE BACK BARSTOOL', 3, 'taller', '{"alto": 35, "ancho": 18, "fondo": 20}', 0, 0.0, 1, 1),
+  (714, 'DCR-0714', 'PLAIN CURVE STOOL', 3, 'taller', '{"alto": 25, "ancho": 17, "fondo": 17}', 89, 62.3, 1, 1),
+  (715, 'DCR-0715', '26'' NEW COWBOY BARSTOOL', 3, 'taller', '{"alto": 35, "ancho": 19, "fondo": 17}', 132, 92.4, 1, 1),
+  (716, 'DCR-0716', '6 FT RUSTIC TABLE', 3, 'taller', '{"alto": 24, "ancho": 17, "fondo": 20}', 471, 329.7, 1, 1),
+  (717, 'DCR-0717', 'IRONBASE BARSTOOL TOOLED LEATH. SEAT', 3, 'taller', '{"alto": 30, "ancho": 16, "fondo": 20}', 184, 128.8, 1, 1),
+  (718, 'DCR-0718', '6 FT. DOUBLE PEDESTAL DINING TABLE', 17, 'taller', '{"alto": 33, "ancho": 63, "fondo": 35}', 540, 378.0, 1, 1),
+  (719, 'DCR-0719', '7 FT. DOUBLE PEDESTAL DINING TABLE', 17, 'taller', '{"alto": 31, "ancho": 45, "fondo": 31}', 609, 426.3, 1, 1),
+  (720, 'DCR-0720', '8 FT. DOUBLE PEDESTAL DINING TABLE', 17, 'taller', '{"alto": 35, "ancho": 62, "fondo": 32}', 678, 474.6, 1, 1),
+  (721, 'DCR-0721', '9 FT. DOUBLE PEDESTAL DINING TABLE', 17, 'taller', '{"alto": 36, "ancho": 47, "fondo": 25}', 747, 522.9, 1, 1),
+  (722, 'DCR-0722', '10 FT DOUBLE PEDESTAL DINING TABLE', 17, 'taller', '{"alto": 31, "ancho": 55, "fondo": 35}', 816, 571.2, 1, 1),
+  (723, 'DCR-0723', '60" CACHINA DINING TABLE', 17, 'taller', '{"alto": 33, "ancho": 58, "fondo": 33}', 511, 357.7, 1, 1),
+  (724, 'DCR-0724', 'DINING TURNLEG 7''', 17, 'taller', '{"alto": 30, "ancho": 42, "fondo": 35}', 460, 322.0, 1, 1),
+  (725, 'DCR-0725', '60" PLAIN BISTRO STARIGHT LEG', 5, 'taller', '{"alto": 32, "ancho": 31, "fondo": 33}', 372, 260.4, 1, 1),
+  (726, 'DCR-0726', '36X36 BISTRO SQUARE', 5, 'taller', '{"alto": 30, "ancho": 33, "fondo": 32}', 258, 180.6, 1, 1),
+  (727, 'DCR-0727', '60" TV STAND FANCY TIN', 18, 'taller', '{"alto": 31, "ancho": 60, "fondo": 17}', 445, 311.5, 1, 1),
+  (728, 'DCR-0728', '72" TV STAND FANCY TIN', 18, 'taller', '{"alto": 28, "ancho": 65, "fondo": 21}', 485, 339.5, 1, 1),
+  (729, 'DCR-0729', '48" TWIG TV-STAND', 18, 'taller', '{"alto": 32, "ancho": 57, "fondo": 17}', 299, 209.3, 1, 1),
+  (730, 'DCR-0730', 'TV/VCR STAND 60X18X30', 18, 'taller', '{"alto": 26, "ancho": 54, "fondo": 22}', 408, 285.6, 1, 1),
+  (731, 'DCR-0731', 'TV/VCR STAND 60X18X36', 18, 'taller', '{"alto": 32, "ancho": 48, "fondo": 19}', 419, 293.3, 1, 1),
+  (732, 'DCR-0732', '11X11 MARIO''S TABLE', 19, 'taller', '{"alto": 28, "ancho": 39, "fondo": 19}', 55, 38.5, 1, 1),
+  (733, 'DCR-0733', '11X36 MARIO''S TABLE', 19, 'taller', '{"alto": 39, "ancho": 45, "fondo": 16}', 80, 56.0, 1, 1),
+  (734, 'DCR-0734', 'CABINET LINEN 5'' FANCY TIN 36X18X60', 23, 'taller', '{"alto": 29, "ancho": 24, "fondo": 15}', 345, 241.5, 1, 1),
+  (735, 'DCR-0735', 'IRON SUGAR MOULDING BASE', 23, 'taller', '{"alto": 30, "ancho": 31, "fondo": 18}', 2, 1.4, 1, 1),
+  (736, 'DCR-0736', '16X24 MARIO''S  TABLE', 19, 'taller', '{"alto": 48, "ancho": 36, "fondo": 15}', 96, 67.2, 1, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (1, 8),
+  (1, 15),
+  (1, 9),
+  (1, 1),
+  (2, 4),
+  (2, 15),
+  (3, 4),
+  (3, 9),
+  (3, 17),
+  (3, 14),
+  (4, 13),
+  (4, 8),
+  (5, 7),
+  (5, 8),
+  (6, 10),
+  (6, 13),
+  (6, 1),
+  (6, 4),
+  (7, 8),
+  (7, 17),
+  (7, 1),
+  (7, 2),
+  (8, 15),
+  (8, 5),
+  (8, 8),
+  (8, 10),
+  (9, 16),
+  (9, 14),
+  (10, 14),
+  (10, 4),
+  (10, 7),
+  (11, 1),
+  (11, 2),
+  (11, 12),
+  (11, 3),
+  (12, 7),
+  (12, 8),
+  (13, 5),
+  (13, 15),
+  (13, 14),
+  (14, 6),
+  (14, 13),
+  (14, 10),
+  (14, 12),
+  (15, 16),
+  (15, 7),
+  (15, 12),
+  (16, 16),
+  (16, 5),
+  (16, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (16, 17),
+  (17, 3),
+  (17, 14),
+  (17, 11),
+  (18, 3),
+  (18, 10),
+  (18, 2),
+  (18, 17),
+  (19, 8),
+  (19, 1),
+  (19, 10),
+  (19, 9),
+  (20, 8),
+  (20, 15),
+  (20, 7),
+  (20, 11),
+  (21, 5),
+  (21, 9),
+  (22, 15),
+  (22, 17),
+  (22, 8),
+  (23, 17),
+  (23, 10),
+  (23, 8),
+  (23, 11),
+  (24, 11),
+  (24, 3),
+  (24, 12),
+  (25, 17),
+  (25, 9),
+  (25, 6),
+  (26, 16),
+  (26, 14),
+  (26, 5),
+  (27, 14),
+  (27, 10),
+  (27, 2),
+  (27, 1),
+  (28, 9),
+  (28, 1),
+  (29, 8),
+  (29, 16),
+  (29, 5),
+  (29, 1),
+  (30, 17),
+  (30, 6),
+  (31, 14),
+  (31, 10),
+  (31, 17),
+  (31, 11);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (32, 13),
+  (32, 10),
+  (32, 16),
+  (33, 10),
+  (33, 3),
+  (33, 1),
+  (34, 17),
+  (34, 8),
+  (35, 16),
+  (35, 8),
+  (36, 11),
+  (36, 15),
+  (37, 4),
+  (37, 7),
+  (37, 3),
+  (37, 14),
+  (38, 14),
+  (38, 7),
+  (38, 8),
+  (38, 16),
+  (39, 17),
+  (39, 15),
+  (40, 3),
+  (40, 17),
+  (41, 1),
+  (41, 3),
+  (42, 7),
+  (42, 1),
+  (42, 2),
+  (42, 3),
+  (43, 1),
+  (43, 9),
+  (44, 6),
+  (44, 7),
+  (44, 13),
+  (44, 2),
+  (45, 16),
+  (45, 15),
+  (46, 3),
+  (46, 4),
+  (46, 1),
+  (47, 16),
+  (47, 1),
+  (48, 17),
+  (48, 1),
+  (49, 14),
+  (49, 2),
+  (49, 1),
+  (50, 8),
+  (50, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (50, 17),
+  (51, 5),
+  (51, 7),
+  (51, 6),
+  (51, 2),
+  (52, 2),
+  (52, 1),
+  (52, 16),
+  (52, 12),
+  (53, 15),
+  (53, 1),
+  (53, 2),
+  (53, 12),
+  (54, 4),
+  (54, 7),
+  (54, 1),
+  (54, 17),
+  (55, 15),
+  (55, 13),
+  (55, 1),
+  (55, 8),
+  (56, 14),
+  (56, 4),
+  (56, 6),
+  (56, 3),
+  (57, 9),
+  (57, 6),
+  (57, 1),
+  (58, 8),
+  (58, 1),
+  (58, 2),
+  (59, 13),
+  (59, 9),
+  (60, 11),
+  (60, 6),
+  (61, 8),
+  (61, 5),
+  (61, 9),
+  (62, 8),
+  (62, 1),
+  (62, 5),
+  (63, 10),
+  (63, 7),
+  (63, 11),
+  (64, 2),
+  (64, 14),
+  (65, 3),
+  (65, 1),
+  (65, 11),
+  (65, 12);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (66, 3),
+  (66, 11),
+  (66, 12),
+  (66, 15),
+  (67, 2),
+  (67, 12),
+  (67, 17),
+  (67, 15),
+  (68, 3),
+  (68, 2),
+  (68, 9),
+  (68, 12),
+  (69, 4),
+  (69, 12),
+  (70, 15),
+  (70, 17),
+  (70, 12),
+  (71, 8),
+  (71, 1),
+  (71, 13),
+  (71, 4),
+  (72, 12),
+  (72, 4),
+  (72, 2),
+  (72, 1),
+  (73, 15),
+  (73, 5),
+  (74, 2),
+  (74, 1),
+  (74, 3),
+  (74, 4),
+  (75, 4),
+  (75, 11),
+  (75, 12),
+  (75, 2),
+  (76, 5),
+  (76, 11),
+  (76, 8),
+  (76, 12),
+  (77, 12),
+  (77, 15),
+  (78, 9),
+  (78, 3),
+  (78, 2),
+  (79, 1),
+  (79, 16),
+  (80, 10),
+  (80, 6),
+  (80, 1),
+  (81, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (81, 13),
+  (81, 12),
+  (81, 3),
+  (82, 11),
+  (82, 15),
+  (83, 3),
+  (83, 11),
+  (83, 17),
+  (83, 2),
+  (84, 8),
+  (84, 1),
+  (85, 11),
+  (85, 7),
+  (86, 9),
+  (86, 8),
+  (87, 3),
+  (87, 14),
+  (87, 7),
+  (87, 13),
+  (88, 7),
+  (88, 14),
+  (88, 1),
+  (89, 16),
+  (89, 4),
+  (89, 14),
+  (90, 4),
+  (90, 9),
+  (90, 12),
+  (91, 15),
+  (91, 13),
+  (91, 1),
+  (92, 1),
+  (92, 4),
+  (92, 6),
+  (93, 16),
+  (93, 7),
+  (93, 17),
+  (94, 1),
+  (94, 2),
+  (95, 6),
+  (95, 5),
+  (95, 1),
+  (95, 16),
+  (96, 15),
+  (96, 8),
+  (97, 1),
+  (97, 3),
+  (98, 6),
+  (98, 13),
+  (99, 8);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (99, 3),
+  (99, 17),
+  (100, 6),
+  (100, 12),
+  (101, 7),
+  (101, 10),
+  (101, 3),
+  (101, 11),
+  (102, 9),
+  (102, 8),
+  (102, 10),
+  (102, 1),
+  (103, 1),
+  (103, 16),
+  (103, 7),
+  (104, 7),
+  (104, 6),
+  (105, 7),
+  (105, 4),
+  (106, 7),
+  (106, 4),
+  (106, 10),
+  (107, 9),
+  (107, 4),
+  (108, 16),
+  (108, 4),
+  (108, 2),
+  (108, 9),
+  (109, 11),
+  (109, 6),
+  (110, 1),
+  (110, 12),
+  (111, 1),
+  (111, 5),
+  (112, 14),
+  (112, 12),
+  (112, 4),
+  (113, 1),
+  (113, 2),
+  (114, 10),
+  (114, 17),
+  (114, 4),
+  (114, 7),
+  (115, 8),
+  (115, 6),
+  (116, 7),
+  (116, 1),
+  (116, 2),
+  (117, 14),
+  (117, 4);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (117, 7),
+  (118, 14),
+  (118, 4),
+  (118, 6),
+  (119, 12),
+  (119, 13),
+  (119, 2),
+  (119, 6),
+  (120, 16),
+  (120, 12),
+  (120, 5),
+  (121, 4),
+  (121, 11),
+  (122, 12),
+  (122, 1),
+  (122, 4),
+  (123, 14),
+  (123, 6),
+  (123, 4),
+  (123, 3),
+  (124, 16),
+  (124, 4),
+  (124, 12),
+  (124, 3),
+  (125, 9),
+  (125, 6),
+  (125, 10),
+  (126, 14),
+  (126, 7),
+  (127, 8),
+  (127, 16),
+  (127, 1),
+  (128, 16),
+  (128, 9),
+  (128, 10),
+  (129, 1),
+  (129, 10),
+  (129, 17),
+  (129, 11),
+  (130, 7),
+  (130, 17),
+  (130, 5),
+  (130, 6),
+  (131, 15),
+  (131, 1),
+  (131, 8),
+  (131, 9),
+  (132, 15),
+  (132, 10),
+  (132, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (132, 3),
+  (133, 3),
+  (133, 1),
+  (133, 8),
+  (133, 10),
+  (134, 12),
+  (134, 15),
+  (134, 11),
+  (135, 6),
+  (135, 8),
+  (135, 12),
+  (136, 12),
+  (136, 7),
+  (137, 15),
+  (137, 4),
+  (137, 8),
+  (137, 9),
+  (138, 16),
+  (138, 17),
+  (138, 12),
+  (138, 11),
+  (139, 16),
+  (139, 2),
+  (139, 4),
+  (140, 6),
+  (140, 13),
+  (140, 15),
+  (140, 3),
+  (141, 2),
+  (141, 11),
+  (141, 17),
+  (141, 16),
+  (142, 16),
+  (142, 8),
+  (142, 11),
+  (142, 10),
+  (143, 8),
+  (143, 1),
+  (143, 10),
+  (144, 1),
+  (144, 7),
+  (145, 2),
+  (145, 14),
+  (146, 15),
+  (146, 2),
+  (147, 1),
+  (147, 11),
+  (147, 2),
+  (148, 13),
+  (148, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (148, 6),
+  (149, 10),
+  (149, 2),
+  (149, 16),
+  (150, 1),
+  (150, 2),
+  (150, 6),
+  (151, 17),
+  (151, 4),
+  (151, 12),
+  (151, 16),
+  (152, 7),
+  (152, 16),
+  (153, 10),
+  (153, 7),
+  (153, 6),
+  (154, 14),
+  (154, 3),
+  (155, 4),
+  (155, 10),
+  (155, 8),
+  (156, 8),
+  (156, 4),
+  (156, 1),
+  (156, 12),
+  (157, 14),
+  (157, 12),
+  (158, 12),
+  (158, 7),
+  (159, 7),
+  (159, 1),
+  (159, 11),
+  (160, 2),
+  (160, 1),
+  (161, 14),
+  (161, 11),
+  (162, 8),
+  (162, 3),
+  (162, 17),
+  (162, 11),
+  (163, 7),
+  (163, 6),
+  (163, 15),
+  (164, 6),
+  (164, 1),
+  (164, 2),
+  (165, 15),
+  (165, 7),
+  (166, 7),
+  (166, 4);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (167, 14),
+  (167, 2),
+  (167, 9),
+  (167, 6),
+  (168, 1),
+  (168, 2),
+  (168, 12),
+  (168, 3),
+  (169, 8),
+  (169, 17),
+  (169, 16),
+  (170, 6),
+  (170, 2),
+  (171, 3),
+  (171, 2),
+  (171, 9),
+  (172, 7),
+  (172, 1),
+  (172, 10),
+  (173, 16),
+  (173, 2),
+  (174, 15),
+  (174, 9),
+  (174, 1),
+  (174, 3),
+  (175, 6),
+  (175, 7),
+  (175, 4),
+  (176, 3),
+  (176, 17),
+  (176, 2),
+  (176, 5),
+  (177, 15),
+  (177, 8),
+  (177, 4),
+  (177, 12),
+  (178, 3),
+  (178, 4),
+  (178, 16),
+  (178, 6),
+  (179, 4),
+  (179, 2),
+  (180, 12),
+  (180, 16),
+  (180, 3),
+  (180, 9),
+  (181, 11),
+  (181, 9),
+  (181, 1),
+  (181, 4);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (182, 8),
+  (182, 3),
+  (182, 15),
+  (183, 6),
+  (183, 2),
+  (184, 5),
+  (184, 6),
+  (184, 11),
+  (184, 15),
+  (185, 14),
+  (185, 1),
+  (185, 2),
+  (186, 1),
+  (186, 12),
+  (187, 4),
+  (187, 6),
+  (187, 13),
+  (188, 6),
+  (188, 7),
+  (188, 12),
+  (189, 8),
+  (189, 16),
+  (189, 13),
+  (190, 13),
+  (190, 8),
+  (191, 11),
+  (191, 4),
+  (192, 5),
+  (192, 13),
+  (193, 11),
+  (193, 6),
+  (193, 15),
+  (193, 9),
+  (194, 17),
+  (194, 11),
+  (195, 14),
+  (195, 3),
+  (195, 7),
+  (195, 2),
+  (196, 12),
+  (196, 14),
+  (196, 3),
+  (196, 7),
+  (197, 3),
+  (197, 15),
+  (197, 7),
+  (197, 11),
+  (198, 11),
+  (198, 1),
+  (198, 15);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (198, 13),
+  (199, 10),
+  (199, 4),
+  (199, 11),
+  (200, 16),
+  (200, 14),
+  (201, 7),
+  (201, 15),
+  (201, 10),
+  (201, 12),
+  (202, 15),
+  (202, 13),
+  (203, 5),
+  (203, 17),
+  (203, 7),
+  (203, 8),
+  (204, 12),
+  (204, 14),
+  (204, 4),
+  (205, 13),
+  (205, 1),
+  (205, 17),
+  (206, 4),
+  (206, 3),
+  (206, 2),
+  (207, 7),
+  (207, 12),
+  (207, 13),
+  (208, 4),
+  (208, 14),
+  (209, 3),
+  (209, 6),
+  (210, 5),
+  (210, 16),
+  (210, 10),
+  (211, 10),
+  (211, 3),
+  (211, 11),
+  (212, 1),
+  (212, 7),
+  (212, 14),
+  (213, 5),
+  (213, 4),
+  (213, 12),
+  (214, 1),
+  (214, 15),
+  (215, 1),
+  (215, 3),
+  (215, 2),
+  (216, 3);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (216, 4),
+  (216, 2),
+  (217, 4),
+  (217, 14),
+  (217, 5),
+  (217, 15),
+  (218, 3),
+  (218, 15),
+  (219, 6),
+  (219, 5),
+  (219, 10),
+  (219, 12),
+  (220, 8),
+  (220, 7),
+  (221, 1),
+  (221, 2),
+  (222, 15),
+  (222, 5),
+  (223, 14),
+  (223, 13),
+  (223, 15),
+  (224, 4),
+  (224, 2),
+  (224, 10),
+  (225, 6),
+  (225, 1),
+  (226, 5),
+  (226, 4),
+  (226, 10),
+  (227, 16),
+  (227, 12),
+  (228, 4),
+  (228, 11),
+  (229, 11),
+  (229, 16),
+  (230, 15),
+  (230, 1),
+  (230, 2),
+  (231, 5),
+  (231, 4),
+  (231, 10),
+  (232, 1),
+  (232, 8),
+  (232, 7),
+  (232, 10),
+  (233, 8),
+  (233, 4),
+  (233, 15),
+  (234, 8),
+  (234, 14);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (235, 6),
+  (235, 2),
+  (235, 11),
+  (235, 13),
+  (236, 1),
+  (236, 7),
+  (236, 5),
+  (236, 14),
+  (237, 6),
+  (237, 10),
+  (237, 13),
+  (238, 8),
+  (238, 3),
+  (238, 17),
+  (238, 12),
+  (239, 5),
+  (239, 12),
+  (240, 1),
+  (240, 2),
+  (240, 16),
+  (241, 17),
+  (241, 3),
+  (241, 2),
+  (242, 1),
+  (242, 11),
+  (243, 1),
+  (243, 16),
+  (243, 14),
+  (244, 10),
+  (244, 7),
+  (244, 11),
+  (244, 2),
+  (245, 16),
+  (245, 8),
+  (246, 12),
+  (246, 4),
+  (246, 16),
+  (247, 1),
+  (247, 2),
+  (248, 11),
+  (248, 9),
+  (248, 10),
+  (249, 1),
+  (249, 15),
+  (249, 14),
+  (249, 17),
+  (250, 13),
+  (250, 15),
+  (250, 17),
+  (251, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (251, 1),
+  (251, 2),
+  (251, 11),
+  (252, 16),
+  (252, 17),
+  (252, 4),
+  (253, 13),
+  (253, 7),
+  (254, 16),
+  (254, 15),
+  (254, 8),
+  (254, 5),
+  (255, 2),
+  (255, 5),
+  (255, 14),
+  (256, 9),
+  (256, 16),
+  (257, 5),
+  (257, 14),
+  (258, 10),
+  (258, 1),
+  (259, 16),
+  (259, 1),
+  (259, 3),
+  (259, 15),
+  (260, 15),
+  (260, 16),
+  (261, 2),
+  (261, 7),
+  (262, 12),
+  (262, 13),
+  (262, 1),
+  (263, 16),
+  (263, 10),
+  (263, 8),
+  (263, 17),
+  (264, 15),
+  (264, 16),
+  (264, 8),
+  (265, 5),
+  (265, 8),
+  (265, 7),
+  (266, 8),
+  (266, 1),
+  (267, 10),
+  (267, 14),
+  (267, 6),
+  (267, 3),
+  (268, 8),
+  (268, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (268, 2),
+  (268, 12),
+  (269, 4),
+  (269, 2),
+  (269, 11),
+  (269, 10),
+  (270, 1),
+  (270, 16),
+  (270, 5),
+  (271, 9),
+  (271, 10),
+  (272, 5),
+  (272, 7),
+  (272, 15),
+  (273, 4),
+  (273, 3),
+  (273, 5),
+  (274, 1),
+  (274, 8),
+  (274, 17),
+  (275, 10),
+  (275, 1),
+  (275, 17),
+  (275, 16),
+  (276, 4),
+  (276, 3),
+  (276, 11),
+  (276, 2),
+  (277, 8),
+  (277, 12),
+  (277, 16),
+  (277, 9),
+  (278, 10),
+  (278, 3),
+  (279, 1),
+  (279, 3),
+  (279, 17),
+  (279, 12),
+  (280, 15),
+  (280, 17),
+  (281, 5),
+  (281, 16),
+  (281, 4),
+  (282, 14),
+  (282, 17),
+  (283, 4),
+  (283, 1),
+  (283, 17),
+  (283, 8),
+  (284, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (284, 15),
+  (285, 4),
+  (285, 13),
+  (285, 5),
+  (285, 7),
+  (286, 8),
+  (286, 9),
+  (286, 2),
+  (287, 6),
+  (287, 11),
+  (287, 4),
+  (287, 2),
+  (288, 14),
+  (288, 3),
+  (288, 9),
+  (288, 7),
+  (289, 14),
+  (289, 6),
+  (289, 2),
+  (289, 1),
+  (290, 3),
+  (290, 17),
+  (291, 7),
+  (291, 16),
+  (291, 6),
+  (291, 12),
+  (292, 8),
+  (292, 16),
+  (293, 4),
+  (293, 8),
+  (293, 3),
+  (294, 16),
+  (294, 3),
+  (294, 2),
+  (295, 16),
+  (295, 1),
+  (296, 5),
+  (296, 11),
+  (296, 6),
+  (296, 13),
+  (297, 15),
+  (297, 7),
+  (297, 14),
+  (298, 8),
+  (298, 16),
+  (298, 17),
+  (299, 16),
+  (299, 13),
+  (299, 11),
+  (300, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (300, 9),
+  (300, 17),
+  (301, 13),
+  (301, 3),
+  (301, 16),
+  (302, 6),
+  (302, 1),
+  (303, 12),
+  (303, 10),
+  (303, 13),
+  (303, 15),
+  (304, 10),
+  (304, 11),
+  (304, 4),
+  (304, 7),
+  (305, 9),
+  (305, 4),
+  (306, 15),
+  (306, 5),
+  (306, 16),
+  (307, 3),
+  (307, 2),
+  (308, 8),
+  (308, 13),
+  (308, 17),
+  (309, 14),
+  (309, 7),
+  (309, 15),
+  (310, 8),
+  (310, 1),
+  (311, 14),
+  (311, 11),
+  (311, 12),
+  (311, 9),
+  (312, 17),
+  (312, 10),
+  (313, 13),
+  (313, 15),
+  (313, 4),
+  (313, 17),
+  (314, 5),
+  (314, 8),
+  (314, 14),
+  (315, 10),
+  (315, 7),
+  (316, 7),
+  (316, 4),
+  (316, 3),
+  (317, 15),
+  (317, 6);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (317, 14),
+  (318, 7),
+  (318, 11),
+  (319, 8),
+  (319, 4),
+  (320, 15),
+  (320, 1),
+  (320, 14),
+  (320, 16),
+  (321, 16),
+  (321, 5),
+  (322, 15),
+  (322, 6),
+  (322, 9),
+  (323, 3),
+  (323, 13),
+  (323, 12),
+  (324, 8),
+  (324, 6),
+  (324, 14),
+  (324, 15),
+  (325, 16),
+  (325, 13),
+  (325, 15),
+  (325, 2),
+  (326, 15),
+  (326, 12),
+  (326, 1),
+  (326, 11),
+  (327, 12),
+  (327, 9),
+  (328, 7),
+  (328, 13),
+  (328, 12),
+  (328, 14),
+  (329, 1),
+  (329, 14),
+  (329, 4),
+  (329, 8),
+  (330, 4),
+  (330, 3),
+  (331, 10),
+  (331, 12),
+  (331, 7),
+  (331, 3),
+  (332, 17),
+  (332, 10),
+  (332, 1),
+  (333, 4),
+  (333, 8);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (334, 11),
+  (334, 5),
+  (334, 2),
+  (335, 8),
+  (335, 5),
+  (335, 12),
+  (336, 9),
+  (336, 6),
+  (336, 4),
+  (337, 7),
+  (337, 14),
+  (337, 3),
+  (338, 10),
+  (338, 4),
+  (339, 7),
+  (339, 11),
+  (339, 14),
+  (339, 4),
+  (340, 5),
+  (340, 4),
+  (340, 14),
+  (341, 9),
+  (341, 6),
+  (342, 7),
+  (342, 4),
+  (342, 3),
+  (342, 9),
+  (343, 15),
+  (343, 1),
+  (343, 7),
+  (343, 16),
+  (344, 3),
+  (344, 17),
+  (344, 8),
+  (345, 2),
+  (345, 9),
+  (345, 10),
+  (346, 14),
+  (346, 15),
+  (346, 9),
+  (346, 11),
+  (347, 1),
+  (347, 7),
+  (348, 6),
+  (348, 10),
+  (349, 10),
+  (349, 15),
+  (349, 14),
+  (349, 11),
+  (350, 4);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (350, 3),
+  (351, 13),
+  (351, 4),
+  (351, 14),
+  (352, 15),
+  (352, 5),
+  (353, 5),
+  (353, 8),
+  (354, 8),
+  (354, 3),
+  (355, 7),
+  (355, 8),
+  (355, 3),
+  (355, 15),
+  (356, 4),
+  (356, 16),
+  (357, 11),
+  (357, 16),
+  (358, 9),
+  (358, 14),
+  (359, 3),
+  (359, 2),
+  (359, 6),
+  (359, 17),
+  (360, 4),
+  (360, 8),
+  (361, 3),
+  (361, 11),
+  (361, 7),
+  (362, 6),
+  (362, 17),
+  (362, 16),
+  (363, 14),
+  (363, 16),
+  (363, 12),
+  (363, 8),
+  (364, 10),
+  (364, 1),
+  (364, 11),
+  (364, 17),
+  (365, 1),
+  (365, 12),
+  (365, 13),
+  (366, 6),
+  (366, 11),
+  (367, 1),
+  (367, 2),
+  (367, 8),
+  (368, 14),
+  (368, 12);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (369, 11),
+  (369, 8),
+  (370, 16),
+  (370, 4),
+  (370, 12),
+  (371, 5),
+  (371, 2),
+  (371, 1),
+  (372, 7),
+  (372, 16),
+  (372, 1),
+  (373, 10),
+  (373, 11),
+  (373, 7),
+  (374, 14),
+  (374, 2),
+  (375, 3),
+  (375, 2),
+  (375, 12),
+  (375, 14),
+  (376, 16),
+  (376, 5),
+  (376, 1),
+  (377, 11),
+  (377, 1),
+  (377, 10),
+  (378, 2),
+  (378, 1),
+  (378, 10),
+  (378, 16),
+  (379, 5),
+  (379, 4),
+  (379, 3),
+  (380, 1),
+  (380, 12),
+  (380, 13),
+  (380, 2),
+  (381, 16),
+  (381, 14),
+  (381, 9),
+  (382, 3),
+  (382, 5),
+  (382, 11),
+  (383, 13),
+  (383, 4),
+  (383, 1),
+  (384, 1),
+  (384, 2),
+  (384, 7),
+  (384, 8);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (385, 4),
+  (385, 3),
+  (385, 11),
+  (386, 7),
+  (386, 11),
+  (387, 11),
+  (387, 6),
+  (387, 5),
+  (387, 14),
+  (388, 6),
+  (388, 14),
+  (388, 17),
+  (388, 1),
+  (389, 11),
+  (389, 6),
+  (389, 13),
+  (390, 3),
+  (390, 5),
+  (390, 12),
+  (391, 1),
+  (391, 7),
+  (391, 16),
+  (391, 12),
+  (392, 3),
+  (392, 13),
+  (393, 16),
+  (393, 10),
+  (394, 10),
+  (394, 1),
+  (395, 1),
+  (395, 4),
+  (396, 1),
+  (396, 9),
+  (396, 11),
+  (396, 3),
+  (397, 3),
+  (397, 7),
+  (398, 4),
+  (398, 9),
+  (398, 6),
+  (399, 12),
+  (399, 6),
+  (399, 8),
+  (400, 1),
+  (400, 6),
+  (400, 17),
+  (400, 11),
+  (401, 3),
+  (401, 5),
+  (401, 6);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (402, 11),
+  (402, 10),
+  (402, 7),
+  (403, 16),
+  (403, 14),
+  (403, 2),
+  (404, 16),
+  (404, 1),
+  (405, 8),
+  (405, 3),
+  (405, 10),
+  (406, 4),
+  (406, 15),
+  (406, 3),
+  (407, 5),
+  (407, 13),
+  (408, 10),
+  (408, 7),
+  (409, 6),
+  (409, 1),
+  (409, 9),
+  (410, 16),
+  (410, 8),
+  (410, 4),
+  (410, 7),
+  (411, 8),
+  (411, 4),
+  (412, 7),
+  (412, 12),
+  (412, 4),
+  (412, 14),
+  (413, 13),
+  (413, 5),
+  (414, 10),
+  (414, 16),
+  (414, 4),
+  (415, 1),
+  (415, 6),
+  (415, 4),
+  (416, 15),
+  (416, 5),
+  (416, 2),
+  (416, 3),
+  (417, 8),
+  (417, 15),
+  (417, 2),
+  (418, 1),
+  (418, 13),
+  (418, 4),
+  (419, 8);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (419, 7),
+  (419, 4),
+  (419, 1),
+  (420, 16),
+  (420, 7),
+  (420, 3),
+  (420, 11),
+  (421, 4),
+  (421, 13),
+  (422, 13),
+  (422, 8),
+  (422, 7),
+  (423, 4),
+  (423, 8),
+  (423, 12),
+  (424, 4),
+  (424, 5),
+  (424, 12),
+  (425, 1),
+  (425, 6),
+  (425, 4),
+  (425, 13),
+  (426, 2),
+  (426, 1),
+  (426, 16),
+  (427, 14),
+  (427, 15),
+  (427, 4),
+  (428, 2),
+  (428, 1),
+  (429, 7),
+  (429, 16),
+  (429, 17),
+  (430, 13),
+  (430, 3),
+  (430, 2),
+  (430, 5),
+  (431, 1),
+  (431, 6),
+  (431, 9),
+  (431, 10),
+  (432, 1),
+  (432, 2),
+  (432, 6),
+  (433, 13),
+  (433, 12),
+  (433, 11),
+  (434, 4),
+  (434, 9),
+  (435, 12);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (435, 6),
+  (435, 7),
+  (435, 9),
+  (436, 17),
+  (436, 1),
+  (436, 2),
+  (436, 11),
+  (437, 7),
+  (437, 11),
+  (437, 1),
+  (438, 8),
+  (438, 13),
+  (438, 14),
+  (439, 7),
+  (439, 4),
+  (439, 1),
+  (439, 9),
+  (440, 1),
+  (440, 14),
+  (441, 14),
+  (441, 16),
+  (442, 1),
+  (442, 2),
+  (442, 13),
+  (442, 11),
+  (443, 4),
+  (443, 3),
+  (444, 6),
+  (444, 1),
+  (445, 5),
+  (445, 8),
+  (446, 16),
+  (446, 8),
+  (446, 7),
+  (446, 10),
+  (447, 4),
+  (447, 5),
+  (448, 6),
+  (448, 14),
+  (449, 15),
+  (449, 5),
+  (450, 15),
+  (450, 1),
+  (451, 6),
+  (451, 1),
+  (451, 11),
+  (452, 12),
+  (452, 4),
+  (453, 4),
+  (453, 16);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (453, 3),
+  (453, 17),
+  (454, 9),
+  (454, 6),
+  (455, 17),
+  (455, 14),
+  (455, 3),
+  (456, 5),
+  (456, 6),
+  (457, 8),
+  (457, 3),
+  (458, 7),
+  (458, 8),
+  (458, 12),
+  (459, 6),
+  (459, 16),
+  (459, 5),
+  (460, 12),
+  (460, 4),
+  (460, 17),
+  (461, 1),
+  (461, 7),
+  (462, 9),
+  (462, 8),
+  (462, 10),
+  (463, 11),
+  (463, 5),
+  (464, 3),
+  (464, 16),
+  (464, 4),
+  (465, 13),
+  (465, 1),
+  (465, 2),
+  (466, 16),
+  (466, 14),
+  (466, 4),
+  (467, 13),
+  (467, 9),
+  (467, 1),
+  (468, 8),
+  (468, 4),
+  (468, 3),
+  (469, 15),
+  (469, 4),
+  (470, 5),
+  (470, 8),
+  (471, 7),
+  (471, 14),
+  (471, 4),
+  (471, 11);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (472, 9),
+  (472, 8),
+  (472, 10),
+  (472, 7),
+  (473, 5),
+  (473, 16),
+  (473, 13),
+  (474, 4),
+  (474, 8),
+  (474, 3),
+  (474, 15),
+  (475, 1),
+  (475, 3),
+  (476, 7),
+  (476, 11),
+  (477, 11),
+  (477, 3),
+  (477, 7),
+  (477, 4),
+  (478, 1),
+  (478, 5),
+  (478, 6),
+  (478, 2),
+  (479, 1),
+  (479, 2),
+  (479, 5),
+  (479, 8),
+  (480, 8),
+  (480, 1),
+  (481, 16),
+  (481, 15),
+  (482, 10),
+  (482, 15),
+  (482, 8),
+  (483, 13),
+  (483, 9),
+  (483, 14),
+  (484, 3),
+  (484, 14),
+  (485, 8),
+  (485, 5),
+  (486, 3),
+  (486, 14),
+  (487, 8),
+  (487, 5),
+  (488, 4),
+  (488, 7),
+  (488, 3),
+  (489, 12),
+  (489, 11);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (490, 17),
+  (490, 9),
+  (490, 1),
+  (491, 3),
+  (491, 17),
+  (491, 8),
+  (492, 11),
+  (492, 4),
+  (492, 12),
+  (493, 6),
+  (493, 4),
+  (493, 15),
+  (493, 1),
+  (494, 17),
+  (494, 11),
+  (495, 4),
+  (495, 5),
+  (495, 11),
+  (496, 8),
+  (496, 7),
+  (496, 17),
+  (497, 3),
+  (497, 8),
+  (497, 4),
+  (498, 10),
+  (498, 6),
+  (498, 12),
+  (499, 3),
+  (499, 2),
+  (499, 11),
+  (500, 10),
+  (500, 5),
+  (500, 3),
+  (500, 16),
+  (501, 12),
+  (501, 17),
+  (501, 11),
+  (501, 1),
+  (502, 4),
+  (502, 3),
+  (502, 17),
+  (503, 1),
+  (503, 15),
+  (503, 13),
+  (504, 15),
+  (504, 10),
+  (504, 17),
+  (505, 5),
+  (505, 4),
+  (505, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (505, 16),
+  (506, 7),
+  (506, 12),
+  (506, 14),
+  (507, 8),
+  (507, 16),
+  (507, 3),
+  (507, 1),
+  (508, 9),
+  (508, 15),
+  (508, 8),
+  (508, 6),
+  (509, 17),
+  (509, 1),
+  (510, 9),
+  (510, 4),
+  (510, 10),
+  (511, 6),
+  (511, 12),
+  (512, 8),
+  (512, 4),
+  (513, 14),
+  (513, 4),
+  (513, 3),
+  (513, 17),
+  (514, 14),
+  (514, 3),
+  (514, 15),
+  (515, 17),
+  (515, 13),
+  (516, 1),
+  (516, 6),
+  (516, 2),
+  (517, 15),
+  (517, 16),
+  (518, 14),
+  (518, 1),
+  (518, 8),
+  (519, 14),
+  (519, 8),
+  (519, 13),
+  (519, 12),
+  (520, 10),
+  (520, 6),
+  (520, 5),
+  (521, 4),
+  (521, 12),
+  (521, 8),
+  (521, 5),
+  (522, 14);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (522, 10),
+  (522, 4),
+  (522, 8),
+  (523, 15),
+  (523, 5),
+  (524, 1),
+  (524, 2),
+  (524, 13),
+  (524, 7),
+  (525, 11),
+  (525, 7),
+  (525, 16),
+  (526, 1),
+  (526, 6),
+  (527, 2),
+  (527, 6),
+  (527, 12),
+  (527, 7),
+  (528, 7),
+  (528, 8),
+  (528, 10),
+  (529, 2),
+  (529, 3),
+  (529, 15),
+  (530, 11),
+  (530, 13),
+  (530, 1),
+  (530, 15),
+  (531, 1),
+  (531, 4),
+  (531, 8),
+  (532, 12),
+  (532, 3),
+  (532, 2),
+  (533, 17),
+  (533, 8),
+  (534, 12),
+  (534, 8),
+  (534, 3),
+  (535, 7),
+  (535, 1),
+  (535, 8),
+  (536, 8),
+  (536, 6),
+  (536, 14),
+  (536, 5),
+  (537, 13),
+  (537, 2),
+  (537, 6),
+  (538, 17);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (538, 4),
+  (538, 5),
+  (538, 12),
+  (539, 5),
+  (539, 16),
+  (539, 1),
+  (539, 12),
+  (540, 16),
+  (540, 6),
+  (540, 5),
+  (540, 9),
+  (541, 4),
+  (541, 10),
+  (541, 13),
+  (542, 4),
+  (542, 6),
+  (543, 6),
+  (543, 4),
+  (543, 5),
+  (544, 13),
+  (544, 2),
+  (545, 3),
+  (545, 9),
+  (545, 8),
+  (546, 5),
+  (546, 11),
+  (546, 4),
+  (547, 11),
+  (547, 3),
+  (548, 10),
+  (548, 15),
+  (548, 5),
+  (549, 3),
+  (549, 2),
+  (549, 13),
+  (549, 12),
+  (550, 17),
+  (550, 16),
+  (551, 2),
+  (551, 10),
+  (551, 3),
+  (552, 4),
+  (552, 12),
+  (552, 8),
+  (553, 12),
+  (553, 14),
+  (553, 13),
+  (554, 16),
+  (554, 1),
+  (554, 10);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (555, 14),
+  (555, 3),
+  (555, 16),
+  (556, 4),
+  (556, 2),
+  (557, 12),
+  (557, 1),
+  (557, 14),
+  (557, 16),
+  (558, 11),
+  (558, 8),
+  (558, 17),
+  (558, 9),
+  (559, 4),
+  (559, 11),
+  (559, 8),
+  (559, 16),
+  (560, 4),
+  (560, 11),
+  (561, 15),
+  (561, 17),
+  (561, 8),
+  (561, 6),
+  (562, 9),
+  (562, 3),
+  (563, 2),
+  (563, 17),
+  (563, 13),
+  (564, 7),
+  (564, 15),
+  (564, 8),
+  (565, 7),
+  (565, 12),
+  (565, 16),
+  (565, 14),
+  (566, 8),
+  (566, 1),
+  (566, 9),
+  (566, 2),
+  (567, 3),
+  (567, 17),
+  (567, 8),
+  (568, 1),
+  (568, 10),
+  (569, 2),
+  (569, 13),
+  (569, 1),
+  (569, 17),
+  (570, 9),
+  (570, 16);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (570, 7),
+  (571, 12),
+  (571, 14),
+  (571, 3),
+  (572, 14),
+  (572, 17),
+  (572, 4),
+  (572, 7),
+  (573, 12),
+  (573, 16),
+  (573, 3),
+  (574, 7),
+  (574, 13),
+  (574, 14),
+  (575, 15),
+  (575, 7),
+  (575, 1),
+  (575, 4),
+  (576, 14),
+  (576, 1),
+  (576, 12),
+  (576, 16),
+  (577, 7),
+  (577, 1),
+  (577, 4),
+  (578, 3),
+  (578, 15),
+  (578, 10),
+  (578, 6),
+  (579, 5),
+  (579, 4),
+  (579, 13),
+  (579, 17),
+  (580, 11),
+  (580, 12),
+  (580, 8),
+  (580, 6),
+  (581, 1),
+  (581, 13),
+  (581, 15),
+  (582, 5),
+  (582, 16),
+  (582, 1),
+  (582, 6),
+  (583, 1),
+  (583, 8),
+  (583, 11),
+  (583, 17),
+  (584, 11),
+  (584, 13);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (584, 17),
+  (584, 6),
+  (585, 1),
+  (585, 6),
+  (585, 11),
+  (586, 10),
+  (586, 6),
+  (587, 3),
+  (587, 8),
+  (587, 5),
+  (588, 6),
+  (588, 1),
+  (589, 5),
+  (589, 11),
+  (589, 6),
+  (590, 11),
+  (590, 15),
+  (591, 2),
+  (591, 1),
+  (592, 16),
+  (592, 9),
+  (592, 10),
+  (592, 11),
+  (593, 1),
+  (593, 3),
+  (593, 12),
+  (594, 9),
+  (594, 2),
+  (595, 9),
+  (595, 16),
+  (595, 8),
+  (595, 1),
+  (596, 5),
+  (596, 3),
+  (596, 11),
+  (597, 12),
+  (597, 4),
+  (597, 15),
+  (597, 3),
+  (598, 1),
+  (598, 14),
+  (599, 5),
+  (599, 11),
+  (600, 17),
+  (600, 14),
+  (600, 12),
+  (601, 1),
+  (601, 16),
+  (601, 2),
+  (602, 9);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (602, 17),
+  (602, 16),
+  (602, 3),
+  (603, 7),
+  (603, 9),
+  (604, 3),
+  (604, 2),
+  (604, 14),
+  (604, 1),
+  (605, 11),
+  (605, 2),
+  (605, 4),
+  (606, 16),
+  (606, 4),
+  (607, 12),
+  (607, 6),
+  (607, 11),
+  (608, 2),
+  (608, 12),
+  (609, 6),
+  (609, 7),
+  (610, 10),
+  (610, 1),
+  (610, 15),
+  (611, 3),
+  (611, 4),
+  (611, 13),
+  (611, 8),
+  (612, 8),
+  (612, 4),
+  (613, 4),
+  (613, 8),
+  (613, 12),
+  (614, 16),
+  (614, 5),
+  (614, 7),
+  (614, 4),
+  (615, 5),
+  (615, 8),
+  (616, 15),
+  (616, 1),
+  (617, 6),
+  (617, 5),
+  (618, 16),
+  (618, 8),
+  (618, 6),
+  (618, 10),
+  (619, 6),
+  (619, 11),
+  (619, 17);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (619, 1),
+  (620, 17),
+  (620, 8),
+  (620, 6),
+  (620, 10),
+  (621, 16),
+  (621, 4),
+  (621, 3),
+  (622, 16),
+  (622, 1),
+  (622, 14),
+  (622, 11),
+  (623, 1),
+  (623, 6),
+  (624, 10),
+  (624, 8),
+  (624, 5),
+  (624, 4),
+  (625, 1),
+  (625, 3),
+  (625, 17),
+  (625, 11),
+  (626, 11),
+  (626, 12),
+  (627, 6),
+  (627, 1),
+  (628, 6),
+  (628, 8),
+  (628, 2),
+  (628, 14),
+  (629, 8),
+  (629, 7),
+  (630, 7),
+  (630, 11),
+  (630, 16),
+  (630, 4),
+  (631, 10),
+  (631, 12),
+  (631, 7),
+  (632, 7),
+  (632, 16),
+  (633, 10),
+  (633, 8),
+  (634, 11),
+  (634, 1),
+  (634, 2),
+  (635, 1),
+  (635, 3),
+  (636, 6),
+  (636, 3);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (636, 8),
+  (637, 14),
+  (637, 1),
+  (637, 2),
+  (638, 14),
+  (638, 10),
+  (638, 2),
+  (639, 14),
+  (639, 10),
+  (639, 1),
+  (640, 14),
+  (640, 13),
+  (640, 16),
+  (640, 7),
+  (641, 12),
+  (641, 7),
+  (641, 6),
+  (642, 16),
+  (642, 10),
+  (642, 5),
+  (642, 11),
+  (643, 8),
+  (643, 15),
+  (643, 10),
+  (643, 1),
+  (644, 17),
+  (644, 3),
+  (644, 8),
+  (644, 9),
+  (645, 14),
+  (645, 6),
+  (645, 16),
+  (645, 5),
+  (646, 8),
+  (646, 13),
+  (647, 6),
+  (647, 7),
+  (648, 15),
+  (648, 8),
+  (649, 1),
+  (649, 2),
+  (650, 9),
+  (650, 12),
+  (651, 7),
+  (651, 1),
+  (651, 12),
+  (652, 11),
+  (652, 6),
+  (653, 17),
+  (653, 15);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (654, 16),
+  (654, 13),
+  (654, 4),
+  (654, 3),
+  (655, 1),
+  (655, 2),
+  (655, 3),
+  (655, 8),
+  (656, 4),
+  (656, 5),
+  (656, 17),
+  (657, 16),
+  (657, 8),
+  (658, 2),
+  (658, 3),
+  (658, 17),
+  (658, 7),
+  (659, 7),
+  (659, 3),
+  (660, 11),
+  (660, 16),
+  (660, 1),
+  (661, 4),
+  (661, 8),
+  (662, 9),
+  (662, 12),
+  (663, 3),
+  (663, 15),
+  (663, 1),
+  (664, 14),
+  (664, 6),
+  (664, 5),
+  (664, 17),
+  (665, 15),
+  (665, 12),
+  (665, 1),
+  (665, 2),
+  (666, 7),
+  (666, 8),
+  (666, 16),
+  (666, 10),
+  (667, 1),
+  (667, 16),
+  (668, 10),
+  (668, 4),
+  (668, 7),
+  (668, 9),
+  (669, 14),
+  (669, 1),
+  (670, 3);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (670, 9),
+  (671, 7),
+  (671, 1),
+  (672, 6),
+  (672, 3),
+  (672, 14),
+  (672, 8),
+  (673, 4),
+  (673, 3),
+  (673, 10),
+  (674, 1),
+  (674, 14),
+  (674, 16),
+  (675, 5),
+  (675, 15),
+  (675, 12),
+  (676, 6),
+  (676, 10),
+  (676, 12),
+  (677, 9),
+  (677, 8),
+  (677, 14),
+  (678, 4),
+  (678, 2),
+  (678, 12),
+  (678, 7),
+  (679, 16),
+  (679, 7),
+  (679, 3),
+  (680, 14),
+  (680, 1),
+  (681, 16),
+  (681, 7),
+  (682, 10),
+  (682, 15),
+  (683, 16),
+  (683, 11),
+  (683, 12),
+  (684, 8),
+  (684, 1),
+  (684, 7),
+  (685, 8),
+  (685, 1),
+  (686, 9),
+  (686, 4),
+  (687, 13),
+  (687, 6),
+  (687, 4),
+  (688, 8),
+  (688, 3);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (688, 4),
+  (689, 14),
+  (689, 4),
+  (689, 3),
+  (689, 10),
+  (690, 12),
+  (690, 6),
+  (690, 9),
+  (691, 13),
+  (691, 3),
+  (691, 5),
+  (691, 17),
+  (692, 13),
+  (692, 4),
+  (693, 12),
+  (693, 1),
+  (694, 4),
+  (694, 3),
+  (695, 15),
+  (695, 10),
+  (695, 3),
+  (696, 4),
+  (696, 11),
+  (697, 1),
+  (697, 8),
+  (697, 2),
+  (698, 9),
+  (698, 5),
+  (698, 4),
+  (699, 9),
+  (699, 2),
+  (699, 6),
+  (700, 10),
+  (700, 1),
+  (700, 4),
+  (700, 15),
+  (701, 7),
+  (701, 13),
+  (702, 2),
+  (702, 3),
+  (702, 8),
+  (703, 16),
+  (703, 12),
+  (704, 15),
+  (704, 4),
+  (705, 8),
+  (705, 6),
+  (705, 10),
+  (706, 8),
+  (706, 12);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (706, 11),
+  (707, 4),
+  (707, 6),
+  (707, 14),
+  (708, 3),
+  (708, 15),
+  (708, 2),
+  (708, 14),
+  (709, 6),
+  (709, 14),
+  (709, 15),
+  (709, 4),
+  (710, 8),
+  (710, 1),
+  (710, 12),
+  (710, 16),
+  (711, 13),
+  (711, 12),
+  (711, 7),
+  (712, 5),
+  (712, 8),
+  (712, 14),
+  (712, 4),
+  (713, 4),
+  (713, 7),
+  (713, 5),
+  (714, 6),
+  (714, 10),
+  (714, 1),
+  (714, 2),
+  (715, 3),
+  (715, 13),
+  (715, 7),
+  (715, 2),
+  (716, 3),
+  (716, 7),
+  (717, 8),
+  (717, 14),
+  (718, 14),
+  (718, 8),
+  (719, 8),
+  (719, 16),
+  (720, 6),
+  (720, 13),
+  (720, 15),
+  (720, 8),
+  (721, 14),
+  (721, 15),
+  (721, 13),
+  (721, 1);
+
+INSERT IGNORE INTO producto_acabados (producto_id, acabado_id) VALUES
+  (722, 4),
+  (722, 15),
+  (722, 3),
+  (722, 11),
+  (723, 14),
+  (723, 9),
+  (723, 7),
+  (723, 11),
+  (724, 7),
+  (724, 1),
+  (724, 11),
+  (725, 7),
+  (725, 11),
+  (726, 1),
+  (726, 9),
+  (726, 6),
+  (727, 1),
+  (727, 6),
+  (728, 1),
+  (728, 8),
+  (728, 2),
+  (729, 12),
+  (729, 1),
+  (729, 10),
+  (730, 7),
+  (730, 16),
+  (731, 2),
+  (731, 14),
+  (731, 17),
+  (732, 13),
+  (732, 5),
+  (732, 16),
+  (732, 6),
+  (733, 17),
+  (733, 12),
+  (734, 12),
+  (734, 4),
+  (734, 3),
+  (735, 12),
+  (735, 1),
+  (735, 13),
+  (735, 9),
+  (736, 1),
+  (736, 2),
+  (736, 16),
+  (736, 12);
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- FIN DE LA INSTALACIÓN

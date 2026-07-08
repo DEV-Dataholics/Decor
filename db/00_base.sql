@@ -29,7 +29,7 @@ CREATE TABLE usuarios (
   password_hash VARCHAR(255)  NOT NULL,
   rol           ENUM(
     'admin','gerente_tienda','encargado_taller',
-    'cajero','carpintero','bodega'
+    'cajero','carpintero','bodega','repartidor'
   ) NOT NULL,
   activo        TINYINT(1)    NOT NULL DEFAULT 1,
   creado_en     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -41,11 +41,9 @@ CREATE TABLE usuarios (
   INDEX idx_rol   (rol)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Usuario admin inicial (contraseña: Admin1234! — CAMBIAR antes de producción)
-INSERT INTO usuarios (nombre, email, password_hash, rol)
-VALUES (
-  'Administrador',
-  'admin@decor.mx',
-  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- bcrypt de "password"
-  'admin'
-);
+-- 1. Insertar el usuario admin inicial y demos
+INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES
+  ('Administrador', 'admin@decor.mx', '$2y$10$O9GdUADRhbDfjCXpYYxvveO1rtazHSlQmdwHrBLkTrw61mWu.wVgu', 'admin'),
+  ('Laura Mendoza', 'tienda@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'gerente_tienda'),
+  ('Víctor Manuel', 'taller@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'encargado_taller'),
+  ('Juan López', 'reparto@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'repartidor');

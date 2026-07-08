@@ -49,8 +49,12 @@ try {
     if (!empty($items)) {
         $stmtItem = $pdo->prepare("
             INSERT INTO orden_items (orden_id, producto_id, cantidad, acabado_id,
-                especificaciones_custom, precio_unitario, descuento_item, subtotal)
-            VALUES (?,?,?,?,?,?,?,?)
+                especificaciones_custom, precio_unitario, descuento_item, subtotal, estatus_item)
+            VALUES (?,?,?,?,?,?,?,?,'pendiente')
+        ");
+        $stmtWo = $pdo->prepare("
+            INSERT INTO work_orders (orden_item_id, estatus, cantidad_asignada)
+            VALUES (?, 'pendiente', ?)
         ");
         foreach ($items as $item) {
             $qty   = (float)($item['cantidad'] ?? 1);
@@ -58,14 +62,30 @@ try {
             $desc  = (float)($item['descuento_item'] ?? 0);
             $sub   = round(($price * $qty) - $desc, 2);
             $total += $sub;
+            
+            $acabado_id = !empty($item['acabado_id']) ? (int)$item['acabado_id'] : null;
+            if (empty($acabado_id) && !empty($item['acabado_nombre'])) {
+                $stmtAc = $pdo->prepare("SELECT id FROM acabados WHERE nombre = ? LIMIT 1");
+                $stmtAc->execute([trim($item['acabado_nombre'])]);
+                $ac_id = $stmtAc->fetchColumn();
+                if ($ac_id) {
+                    $acabado_id = (int)$ac_id;
+                }
+            }
+
             $stmtItem->execute([
                 $id,
                 (int)$item['producto_id'],
                 $qty,
-                !empty($item['acabado_id']) ? (int)$item['acabado_id'] : null,
+                $acabado_id,
                 !empty($item['especificaciones_custom']) ? json_encode($item['especificaciones_custom']) : null,
                 $price, $desc, $sub
             ]);
+            
+            $orden_item_id = $pdo->lastInsertId();
+            
+            // Recrear work orders
+            $stmtWo->execute([$orden_item_id, $qty]);
         }
     }
 

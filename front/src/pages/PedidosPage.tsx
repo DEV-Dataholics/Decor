@@ -86,7 +86,7 @@ export default function PedidosPage() {
     if (!isTienda && selectedCliente) {
       const cliName = selectedCliente.nombre.toLowerCase();
       prods = productos.filter(p => {
-        const hasClientPrice = Object.keys(p.prices).some(k => cliName.includes(k.toLowerCase()) || k.toLowerCase().includes(cliName));
+        const hasClientPrice = Object.keys(p.prices || {}).some(k => cliName.includes(k.toLowerCase()) || k.toLowerCase().includes(cliName));
         return hasClientPrice;
       });
     }
@@ -127,11 +127,11 @@ export default function PedidosPage() {
     if (!prod) return 0;
     // Si hay cliente seleccionado, buscar su precio específico
     if (selectedCliente) {
-      const key = Object.keys(prod.prices).find(k => selectedCliente.nombre.toLowerCase().includes(k.toLowerCase()));
-      return key ? prod.prices[key] : Object.values(prod.prices)[0] || 0;
+      const key = Object.keys(prod.prices || {}).find(k => selectedCliente.nombre.toLowerCase().includes(k.toLowerCase()));
+      return key ? prod.prices[key] : Object.values(prod.prices || {})[0] || 0;
     }
     // Si el destino es una tienda, usar el primer precio del catálogo
-    return Object.values(prod.prices)[0] || 0;
+    return Object.values(prod.prices || {})[0] || 0;
   };
 
   const handleAddItem = () => {
@@ -168,14 +168,14 @@ export default function PedidosPage() {
     setItemDiagrama(undefined);
   };
 
-  const handleCrearPedido = () => {
+  const handleCrearPedido = async () => {
     if (!items.length || !destinoId) return;
     const total = items.reduce((s, i) => s + i.subtotal, 0);
     const nombre = isTienda ? selectedTienda?.nombre : selectedCliente?.nombre;
     const email = isTienda ? '' : selectedCliente?.email;
     
     if (editingPedidoId) {
-      editarPedido(editingPedidoId, {
+      await editarPedido(editingPedidoId, {
         estatus: 'pendiente',
         tipo_orden: items.some(i => i.tipo_pedido === 'orden_especial') ? 'especial' : (isTienda ? 'resurtido_tienda' : 'mayorista'),
         cliente_id: destinoId,
@@ -187,7 +187,7 @@ export default function PedidosPage() {
         notas,
       });
     } else {
-      crearPedido({
+      await crearPedido({
         fecha_creacion: new Date().toISOString().split('T')[0],
         estatus: 'pendiente',
         tipo_orden: items.some(i => i.tipo_pedido === 'orden_especial') ? 'especial' : (isTienda ? 'resurtido_tienda' : 'mayorista'),

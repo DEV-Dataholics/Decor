@@ -1,5 +1,68 @@
-.backup_zips/
-.gemini/
+# ── Dependencias ──
 node_modules/
+
+# ── Build output ──
 dist/
+dist-ssr/
+*.local
+
+# ── Archivos ZIP / artefactos de build ──
+*.zip
+
+# ── Deploy (configs, scripts, temporales) ──
+deploy/
+deploy_produccion_tmp/
+
+# ── Backups ──
+.backup_zips/
+
+# ── Logs y herramientas de desarrollo ──
 *.log
+tools_history.txt
+tools_history2.txt
+
+# ── Agentes / IA / Gemini / Workspace rules ──
+.gemini/
+.agent/
+.agents/
+
+# ── Datos fuente / CSVs de productos ──
+productos/
+
+# ── Assets legacy (frontend viejo) ──
+assets/
+
+# ── index.html legacy (redirect viejo) ──
+index.html
+
+# ── Scripts de generación y empaquetado (solo desarrollo local) ──
+generate_instalacion.py
+generate_seed_clientes.py
+generate_seed_completo.py
+deploy.py
+deploy_produccion.ps1
+
+# ── Documentación interna (no producción) ──
+DEPLOY_CPANEL.md
+INSTRUCCIONES_LOCAL.md
+LARAGON_SETUP.md
+Agents.md
+
+# ── Tasks de desarrollo ──
+tasks/
+
+# ── Playwright (reportes y resultados de tests) ──
+front/playwright-report/
+front/test-results/
+
+# ── Editor / IDE ──
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
