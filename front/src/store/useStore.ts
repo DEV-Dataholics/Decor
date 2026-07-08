@@ -438,14 +438,14 @@ export function useStore(): DecorStore {
         const d = await resInv.json();
         if (d.data?.items) {
           const mapped: InventarioItem[] = d.data.items.map((item: any) => ({
-            id: item.inventario_tienda_id || item.producto_id,
-            tienda_id: item.tienda_id || 1,
-            producto_id: item.producto_id,
-            cantidad_disponible: item.cantidad_disponible || 0,
-            cantidad_reservada: item.cantidad_reservada || 0,
+            id: Number(item.inventario_tienda_id || item.producto_id),
+            tienda_id: Number(item.tienda_id || 1),
+            producto_id: Number(item.producto_id),
+            cantidad_disponible: Number(item.cantidad_disponible || 0),
+            cantidad_reservada: Number(item.cantidad_reservada || 0),
             origen_stock: item.origen_stock || 'embarque_taller',
-            costo_unitario: item.costo_unitario || 0,
-            precio_venta: item.precio_venta || 0,
+            costo_unitario: Number(item.costo_unitario || 0),
+            precio_venta: Number(item.precio_venta || 0),
           }));
           setInventario(mapped);
         }
