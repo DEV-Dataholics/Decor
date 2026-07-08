@@ -35,7 +35,7 @@ try {
         INSERT INTO embarques (tienda_destino_id, fecha_embarque, placas_trailer, transportista, estatus, usuario_embarque_id)
         VALUES (?, ?, ?, ?, 'preparando', ?)
     ");
-    $stmt->execute([$tienda_destino_id, $fecha_embarque, $placas_trailer, $transportista, $user['id']]);
+    $stmt->execute([$tienda_destino_id ?: null, $fecha_embarque, $placas_trailer, $transportista, $user['id']]);
     $embarque_id = $pdo->lastInsertId();
 
     // 2. Insertar items y actualizar estatus de work orders / orden items
