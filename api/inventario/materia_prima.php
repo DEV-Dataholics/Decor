@@ -8,45 +8,54 @@ require_role(['admin', 'gerente_tienda', 'encargado_taller']);
 
 $pdo = getDB();
 
-// Asegurar que la columna 'color' existe en la tabla 'materiales'
+// Seeding automático (silencioso - no debe bloquear el endpoint)
 try {
-    $pdo->query("SELECT color FROM materiales LIMIT 1");
-} catch (PDOException $e) {
-    // Si no existe, la agregamos
-    $pdo->exec("ALTER TABLE materiales ADD COLUMN color VARCHAR(7) NULL DEFAULT '#cccccc'");
-}
-
-// Obtener un proveedor_id válido y creado_por válido de la base de datos para evitar fallos de clave foránea
-$prov_id = $pdo->query("SELECT id FROM proveedores LIMIT 1")->fetchColumn();
-if (!$prov_id) {
-    // Si no hay proveedores, insertamos uno por defecto temporalmente
-    $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre, tipo) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema', 'materia_prima')");
-    $prov_id = $pdo->lastInsertId();
-}
-
-$creado_por = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
-
-// Semilla de materias primas si está vacía o no tiene las maderas del frontend
-$maderas = [
-    ['nombre' => 'Pino', 'unidad' => 'pacas', 'cantidad' => 14.0, 'minimo' => 5.0, 'color' => '#d4a574'],
-    ['nombre' => 'Encino', 'unidad' => 'pacas', 'cantidad' => 8.0, 'minimo' => 3.0, 'color' => '#8b6914'],
-    ['nombre' => 'Alder', 'unidad' => 'pacas', 'cantidad' => 3.0, 'minimo' => 4.0, 'color' => '#c4956a'],
-    ['nombre' => 'Mezquite', 'unidad' => 'pacas', 'cantidad' => 6.0, 'minimo' => 2.0, 'color' => '#6b3a2a'],
-    ['nombre' => 'Madera Reciclada', 'unidad' => 'pacas', 'cantidad' => 10.0, 'minimo' => 3.0, 'color' => '#9e8c7a'],
-    ['nombre' => 'Madera Fashion', 'unidad' => 'pacas', 'cantidad' => 4.0, 'minimo' => 2.0, 'color' => '#a0522d'],
-    ['nombre' => 'Triplay', 'unidad' => 'hojas', 'cantidad' => 15.0, 'minimo' => 5.0, 'color' => '#deb887']
-];
-
-foreach ($maderas as $mad) {
-    $stmt = $pdo->prepare("SELECT id FROM materiales WHERE nombre = ? LIMIT 1");
-    $stmt->execute([$mad['nombre']]);
-    if (!$stmt->fetchColumn()) {
-        $stmtIns = $pdo->prepare("
-            INSERT INTO materiales (nombre, tipo, unidad_medida, proveedor_id, stock_actual, stock_minimo, color, creado_por)
-            VALUES (?, 'madera', ?, ?, ?, ?, ?, ?)
-        ");
-        $stmtIns->execute([$mad['nombre'], $mad['unidad'], $prov_id, $mad['cantidad'], $mad['minimo'], $mad['color'], $creado_por]);
+    // Asegurar que la columna 'color' existe en la tabla 'materiales'
+    try {
+        $pdo->query("SELECT color FROM materiales LIMIT 1");
+    } catch (PDOException $e) {
+        $pdo->exec("ALTER TABLE materiales ADD COLUMN color VARCHAR(7) NULL DEFAULT '#cccccc'");
     }
+
+    // Obtener un proveedor_id válido
+    $prov_id = $pdo->query("SELECT id FROM proveedores LIMIT 1")->fetchColumn();
+    if (!$prov_id) {
+        try {
+            $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre, tipo) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema', 'materia_prima')");
+            $prov_id = $pdo->lastInsertId();
+        } catch (PDOException $e) {
+            // Si ya existe por RFC duplicado, obtener su ID
+            $prov_id = $pdo->query("SELECT id FROM proveedores WHERE rfc = 'XAXX010101000' LIMIT 1")->fetchColumn() ?: 1;
+        }
+    }
+
+    $creado_por = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
+
+    // Semilla de materias primas
+    $maderas = [
+        ['nombre' => 'Pino', 'unidad' => 'pacas', 'cantidad' => 14.0, 'minimo' => 5.0, 'color' => '#d4a574'],
+        ['nombre' => 'Encino', 'unidad' => 'pacas', 'cantidad' => 8.0, 'minimo' => 3.0, 'color' => '#8b6914'],
+        ['nombre' => 'Alder', 'unidad' => 'pacas', 'cantidad' => 3.0, 'minimo' => 4.0, 'color' => '#c4956a'],
+        ['nombre' => 'Mezquite', 'unidad' => 'pacas', 'cantidad' => 6.0, 'minimo' => 2.0, 'color' => '#6b3a2a'],
+        ['nombre' => 'Madera Reciclada', 'unidad' => 'pacas', 'cantidad' => 10.0, 'minimo' => 3.0, 'color' => '#9e8c7a'],
+        ['nombre' => 'Madera Fashion', 'unidad' => 'pacas', 'cantidad' => 4.0, 'minimo' => 2.0, 'color' => '#a0522d'],
+        ['nombre' => 'Triplay', 'unidad' => 'hojas', 'cantidad' => 15.0, 'minimo' => 5.0, 'color' => '#deb887']
+    ];
+
+    foreach ($maderas as $mad) {
+        $stmt = $pdo->prepare("SELECT id FROM materiales WHERE nombre = ? LIMIT 1");
+        $stmt->execute([$mad['nombre']]);
+        if (!$stmt->fetchColumn()) {
+            $stmtIns = $pdo->prepare("
+                INSERT INTO materiales (nombre, tipo, unidad_medida, proveedor_id, stock_actual, stock_minimo, color, creado_por)
+                VALUES (?, 'madera', ?, ?, ?, ?, ?, ?)
+            ");
+            $stmtIns->execute([$mad['nombre'], $mad['unidad'], $prov_id, $mad['cantidad'], $mad['minimo'], $mad['color'], $creado_por]);
+        }
+    }
+} catch (Exception $e) {
+    // Seeding failures are non-fatal — log and continue
+    error_log('materia_prima seeding warning: ' . $e->getMessage());
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
