@@ -40,8 +40,8 @@ try {
 
     // Assignment updates
     if ($assignment && $estatus === 'en_produccion') {
-        $updates[] = "empleado_carpintero_id = :emp_id";
-        $updates[] = "costo_mano_obra_carpinteria = :costo";
+        $updates[] = "empleado_id = :emp_id";
+        $updates[] = "costo_mano_obra_unitario = :costo";
         if (isset($assignment['cantidad_asignada'])) {
             $cantidad_a_mover = (float)$assignment['cantidad_asignada'];
             $updates[] = "cantidad_asignada = :cant";
@@ -51,7 +51,7 @@ try {
         $params[':costo'] = $assignment['costo_mano_obra'];
     } elseif ($assignment && $estatus === 'acabados') {
         $updates[] = "empleado_acabado_id = :emp_id";
-        $updates[] = "costo_mano_obra_acabado = :costo";
+        $updates[] = "costo_acabado_unitario = :costo";
         $params[':emp_id'] = $assignment['empleado_id'];
         $params[':costo'] = $assignment['costo_mano_obra'];
     }
@@ -63,10 +63,10 @@ try {
         $pdo->prepare("UPDATE work_orders SET cantidad_asignada = ? WHERE id = ?")->execute([$cant_restante, $id]);
 
         // 2. Insertamos la NUEVA (la que sí se va a mover)
-        $new_carpintero_id = $wo['empleado_carpintero_id'];
-        $new_costo_carpinteria = $wo['costo_mano_obra_carpinteria'];
+        $new_carpintero_id = $wo['empleado_id'];
+        $new_costo_carpinteria = $wo['costo_mano_obra_unitario'];
         $new_acabado_id = $wo['empleado_acabado_id'] ?? null;
-        $new_costo_acabado = $wo['costo_mano_obra_acabado'] ?? null;
+        $new_costo_acabado = $wo['costo_acabado_unitario'] ?? null;
 
         if ($estatus === 'en_produccion') {
             $new_carpintero_id = $assignment['empleado_id'] ?? null;
@@ -79,11 +79,12 @@ try {
         $pdo->prepare("
             INSERT INTO work_orders (
                 orden_item_id, estatus, cantidad_asignada, 
-                empleado_carpintero_id, costo_mano_obra_carpinteria, 
-                empleado_acabado_id, costo_mano_obra_acabado, 
-                fecha_inicio, fecha_termino
+                empleado_id, costo_mano_obra_unitario, 
+                empleado_acabado_id, costo_acabado_unitario, 
+                fecha_inicio_real, fecha_terminado,
+                asignado_por, semana_nomina_id, fecha_asignacion, creado_por
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ")->execute([
             $wo['orden_item_id'],
             $estatus,
@@ -92,8 +93,12 @@ try {
             $new_costo_carpinteria,
             $new_acabado_id,
             $new_costo_acabado,
-            $estatus === 'en_produccion' ? date('Y-m-d') : $wo['fecha_inicio'],
-            null
+            $estatus === 'en_produccion' ? date('Y-m-d') : $wo['fecha_inicio_real'],
+            $estatus === 'listo_embarque' || $estatus === 'terminado' ? date('Y-m-d H:i:s') : $wo['fecha_terminado'],
+            $wo['asignado_por'],
+            $wo['semana_nomina_id'],
+            $wo['fecha_asignacion'] ?? date('Y-m-d'),
+            $wo['creado_por'] ?? 1
         ]);
         
         $pdo->commit();
@@ -107,7 +112,9 @@ try {
     $pdo->commit();
     echo json_encode(['ok'=>true, 'mensaje'=>'WO actualizado correctamente']);
 } catch (PDOException $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode(['error'=>'Error actualizando WO: '.$e->getMessage()]);
 }
