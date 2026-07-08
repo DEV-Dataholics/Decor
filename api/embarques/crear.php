@@ -22,8 +22,8 @@ $placas_trailer = $data['placas_trailer'] ?? '';
 $transportista = $data['transportista'] ?? '';
 $items = $data['items'] ?? [];
 
-if (!$tienda_destino_id || empty($items)) {
-    json_error('Destino e ítems son requeridos', 422);
+if (empty($items)) {
+    json_error('Los ítems son requeridos', 422);
 }
 
 try {
