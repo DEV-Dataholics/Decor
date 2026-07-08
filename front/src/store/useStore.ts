@@ -382,7 +382,7 @@ export function useStore(): DecorStore {
       const [resPed, resWo, resInv, resMp, resEmb] = await Promise.all([
         apiFetch(`${base}/api/pedidos/ordenes.php`),
         apiFetch(`${base}/api/produccion/work_orders.php`),
-        apiFetch(`${base}/api/inventario/list_tienda.php?tienda_id=1`),
+        apiFetch(`${base}/api/inventario/list_tienda.php?all=1`),
         apiFetch(`${base}/api/inventario/materia_prima.php`),
         apiFetch(`${base}/api/embarques/list.php`),
       ]);

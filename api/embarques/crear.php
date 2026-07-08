@@ -86,6 +86,9 @@ try {
         if ($orden_item_id) {
             $pdo->prepare("UPDATE orden_items SET estatus_item = 'embarcado' WHERE id = ?")->execute([$orden_item_id]);
         }
+        if ($wo_id > 0) {
+            $pdo->prepare("UPDATE work_orders SET estatus = 'embarcado' WHERE id = ?")->execute([$wo_id]);
+        }
     }
 
     $pdo->commit();
