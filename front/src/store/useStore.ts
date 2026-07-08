@@ -392,9 +392,9 @@ export function useStore(): DecorStore {
         if (d.data) {
           const allWo = (Array.isArray(d.data) ? d.data : (d.data.items || [])) as WorkOrder[];
           // Separar WOs activas de terminadas/listas para embarque
-          const terminadoStatuses = ['listo_embarque', 'terminado'];
-          setWorkOrders(allWo.filter((w: WorkOrder) => !terminadoStatuses.includes(w.estatus)));
-          setTerminados(allWo.filter((w: WorkOrder) => terminadoStatuses.includes(w.estatus)).map((w: WorkOrder) => ({
+          const activeStatuses = ['pendiente', 'en_produccion', 'acabados', 'listo_embarque'];
+          setWorkOrders(allWo.filter((w: WorkOrder) => activeStatuses.includes(w.estatus)));
+          setTerminados(allWo.filter((w: WorkOrder) => ['listo_embarque', 'terminado'].includes(w.estatus)).map((w: WorkOrder) => ({
             id: w.id, orden_id: w.orden_id || 0, producto_id: w.producto_id || 0,
             producto_nombre: w.producto_nombre || '', codigo_sku: w.codigo_sku || '',
             acabado: w.acabado_nombre || '', qr_code: `QR-${w.id}`, cantidad: w.cantidad || 1,
