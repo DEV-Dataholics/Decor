@@ -578,7 +578,7 @@ export default function DashboardPage() {
 
           {filteredChartData.length > 0 ? (
             <div className="h-[230px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={filteredChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
                   <XAxis type="number" stroke="#71717a" fontSize={11} tickLine={false} />
@@ -625,7 +625,7 @@ export default function DashboardPage() {
 
           {topProductosRentables.length > 0 ? (
             <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={topProductosRentables} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                   <XAxis dataKey="name" stroke="#71717a" fontSize={11} tickLine={false} />
