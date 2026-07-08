@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Settings, Store, Users, Paintbrush, RotateCcw, Plus, Edit2, Trash2, X, Check } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 
-type ActiveTab = 'acabados' | 'tiendas' | 'clientes' | 'sistema';
+type ActiveTab = 'acabados' | 'tiendas' | 'clientes' | 'usuarios' | 'sistema';
 
 const TABS: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
   { key: 'acabados', label: 'Acabados', icon: <Paintbrush size={14} /> },
   { key: 'tiendas', label: 'Tiendas', icon: <Store size={14} /> },
   { key: 'clientes', label: 'Clientes', icon: <Users size={14} /> },
+  { key: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> },
   { key: 'sistema', label: 'Sistema', icon: <Settings size={14} /> },
 ];
 
@@ -281,7 +282,7 @@ export default function ConfiguracionPage() {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-6">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                      <button onClick={() => { setEditingId(u.id); setUserForm({ nombre: u.nombre, email: u.email, password: '', rol: u.rol, activo: u.activo ? 1 : 0, empleado_id: u.empleado_id || '' }); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg"><Edit2 size={14} /></button>
+                      <button onClick={() => { setEditingId(u.id); setUserForm({ nombre: u.nombre, email: u.email, password: '', rol: u.rol, activo: u.activo ? 1 : 0, empleado_id: u.empleado_id ? String(u.empleado_id) : '' }); }} className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg"><Edit2 size={14} /></button>
                       <button onClick={async () => { if (confirm(`¿Eliminar usuario ${u.nombre}?`)) await deleteUsuario(u.id); }} className="p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg"><Trash2 size={14} /></button>
                     </div>
                   </div>

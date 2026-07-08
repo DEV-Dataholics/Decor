@@ -9,7 +9,9 @@ export default function RepartoPage() {
 
   // Filtrar rutas activas (en tránsito o listas en taller para embarcar)
   const rutasActivas = useMemo(() => 
-    embarques.filter(e => e.estatus === 'en_transito' || e.estatus === 'embarcado'), 
+    [...embarques]
+      .filter(e => e.estatus === 'en_transito' || e.estatus === 'embarcado')
+      .sort((a, b) => b.id - a.id), 
     [embarques]
   );
 

@@ -18,7 +18,7 @@ export default function EmbarquesPage() {
   const [filtroTiendaId, setFiltroTiendaId] = useState<string | number>('todas');
 
   const embarquesFiltrados = useMemo(() => {
-    return embarques.filter(emb => {
+    return [...embarques].filter(emb => {
       if (filtroFecha && emb.fecha_embarque !== filtroFecha) {
         return false;
       }
@@ -28,7 +28,7 @@ export default function EmbarquesPage() {
         if (!matchesTienda) return false;
       }
       return true;
-    });
+    }).sort((a, b) => b.id - a.id);
   }, [embarques, filtroFecha, filtroTiendaId]);
 
   const rutaCalculada = useMemo(() => {

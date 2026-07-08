@@ -397,7 +397,11 @@ export default function InventarioPage() {
       grouped.get(groupKey)!.push(t);
     });
 
-    return Array.from(grouped.entries()).sort((a, b) => b[1].length - a[1].length);
+    return Array.from(grouped.entries()).sort((a, b) => {
+      const aNum = Number(a[0].replace('Orden #', ''));
+      const bNum = Number(b[0].replace('Orden #', ''));
+      return bNum - aNum;
+    });
   }, [terminados, searchTerm]);
 
   const tabs = [
@@ -465,6 +469,7 @@ export default function InventarioPage() {
             );
           })}
         </div>
+      </div>
       )}
 
       {/* Terminados sin Embarcar */}
