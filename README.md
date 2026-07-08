@@ -27,7 +27,7 @@ El sistema ha superado la fase de prototipado con datos demo. Actualmente, **tod
 | **Styling** | Vanilla CSS + Tailwind | Diseño Premium / Glassmorphism |
 | **Pruebas (E2E)**| Playwright | Pruebas Automatizadas (E2E y unitarias en frontend) |
 | **API Backend** | PHP 8.x (Vanilla / PDO) | Endpoints RESTful |
-| **Base de Datos** | MySQL (Laragon) | Esquema Relacional Estricto |
+| **Base de Datos** | MySQL (cPanel / Producción) | Esquema Relacional Estricto |
 
 ---
 
@@ -108,6 +108,6 @@ Para futuros ajustes o soporte, el agente debe considerar los siguientes puntos:
 ---
 
 ## 🚀 Próximos Pasos (Soporte en Producción)
-1. **Validación de Triggers:** Asegurar que cada venta en POS descuente exactamente la cantidad del inventario de la sucursal seleccionada.
-2. **Reportes Avanzados:** Implementar exportación a Excel/PDF de las ventas del mes.
-3. **Seguridad:** Implementar JWT o sesiones PHP robustas para proteger los endpoints de la API.
+1. **Configuración de Backups:** Calendarizar respaldos automáticos y periódicos de la base de datos MySQL de producción.
+2. **Monitoreo de Desempeño:** Evaluar latencias de red y tiempos de respuesta de la API al escalar el número de transacciones reales en el POS.
+3. **Auditoría de Roles:** Validar que los permisos por rol de usuario (`admin`, `gerente_tienda`, etc.) funcionen adecuadamente en todas las llamadas de la API bajo escenarios reales.
