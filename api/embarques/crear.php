@@ -30,12 +30,23 @@ try {
     $pdo = getDB();
     $pdo->beginTransaction();
 
+    // Obtener un usuario_embarque_id válido
+    $user_id = $user['id'] ?? null;
+    if (!$user_id && !empty($user['email'])) {
+        $stmtUsr = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? LIMIT 1");
+        $stmtUsr->execute([$user['email']]);
+        $user_id = $stmtUsr->fetchColumn();
+    }
+    if (!$user_id) {
+        $user_id = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
+    }
+
     // 1. Insertar Embarque
     $stmt = $pdo->prepare("
         INSERT INTO embarques (tienda_destino_id, fecha_embarque, placas_trailer, transportista, estatus, usuario_embarque_id)
         VALUES (?, ?, ?, ?, 'preparando', ?)
     ");
-    $stmt->execute([$tienda_destino_id ?: null, $fecha_embarque, $placas_trailer, $transportista, $user['id']]);
+    $stmt->execute([$tienda_destino_id ?: null, $fecha_embarque, $placas_trailer, $transportista, $user_id]);
     $embarque_id = $pdo->lastInsertId();
 
     // 2. Insertar items y actualizar estatus de work orders / orden items
