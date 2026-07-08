@@ -163,10 +163,10 @@ export interface DecorStore {
   crearPedido: (pedido: Omit<Pedido, 'id'>) => Promise<void>;
   editarPedido: (id: number, pedidoData: Omit<Pedido, 'id' | 'fecha_creacion'>) => Promise<boolean>;
   eliminarPedido: (id: number) => Promise<boolean>;
-  crearEmbarque: (embarque: Omit<Embarque, 'id'>) => Embarque;
-  cancelarEmbarque: (id: number) => void;
-  updateEmbarqueStatus: (id: number, newStatus: string) => void;
-  confirmarRecepcion: (embarqueId: number, items: EmbarqueItem[]) => void;
+  crearEmbarque: (embarque: Omit<Embarque, 'id'>) => Promise<void>;
+  cancelarEmbarque: (id: number) => Promise<void>;
+  updateEmbarqueStatus: (id: number, newStatus: string) => Promise<void>;
+  confirmarRecepcion: (embarqueId: number, items: EmbarqueItem[]) => Promise<void>;
   registrarVentaQR: (qrCode: string, tiendaId: number) => boolean;
   registrarVentaCarrito: (tiendaId: number, qrCodes: string[]) => Venta | null;
   updateMateriaPrima: (id: number, delta: number) => void;
@@ -379,14 +379,45 @@ export function useStore(): DecorStore {
   const fetchOperativos = useCallback(async () => {
     try {
       const base = apiBase();
-      const [resPed, resWo, resInv, resMp] = await Promise.all([
+      const [resPed, resWo, resInv, resMp, resEmb] = await Promise.all([
         apiFetch(`${base}/api/pedidos/ordenes.php`),
         apiFetch(`${base}/api/produccion/work_orders.php`),
         apiFetch(`${base}/api/inventario/list_tienda.php?tienda_id=1`),
         apiFetch(`${base}/api/inventario/materia_prima.php`),
+        apiFetch(`${base}/api/embarques/list.php`),
       ]);
       if (resPed.ok) { const d = await resPed.json(); if(d.data) setPedidos(d.data); }
       if (resMp.ok) { const d = await resMp.json(); if(d.data) setMateriaPrima(d.data); }
+      if (resEmb && resEmb.ok) {
+        const d = await resEmb.json();
+        if (d.items) {
+          const mappedEmb: Embarque[] = d.items.map((emb: any) => ({
+            id: Number(emb.id),
+            orden_id: Number(emb.orden_id),
+            ruta_viaje: emb.ruta_viaje || '',
+            fecha_embarque: emb.fecha_embarque || '',
+            placas_trailer: emb.placas_trailer || '',
+            transportista: emb.transportista || '',
+            estatus: emb.estatus || 'preparando',
+            cliente_nombre: emb.cliente_nombre || '',
+            tienda_destino_id: Number(emb.tienda_destino_id),
+            items: (emb.items || []).map((item: any) => ({
+              id: Number(item.id),
+              producto_id: Number(item.producto_id),
+              producto_nombre: item.producto_nombre || '',
+              codigo_sku: item.codigo_sku || '',
+              qr_code: item.qr_code || '',
+              precio_unitario: Number(item.precio_unitario || 0),
+              embarcado: Number(item.cantidad_embarcada) > 0,
+              recibido_en_tienda: Number(item.recibido_en_tienda) === 1,
+              estado_recepcion: item.estado_recepcion || 'pendiente',
+              tienda_destino_id: Number(item.tienda_destino_id),
+              cliente_nombre: emb.cliente_nombre || '',
+            }))
+          }));
+          setEmbarques(mappedEmb);
+        }
+      }
       if (resWo.ok) {
         const d = await resWo.json();
         if (d.data) {
@@ -558,82 +589,81 @@ export function useStore(): DecorStore {
     }
   }, [workOrders, apiBase, apiFetch, fetchOperativos]);
 
-  const crearEmbarque = useCallback((embarque: Omit<Embarque, 'id'>): Embarque => {
-    const newEmbarque = { ...embarque, id: Date.now() } as Embarque;
-    setEmbarques(prev => [newEmbarque, ...prev]);
-    // Remove items from terminados
-    const qrCodes = new Set(embarque.items.map(i => i.qr_code));
-    setTerminados(prev => prev.filter(t => !qrCodes.has(t.qr_code)));
-    return newEmbarque;
-  }, []);
-
-  const cancelarEmbarque = useCallback((id: number) => {
-    const emb = embarques.find(e => e.id === id);
-    if (emb) {
-      const restored = emb.items.map(i => i.original_terminado).filter(Boolean) as TerminadoSinEmbarcar[];
-      setTerminados(tPrev => [...restored, ...tPrev]);
-    }
-    setEmbarques(prev => prev.filter(e => e.id !== id));
-  }, [embarques]);
-
-  const updateEmbarqueStatus = useCallback((id: number, newStatus: string) => {
-    setEmbarques(prev => prev.map(e => e.id === id ? { ...e, estatus: newStatus } : e));
-  }, []);
-
-  const confirmarRecepcion = useCallback((embarqueId: number, items: EmbarqueItem[]) => {
-    // Update embarque status and items
-    setEmbarques(prev => prev.map(e =>
-      e.id === embarqueId ? { ...e, estatus: 'entregado', items } : e
-    ));
-
-    // Move received items to store inventory
-    const received = items.filter(i => i.estado_recepcion === 'ok');
-    for (const item of received) {
-      if (item.tienda_destino_id !== 0) {
-        setInventario(prev => {
-          const existing = prev.find(i => i.producto_id === item.producto_id && i.tienda_id === item.tienda_destino_id);
-          if (existing) {
-            return prev.map(i =>
-              i.producto_id === item.producto_id && i.tienda_id === item.tienda_destino_id
-                ? { ...i, cantidad_disponible: i.cantidad_disponible + 1 }
-                : i
-            );
-          }
-          const product = productos.find(p => p.id === item.producto_id);
-          return [...prev, {
-            id: Date.now() + Math.random(),
-            tienda_id: item.tienda_destino_id,
-            producto_id: item.producto_id,
-            producto_nombre: item.producto_nombre,
-            codigo_sku: item.codigo_sku,
-            cantidad_disponible: 1,
-            cantidad_reservada: 0,
-            origen_stock: 'embarque',
-            costo_unitario: product ? Object.values(product.prices)[0] * 0.45 : 0,
-            precio_venta: product ? Object.values(product.prices)[0] : 0
-          }];
-        });
+  const crearEmbarque = useCallback(async (embarque: Omit<Embarque, 'id'>) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/embarques/crear.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(embarque)
+      });
+      if (res.ok) {
+        await fetchOperativos();
       }
+    } catch (e) {
+      console.error('Error creating embarque:', e);
     }
+  }, [apiBase, apiFetch, fetchOperativos]);
 
-    // Register damaged items in devoluciones
-    const damaged = items.filter(i => i.estado_recepcion === 'dañado' || i.estado_recepcion === 'danado');
-    if (damaged.length > 0) {
-      const newDevoluciones = damaged.map((item, idx) => ({
-        id: Date.now() + idx + Math.random(),
-        origen: 'orden_produccion' as const,
-        referencia_id: embarqueId,
-        producto_id: item.producto_id,
-        producto_nombre: item.producto_nombre,
-        cantidad: 1,
-        motivo: 'Pieza dañada o defectuosa al recibir en tienda',
-        estatus: 'recibida' as const,
-        tienda_id: item.tienda_destino_id || 1,
-        fecha: new Date().toISOString().split('T')[0]
-      }));
-      setDevoluciones(prev => [...newDevoluciones, ...prev]);
+  const cancelarEmbarque = useCallback(async (id: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/embarques/cancelar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        await fetchOperativos();
+      }
+    } catch (e) {
+      console.error('Error canceling embarque:', e);
     }
-  }, [productos]);
+  }, [apiBase, apiFetch, fetchOperativos]);
+
+  const updateEmbarqueStatus = useCallback(async (id: number, newStatus: string) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/embarques/update_status.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, estatus: newStatus })
+      });
+      if (res.ok) {
+        await fetchOperativos();
+      }
+    } catch (e) {
+      console.error('Error updating embarque status:', e);
+    }
+  }, [apiBase, apiFetch, fetchOperativos]);
+
+  const confirmarRecepcion = useCallback(async (embarqueId: number, items: EmbarqueItem[]) => {
+    try {
+      const base = apiBase();
+      
+      // Map frontend items array to what api/embarques/recibir.php expects
+      const itemsPayload = items.map(item => ({
+        embarque_item_id: item.id,
+        cantidad_recibida: item.estado_recepcion === 'ok' ? 1 : 0,
+        cantidad_danada: (item.estado_recepcion === 'dañado' || item.estado_recepcion === 'danado') ? 1 : 0
+      }));
+
+      const res = await apiFetch(`${base}/api/embarques/recibir.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          embarque_id: embarqueId,
+          items: itemsPayload
+        })
+      });
+
+      if (res.ok) {
+        await fetchOperativos();
+      }
+    } catch (e) {
+      console.error('Error confirming recepcion:', e);
+    }
+  }, [apiBase, apiFetch, fetchOperativos]);
 
   const registrarVentaQR = useCallback((qrCode: string, tiendaId: number): boolean => {
     // Find item in inventory by QR (we look up by matching product)
