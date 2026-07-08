@@ -434,8 +434,10 @@ export function useStore(): DecorStore {
           })));
         }
       }
+      console.log('fetchOperativos: resInv status =', resInv.status, 'ok =', resInv.ok);
       if (resInv.ok) {
         const d = await resInv.json();
+        console.log('fetchOperativos: resInv data =', d);
         if (d.data?.items) {
           const mapped: InventarioItem[] = d.data.items.map((item: any) => ({
             id: Number(item.inventario_tienda_id || item.producto_id),
@@ -447,10 +449,13 @@ export function useStore(): DecorStore {
             costo_unitario: Number(item.costo_unitario || 0),
             precio_venta: Number(item.precio_venta || 0),
           }));
+          console.log('fetchOperativos: mapped inventario =', mapped);
           setInventario(mapped);
         }
       }
-    } catch (e) { console.error('Error fetching operativos:', e); }
+    } catch (e) {
+      console.error('Error fetching operativos:', e);
+    }
   }, [apiBase, apiFetch]);
 
   // Auto-cargar datos al loguearse
