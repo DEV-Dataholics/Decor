@@ -136,7 +136,7 @@ export default function ProduccionPage() {
   };
 
   const handleConfirmAssignment = () => {
-    if (!assignmentModalWo || !selectedEmpleadoId || tarifaUnitaria <= 0 || cantidadAsignar <= 0) return;
+    if (!assignmentModalWo || !selectedEmpleadoId || (targetAssignmentStatus !== 'acabados' && tarifaUnitaria <= 0) || cantidadAsignar <= 0) return;
     const emp = empleados.find(e => e.id === selectedEmpleadoId);
     if (!emp) return;
 
@@ -616,7 +616,7 @@ export default function ProduccionPage() {
                 </p>
               </div>
 
-              {tarifaUnitaria === 0 && (
+              {tarifaUnitaria === 0 && targetAssignmentStatus !== 'acabados' && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-2.5 rounded-xl text-[10px] leading-relaxed animate-pulse">
                   ⚠️ Esta pieza no tiene un costo de producción registrado en el catálogo. Define la tarifa por pieza para poder asignar el trabajo.
                 </div>
@@ -669,7 +669,7 @@ export default function ProduccionPage() {
               <button onClick={() => setAssignmentModalWo(null)} className="btn-ghost flex-1 justify-center">Cancelar</button>
               <button 
                 onClick={handleConfirmAssignment} 
-                disabled={!selectedEmpleadoId || tarifaUnitaria <= 0}
+                disabled={!selectedEmpleadoId || (targetAssignmentStatus !== 'acabados' && tarifaUnitaria <= 0)}
                 className="btn-primary flex-1 justify-center disabled:opacity-40"
               >
                 ✓ Asignar e Iniciar
