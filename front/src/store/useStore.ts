@@ -283,8 +283,13 @@ export function useStore(): DecorStore {
     return isProduction ? '' : 'http://localhost/sistema_decor';
   }, []);
 
-  const apiFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include', ...opts });
+  const apiFetch = useCallback(async (url: string, opts?: RequestInit) => {
+    const res = await fetch(url, { credentials: 'include', ...opts });
+    if (res.status === 401) {
+      setCurrentUser(null);
+      localStorage.removeItem(STORAGE_PREFIX + 'currentUser');
+    }
+    return res;
   }, []);
 
   // ── Auth ──
