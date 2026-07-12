@@ -4,8 +4,6 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/response.php';
 
 set_json_headers();
-require_role(['admin', 'gerente_tienda', 'encargado_taller']);
-
 $pdo = getDB();
 
 // Seeding automático (silencioso - no debe bloquear el endpoint)
@@ -59,6 +57,8 @@ try {
     // Seeding failures are non-fatal — log and continue
     error_log('materia_prima seeding warning: ' . $e->getMessage());
 }
+
+require_role(['admin', 'gerente_tienda', 'encargado_taller']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
