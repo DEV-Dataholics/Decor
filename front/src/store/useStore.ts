@@ -35,6 +35,8 @@ export interface Cliente {
 export interface Empleado {
   id: number; nombre: string; rol: string; especialidades: string[]; activo: boolean;
   tarifa_base?: number;
+  sueldo_base?: number;
+  bono_semanal?: number;
 }
 
 export interface Tienda {
@@ -959,20 +961,68 @@ export function useStore(): DecorStore {
     window.location.reload();
   }, []);
 
-  const addEmpleado = useCallback((emp: Omit<Empleado, 'id'>) => {
-    setEmpleados(prev => {
-      const maxId = prev.length > 0 ? Math.max(...prev.map(e => e.id)) : 0;
-      return [...prev, { ...emp, id: maxId + 1 }];
-    });
-  }, []);
+  const addEmpleado = useCallback(async (emp: Omit<Empleado, 'id'>) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/empleados/crear.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emp)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.data) {
+          setEmpleados(prev => [...prev, data.data]);
+        } else {
+          await fetchCatalogos();
+        }
+      } else {
+        alert('Error al registrar el empleado en el servidor.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de red al registrar empleado.');
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const updateEmpleado = useCallback((id: number, emp: Partial<Empleado>) => {
-    setEmpleados(prev => prev.map(e => e.id === id ? { ...e, ...emp } : e));
-  }, []);
+  const updateEmpleado = useCallback(async (id: number, emp: Partial<Empleado>) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/empleados/editar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...emp })
+      });
+      if (res.ok) {
+        setEmpleados(prev => prev.map(e => e.id === id ? { ...e, ...emp } : e));
+      } else {
+        alert('Error al actualizar el empleado en el servidor.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de red al actualizar empleado.');
+    }
+  }, [apiBase, apiFetch]);
 
-  const deleteEmpleado = useCallback((id: number) => {
-    setEmpleados(prev => prev.filter(e => e.id !== id));
-  }, []);
+  const deleteEmpleado = useCallback(async (id: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/empleados/eliminar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        setEmpleados(prev => prev.filter(e => e.id !== id));
+        await fetchCatalogos();
+      } else {
+        alert('Error al eliminar el empleado del servidor.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de red al eliminar empleado.');
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
   return {
     currentUser, login, logout, checkAuth, fetchCatalogos, fetchOperativos,

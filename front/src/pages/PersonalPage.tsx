@@ -17,6 +17,11 @@ export default function PersonalPage() {
   const [newSpecInput, setNewSpecInput] = useState('');
   const [activo, setActivo] = useState(true);
 
+  // Salaries & bonuses state
+  const [tarifaBase, setTarifaBase] = useState(0);
+  const [sueldoBase, setSueldoBase] = useState(0);
+  const [bonoSemanal, setBonoSemanal] = useState(0);
+
   // Report State
   const [selectedReportEmp, setSelectedReportEmp] = useState<Empleado | null>(null);
 
@@ -110,16 +115,31 @@ export default function PersonalPage() {
           stats.activePieces += wo.cantidad;
         }
 
-        // Sumar pagos acumulados y piezas completadas
+        // Sumar pagos acumulados y piezas completadas (los pintores no acumulan por pieza, pero sumamos cantidad)
         if (wo.estatus === 'listo_embarque') {
           const fechaT = wo.fecha_termino || '';
           if (fechaT >= startDate && fechaT <= endDate) {
-            stats.total += wo.costo_acabado || 0;
             stats.completedCount += wo.cantidad;
           }
         }
         
         map.set(wo.empleado_acabado_id, stats);
+      }
+    });
+
+    // Calcular días para prorratear sueldo y bono fijo semanal para pintores
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const timeDiff = end.getTime() - start.getTime();
+    const days = Math.max(1, Math.round(timeDiff / (1000 * 3600 * 24)) + 1);
+    const scaleFactor = days / 7;
+
+    empleados.forEach(emp => {
+      if (emp.rol === 'pintor') {
+        const stats = map.get(emp.id) || { total: 0, count: 0, completedCount: 0, activePieces: 0 };
+        const basePay = (emp.sueldo_base || 0) + (emp.bono_semanal || 0);
+        stats.total = Number((basePay * scaleFactor).toFixed(2));
+        map.set(emp.id, stats);
       }
     });
 
@@ -151,6 +171,9 @@ export default function PersonalPage() {
     setEspecialidades(emp.especialidades);
     setNewSpecInput('');
     setActivo(emp.activo);
+    setTarifaBase(emp.tarifa_base || 0);
+    setSueldoBase(emp.sueldo_base || 0);
+    setBonoSemanal(emp.bono_semanal || 0);
     setShowForm(true);
   };
 
@@ -161,6 +184,9 @@ export default function PersonalPage() {
     setEspecialidades([]);
     setNewSpecInput('');
     setActivo(true);
+    setTarifaBase(0);
+    setSueldoBase(0);
+    setBonoSemanal(0);
     setShowForm(true);
   };
 
@@ -179,6 +205,9 @@ export default function PersonalPage() {
       rol,
       especialidades: finalSpecs,
       activo,
+      tarifa_base: rol !== 'pintor' ? Number(tarifaBase) : 0,
+      sueldo_base: rol === 'pintor' ? Number(sueldoBase) : 0,
+      bono_semanal: rol === 'pintor' ? Number(bonoSemanal) : 0,
     };
 
     if (editingId) {
@@ -429,6 +458,48 @@ export default function PersonalPage() {
                   <option value="encargado" className="bg-zinc-900">Encargado/Supervisor</option>
                 </select>
               </div>
+
+              {rol === 'pintor' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Sueldo Base Semanal ($)</label>
+                    <input 
+                      type="number" 
+                      value={sueldoBase || ''} 
+                      onChange={e => setSueldoBase(Number(e.target.value))} 
+                      className="input-dark w-full font-bold text-zinc-300"
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Bono Semanal ($)</label>
+                    <input 
+                      type="number" 
+                      value={bonoSemanal || ''} 
+                      onChange={e => setBonoSemanal(Number(e.target.value))} 
+                      className="input-dark w-full font-bold text-amber-400"
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Tarifa por Pieza ($)</label>
+                  <input 
+                    type="number" 
+                    value={tarifaBase || ''} 
+                    onChange={e => setTarifaBase(Number(e.target.value))} 
+                    className="input-dark w-full font-bold text-zinc-300"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Especialidades</label>

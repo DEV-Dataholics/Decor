@@ -8,7 +8,7 @@ require_role(['admin', 'gerente_tienda', 'encargado_taller', 'repartidor', 'bode
 
 $pdo = getDB();
 $stmt = $pdo->query("
-    SELECT id, nombre, rol, especialidades, tarifa_base, activo, fecha_ingreso
+    SELECT id, nombre, rol, especialidades, tarifa_base, sueldo_base, bono_semanal, activo, fecha_ingreso
     FROM empleados ORDER BY nombre
 ");
 $empleados = $stmt->fetchAll();

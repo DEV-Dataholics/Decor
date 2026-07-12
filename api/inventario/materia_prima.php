@@ -17,19 +17,21 @@ try {
         $pdo->exec("ALTER TABLE materiales ADD COLUMN color VARCHAR(7) NULL DEFAULT '#cccccc'");
     }
 
+    // Obtener un creador válido
+    $creado_por = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
+
     // Obtener un proveedor_id válido
     $prov_id = $pdo->query("SELECT id FROM proveedores LIMIT 1")->fetchColumn();
     if (!$prov_id) {
         try {
-            $pdo->exec("INSERT INTO proveedores (nombre, rfc, contacto_nombre, tipo) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema', 'materia_prima')");
+            $stmtProv = $pdo->prepare("INSERT INTO proveedores (nombre, rfc, contacto_nombre, tipo, creado_por) VALUES ('Proveedor General', 'XAXX010101000', 'Sistema', 'materia_prima', ?)");
+            $stmtProv->execute([$creado_por]);
             $prov_id = $pdo->lastInsertId();
         } catch (PDOException $e) {
             // Si ya existe por RFC duplicado, obtener su ID
             $prov_id = $pdo->query("SELECT id FROM proveedores WHERE rfc = 'XAXX010101000' LIMIT 1")->fetchColumn() ?: 1;
         }
     }
-
-    $creado_por = $pdo->query("SELECT id FROM usuarios LIMIT 1")->fetchColumn() ?: 1;
 
     // Semilla de materias primas
     $maderas = [

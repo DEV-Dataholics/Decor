@@ -150,9 +150,9 @@ export default function ProduccionPage() {
     moveWorkOrder(assignmentModalWo.id, targetAssignmentStatus, {
       empleado_id: emp.id,
       empleado_nombre: emp.nombre,
-      costo_mano_obra: Number(customMontoPago),
+      costo_mano_obra: targetAssignmentStatus === 'acabados' ? 0 : Number(customMontoPago),
       cantidad_asignada: cantidadAsignar,
-      costo_mano_obra_unitario: tarifaUnitaria
+      costo_mano_obra_unitario: targetAssignmentStatus === 'acabados' ? 0 : tarifaUnitaria
     });
 
     setAssignmentModalWo(null);
@@ -622,47 +622,51 @@ export default function ProduccionPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Tarifa por Pieza ($)</label>
-                  <input 
-                    type="number" 
-                    value={tarifaUnitaria || ''}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setTarifaUnitaria(val);
-                      setCustomMontoPago(Number((val * cantidadAsignar).toFixed(2)));
-                    }}
-                    onFocus={e => e.target.select()}
-                    className="input-dark w-full font-bold text-amber-400"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Pago Total ($)</label>
-                  <input 
-                    type="number" 
-                    value={customMontoPago || ''}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setCustomMontoPago(val);
-                      if (cantidadAsignar > 0) {
-                        setTarifaUnitaria(Number((val / cantidadAsignar).toFixed(2)));
-                      }
-                    }}
-                    onFocus={e => e.target.select()}
-                    className="input-dark w-full font-bold text-emerald-400"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-              <p className="text-[9px] text-zinc-500">
-                Los campos están vinculados. Modificar cualquiera calculará el otro para la cantidad de {cantidadAsignar} {cantidadAsignar === 1 ? 'pieza' : 'piezas'}.
-              </p>
+              {targetAssignmentStatus !== 'acabados' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Tarifa por Pieza ($)</label>
+                      <input 
+                        type="number" 
+                        value={tarifaUnitaria || ''}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          setTarifaUnitaria(val);
+                          setCustomMontoPago(Number((val * cantidadAsignar).toFixed(2)));
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="input-dark w-full font-bold text-amber-400"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase mb-1 block">Pago Total ($)</label>
+                      <input 
+                        type="number" 
+                        value={customMontoPago || ''}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          setCustomMontoPago(val);
+                          if (cantidadAsignar > 0) {
+                            setTarifaUnitaria(Number((val / cantidadAsignar).toFixed(2)));
+                          }
+                        }}
+                        onFocus={e => e.target.select()}
+                        className="input-dark w-full font-bold text-emerald-400"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-zinc-500">
+                    Los campos están vinculados. Modificar cualquiera calculará el otro para la cantidad de {cantidadAsignar} {cantidadAsignar === 1 ? 'pieza' : 'piezas'}.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="flex gap-2.5 pt-3">
