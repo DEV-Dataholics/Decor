@@ -40,21 +40,23 @@ try {
     if ($method === 'POST') {
         $stmt = $db->prepare("
             INSERT INTO productos
-              (categoria_id, sku, nombre, descripcion, precio_venta_base,
-               precio_produccion_base, es_pieza_unica, dimension_alto,
-               dimension_ancho, dimension_largo, notas, foto_url, creado_por)
+              (categoria_id, codigo_sku, nombre, descripcion, precio_venta_base,
+               precio_costo_base, es_pieza_unica, medidas_base, notas, foto_url, creado_por)
             VALUES
-              (:cat, :sku, :nom, :desc, :pv, :pp, :eu, :alto,
-               :ancho, :largo, :notas, :foto, :uid)
+              (:cat, :sku, :nom, :desc, :pv, :pp, :eu, :medidas, :notas, :foto, :uid)
         ");
         $stmt->execute([
-            ':cat'  => $categoria_id, ':sku'  => $sku,
-            ':nom'  => $nombre,       ':desc' => $descripcion,
-            ':pv'   => $precio_venta, ':pp'   => $precio_prod,
-            ':eu'   => $es_unica,     ':alto' => $alto,
-            ':ancho'=> $ancho,        ':largo'=> $largo,
-            ':notas'=> $notas,        ':foto' => $foto_url,
-            ':uid'  => $user['id'],
+            ':cat'     => $categoria_id, 
+            ':sku'     => $sku,
+            ':nom'     => $nombre,       
+            ':desc'    => $descripcion,
+            ':pv'      => $precio_venta, 
+            ':pp'      => $precio_prod,
+            ':eu'      => $es_unica,     
+            ':medidas' => json_encode(['alto' => $alto, 'ancho' => $ancho, 'largo' => $largo]),
+            ':notas'   => $notas,        
+            ':foto'    => $foto_url,
+            ':uid'     => $user['id'],
         ]);
         $producto_id = (int)$db->lastInsertId();
 
@@ -65,21 +67,24 @@ try {
 
         $stmt = $db->prepare("
             UPDATE productos SET
-              categoria_id = :cat, sku = :sku, nombre = :nom,
+              categoria_id = :cat, codigo_sku = :sku, nombre = :nom,
               descripcion = :desc, precio_venta_base = :pv,
-              precio_produccion_base = :pp, es_pieza_unica = :eu,
-              dimension_alto = :alto, dimension_ancho = :ancho,
-              dimension_largo = :largo, notas = :notas, foto_url = :foto
+              precio_costo_base = :pp, es_pieza_unica = :eu,
+              medidas_base = :medidas, notas = :notas, foto_url = :foto
             WHERE id = :pid
         ");
         $stmt->execute([
-            ':cat'  => $categoria_id, ':sku'  => $sku,
-            ':nom'  => $nombre,       ':desc' => $descripcion,
-            ':pv'   => $precio_venta, ':pp'   => $precio_prod,
-            ':eu'   => $es_unica,     ':alto' => $alto,
-            ':ancho'=> $ancho,        ':largo'=> $largo,
-            ':notas'=> $notas,        ':foto' => $foto_url,
-            ':pid'  => $producto_id,
+            ':cat'     => $categoria_id, 
+            ':sku'     => $sku,
+            ':nom'     => $nombre,       
+            ':desc'    => $descripcion,
+            ':pv'      => $precio_venta, 
+            ':pp'      => $precio_prod,
+            ':eu'      => $es_unica,     
+            ':medidas' => json_encode(['alto' => $alto, 'ancho' => $ancho, 'largo' => $largo]),
+            ':notas'   => $notas,        
+            ':foto'    => $foto_url,
+            ':pid'     => $producto_id,
         ]);
 
         // Limpiar acabados anteriores antes de re-insertar
@@ -105,6 +110,8 @@ try {
     json_ok(['id' => $producto_id], $method === 'POST' ? 201 : 200);
 
 } catch (Exception $e) {
-    $db->rollBack();
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     json_error('Error al guardar producto: ' . $e->getMessage(), 500);
 }

@@ -189,7 +189,9 @@ export interface DecorStore {
   updateAcabado: (oldAcabado: string, newAcabado: string) => void;
   deleteAcabado: (acabado: string) => void;
   guardarComoProducto: (item: PedidoItem) => Producto;
-  updateProducto: (id: number, prod: Partial<Producto>) => void;
+  addProducto: (prod: Omit<Producto, 'id'>) => Promise<boolean>;
+  updateProducto: (id: number, prod: Partial<Producto>) => Promise<boolean>;
+  acabadosList: any[];
   // Utils
   resetDemo: () => void;
   isInitialized: boolean;
@@ -255,6 +257,7 @@ export function useStore(): DecorStore {
   const [empleados, setEmpleados] = useState<Empleado[]>(() => getOrInit('empleados', empleadosData as Empleado[]));
   const [tiendas, setTiendas] = useState<Tienda[]>(() => getOrInit('tiendas', tiendasData as Tienda[]));
   const [acabados, setAcabados] = useState<string[]>(() => getOrInit('acabados', acabadosData as string[]));
+  const [acabadosList, setAcabadosList] = useState<any[]>([]);
   
   // ── Datos operativos: inicializan vacíos, se cargan del API al login ──
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
@@ -369,7 +372,13 @@ export function useStore(): DecorStore {
       if (resCli.ok) { const d = await resCli.json(); if(d.data?.items) setClientes(d.data.items); }
       if (resEmp.ok) { const d = await resEmp.json(); if(d.data?.items) setEmpleados(d.data.items); }
       if (resTie.ok) { const d = await resTie.json(); if(d.data?.items) setTiendas(d.data.items); }
-      if (resAca.ok) { const d = await resAca.json(); if(d.data?.items) setAcabados(d.data.items.map((a: any) => a.nombre)); }
+      if (resAca.ok) {
+        const d = await resAca.json();
+        if(d.data?.items) {
+          setAcabadosList(d.data.items);
+          setAcabados(d.data.items.map((a: any) => a.nombre));
+        }
+      }
 
       // Cargar usuarios si es admin
       const currentUserData = loadFromStorage<Usuario>('currentUser');
@@ -876,9 +885,105 @@ export function useStore(): DecorStore {
     return newProd;
   }, []);
 
-  const updateProducto = useCallback((id: number, prod: Partial<Producto>) => {
-    setProductos(prev => prev.map(p => p.id === id ? { ...p, ...prod } : p));
-  }, []);
+  const addProducto = useCallback(async (prod: Omit<Producto, 'id'>) => {
+    try {
+      const base = apiBase();
+      const cat = categorias.find(c => c.nombre.toLowerCase() === prod.type.toLowerCase());
+      const categoria_id = cat ? cat.id : 19;
+      
+      const acabadosIds = prod.finishes.map(fname => {
+        return acabadosList.find(a => a.nombre.toLowerCase() === fname.toLowerCase())?.id;
+      }).filter(id => id !== undefined);
+
+      const body = {
+        nombre: prod.name,
+        sku: prod.sku,
+        categoria_id,
+        precio_venta_base: prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0,
+        precio_produccion_base: prod.costo_produccion || 0,
+        dimension_alto: prod.dimensions.height,
+        dimension_ancho: prod.dimensions.width,
+        dimension_largo: prod.dimensions.depth,
+        foto_url: prod.image_url ? [prod.image_url] : [],
+        acabados: acabadosIds,
+        descripcion: '',
+        notas: '',
+        es_pieza_unica: 0
+      };
+
+      const res = await apiFetch(`${base}/api/productos/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        await fetchCatalogos();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [apiBase, apiFetch, fetchCatalogos, categorias, acabadosList]);
+
+  const updateProducto = useCallback(async (id: number, prod: Partial<Producto>) => {
+    try {
+      const base = apiBase();
+      const orig = productos.find(p => p.id === id);
+      if (!orig) return false;
+
+      const name = prod.name !== undefined ? prod.name : orig.name;
+      const sku = prod.sku !== undefined ? prod.sku : orig.sku;
+      const type = prod.type !== undefined ? prod.type : orig.type;
+      const cat = categorias.find(c => c.nombre.toLowerCase() === type.toLowerCase());
+      const categoria_id = cat ? cat.id : 19;
+
+      const finishes = prod.finishes !== undefined ? prod.finishes : orig.finishes;
+      const acabadosIds = finishes.map(fname => {
+        return acabadosList.find(a => a.nombre.toLowerCase() === fname.toLowerCase())?.id;
+      }).filter(id => id !== undefined);
+
+      const prices = prod.prices !== undefined ? prod.prices : orig.prices;
+      const precio_venta = prices['Publico'] || prices['General'] || Object.values(prices)[0] || 0;
+      const costo_produccion = prod.costo_produccion !== undefined ? prod.costo_produccion : orig.costo_produccion;
+
+      const dimensions = prod.dimensions !== undefined ? prod.dimensions : orig.dimensions;
+
+      const body = {
+        id,
+        nombre: name,
+        sku,
+        categoria_id,
+        precio_venta_base: precio_venta,
+        precio_produccion_base: costo_produccion || 0,
+        dimension_alto: dimensions.height,
+        dimension_ancho: dimensions.width,
+        dimension_largo: dimensions.depth,
+        foto_url: prod.image_url !== undefined ? (prod.image_url ? [prod.image_url] : []) : (orig.image_url ? [orig.image_url] : []),
+        acabados: acabadosIds,
+        descripcion: '',
+        notas: '',
+        es_pieza_unica: 0
+      };
+
+      const res = await apiFetch(`${base}/api/productos/save.php`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setProductos(prev => prev.map(p => p.id === id ? { ...p, ...prod } : p));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [apiBase, apiFetch, productos, categorias, acabadosList]);
 
   const addUsuario = useCallback(async (usr: any) => {
     try {
@@ -1036,7 +1141,7 @@ export function useStore(): DecorStore {
     addCliente, updateCliente, deleteCliente,
     addTienda, updateTienda, deleteTienda,
     addAcabado, updateAcabado, deleteAcabado,
-    guardarComoProducto, updateProducto,
+    guardarComoProducto, updateProducto, addProducto, acabadosList,
     addEmpleado, updateEmpleado, deleteEmpleado,
     resetDemo, isInitialized: true,
   };

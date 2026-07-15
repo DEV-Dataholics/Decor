@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Search, Grid3X3, List, X, Save, Ruler, Upload, Printer } from 'lucide-react';
+import { Search, Grid3X3, List, X, Save, Ruler, Upload, Printer, Plus } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import QRLabel from '../components/QRLabel';
 
 export default function CatalogoPage() {
-  const { productos, acabados, clientes, updateProducto } = useDecor();
+  const { productos, acabados, clientes, updateProducto, addProducto, categorias } = useDecor();
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [finishFilter, setFinishFilter] = useState('');
@@ -17,6 +17,73 @@ export default function CatalogoPage() {
   
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+
+  // Add Product Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState<any>({
+    name: '',
+    sku: '',
+    type: 'Armories',
+    costo_produccion: 0,
+    dimensions: { width: 0, height: 0, depth: 0 },
+    finishes: ['Natural'],
+    prices: { 'Publico': 0 },
+    image_url: null
+  });
+
+  const handleAddImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setAddForm((prev: any) => ({ ...prev, image_url: dataUrl }));
+        };
+        img.src = ev.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!addForm.name || !addForm.sku) {
+      alert('Por favor completa los campos de Nombre y SKU.');
+      return;
+    }
+    const success = await addProducto(addForm);
+    if (success) {
+      setShowAddModal(false);
+      setAddForm({
+        name: '',
+        sku: '',
+        type: 'Armories',
+        costo_produccion: 0,
+        dimensions: { width: 0, height: 0, depth: 0 },
+        finishes: ['Natural'],
+        prices: { 'Publico': 0 },
+        image_url: null
+      });
+    } else {
+      alert('Error al guardar el producto.');
+    }
+  };
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -89,6 +156,7 @@ export default function CatalogoPage() {
           {acabados.map(a => <option key={a} value={a} className="bg-zinc-900">{a}</option>)}
         </select>
         <button onClick={() => setView(view === 'grid' ? 'list' : 'grid')} className="btn-ghost shrink-0">{view === 'grid' ? <List size={16} /> : <Grid3X3 size={16} />}</button>
+        <button onClick={() => setShowAddModal(true)} className="btn-primary py-2 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0"><Plus size={14} /> Nuevo Producto</button>
       </div>
 
       <p className="text-xs text-zinc-500">{filtered.length} productos</p>
@@ -320,6 +388,188 @@ export default function CatalogoPage() {
               <button onClick={() => setPrintBatch(null)} className="btn-ghost">Cancelar</button>
               <button onClick={() => window.print()} className="btn-primary flex items-center gap-1.5">
                 <Printer size={16} /> Imprimir {printBatch.count} Etiquetas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-lg max-h-[85vh] overflow-y-auto animate-scale-in">
+            <div className="px-6 py-4 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-800/90 backdrop-blur-sm z-10">
+              <h3 className="font-bold text-zinc-100 flex items-center gap-2">
+                <Plus size={18} className="text-amber-400" /> Registrar Nuevo Producto
+              </h3>
+              <button onClick={() => setShowAddModal(false)} className="text-zinc-500 hover:text-zinc-300"><X size={18} /></button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Image upload */}
+              <div className="w-full aspect-video bg-zinc-800/50 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group border border-dashed border-zinc-700">
+                {addForm.image_url ? (
+                  <img src={addForm.image_url} alt="Vista previa" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-4xl text-zinc-600">🪑</span>
+                )}
+                <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <div className="text-zinc-200 text-sm font-semibold bg-zinc-800/80 px-4 py-2 rounded-lg flex items-center gap-2">
+                    <Upload size={16} /> Subir Imagen/Diagrama
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAddImageUpload} />
+                </label>
+              </div>
+
+              {/* Form fields */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Nombre del Producto</label>
+                  <input 
+                    type="text" 
+                    value={addForm.name} 
+                    onChange={e => setAddForm({ ...addForm, name: e.target.value })} 
+                    className="input-dark w-full text-sm py-1.5" 
+                    placeholder="Ej. Trinchador Rústico 2 Puertas"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">SKU / Código</label>
+                    <input 
+                      type="text" 
+                      value={addForm.sku} 
+                      onChange={e => setAddForm({ ...addForm, sku: e.target.value.toUpperCase() })} 
+                      className="input-dark w-full text-sm py-1.5 font-mono" 
+                      placeholder="Ej. TRI-02"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Categoría</label>
+                    <select 
+                      value={addForm.type} 
+                      onChange={e => setAddForm({ ...addForm, type: e.target.value })} 
+                      className="input-dark w-full text-sm py-1.5"
+                    >
+                      {categorias.map(c => <option key={c.id} value={c.nombre} className="bg-zinc-900">{c.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Precio Venta Base (Público)</label>
+                    <input 
+                      type="number" 
+                      value={addForm.prices['Publico'] || ''} 
+                      onChange={e => setAddForm({ ...addForm, prices: { ...addForm.prices, 'Publico': Number(e.target.value) } })} 
+                      className="input-dark w-full text-sm py-1.5" 
+                      placeholder="0.00"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Costo Producción (Taller)</label>
+                    <input 
+                      type="number" 
+                      value={addForm.costo_produccion || ''} 
+                      onChange={e => setAddForm({ ...addForm, costo_produccion: Number(e.target.value) })} 
+                      className="input-dark w-full text-sm py-1.5" 
+                      placeholder="0.00"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-zinc-800/45 p-3 rounded-lg border border-zinc-700/30">
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-2">Dimensiones (pulgadas)</label>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                      <span>Ancho:</span>
+                      <input 
+                        type="number" 
+                        value={addForm.dimensions.width || ''} 
+                        onChange={e => setAddForm({ ...addForm, dimensions: { ...addForm.dimensions, width: Number(e.target.value) } })} 
+                        className="input-dark w-16 text-center py-1 text-xs" 
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                      <span>Alto:</span>
+                      <input 
+                        type="number" 
+                        value={addForm.dimensions.height || ''} 
+                        onChange={e => setAddForm({ ...addForm, dimensions: { ...addForm.dimensions, height: Number(e.target.value) } })} 
+                        className="input-dark w-16 text-center py-1 text-xs" 
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                      <span>Fondo:</span>
+                      <input 
+                        type="number" 
+                        value={addForm.dimensions.depth || ''} 
+                        onChange={e => setAddForm({ ...addForm, dimensions: { ...addForm.dimensions, depth: Number(e.target.value) } })} 
+                        className="input-dark w-16 text-center py-1 text-xs" 
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Acabados Disponibles</label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 bg-zinc-800/25 p-3 rounded-lg border border-zinc-700/20">
+                    {acabados.map(a => (
+                      <label key={a} className="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={addForm.finishes.includes(a)} 
+                          onChange={e => {
+                            const newFinishes = e.target.checked 
+                              ? [...addForm.finishes, a] 
+                              : addForm.finishes.filter((f: string) => f !== a);
+                            setAddForm({ ...addForm, finishes: newFinishes });
+                          }} 
+                          className="accent-amber-500 rounded border-zinc-700" 
+                        />
+                        {a}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-zinc-500 font-semibold uppercase block mb-1">Precios Especiales por Cliente</label>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {clientes.map(cli => (
+                      <div key={cli.nombre} className="flex justify-between items-center bg-zinc-800/40 px-3 py-1.5 rounded-lg gap-2 border border-zinc-700/10">
+                        <span className="text-xs text-zinc-400 flex-1 truncate">{cli.nombre}</span>
+                        <div className="relative w-28">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">$</span>
+                          <input 
+                            type="number" 
+                            value={addForm.prices[cli.nombre] || ''} 
+                            onChange={e => setAddForm({ 
+                              ...addForm, 
+                              prices: { ...addForm.prices, [cli.nombre]: Number(e.target.value) } 
+                            })} 
+                            className="input-dark w-full pl-6 py-0.5 text-xs text-right" 
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-zinc-700/50 flex justify-end gap-3 bg-zinc-800/90 rounded-b-2xl">
+              <button onClick={() => setShowAddModal(false)} className="btn-ghost">Cancelar</button>
+              <button onClick={handleCreateProduct} className="btn-primary flex items-center gap-1.5">
+                <Save size={16} /> Registrar Producto
               </button>
             </div>
           </div>
