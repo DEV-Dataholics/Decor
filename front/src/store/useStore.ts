@@ -801,7 +801,7 @@ export function useStore(): DecorStore {
 
   const updateMateriaPrima = useCallback((id: number, delta: number) => {
     setMateriaPrima(prev => prev.map(mp =>
-      mp.id === id ? { ...mp, cantidad: Math.max(0, mp.cantidad + delta) } : mp
+      mp.id === id ? { ...mp, cantidad: Math.max(0, Number((Number(mp.cantidad) + delta).toFixed(2))) } : mp
     ));
   }, []);
 

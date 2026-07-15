@@ -449,7 +449,9 @@ export default function InventarioPage() {
                   {isCritical && <AlertTriangle size={16} className="text-red-400 animate-pulse" />}
                 </div>
                 <div className="text-center">
-                  <p className={`text-3xl font-black ${isCritical ? 'text-red-400' : 'text-zinc-100'}`}>{mp.cantidad}</p>
+                  <p className={`text-3xl font-black ${isCritical ? 'text-red-400' : 'text-zinc-100'}`}>
+                    {Number(mp.cantidad).toLocaleString('es-MX', { maximumFractionDigits: 2 })}
+                  </p>
                   <p className="text-xs text-zinc-500">{mp.unidad}</p>
                 </div>
                 {/* Gauge */}
