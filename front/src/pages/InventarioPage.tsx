@@ -448,11 +448,27 @@ export default function InventarioPage() {
                   </div>
                   {isCritical && <AlertTriangle size={16} className="text-red-400 animate-pulse" />}
                 </div>
-                <div className="text-center">
-                  <p className={`text-3xl font-black ${isCritical ? 'text-red-400' : 'text-zinc-100'}`}>
-                    {Number(mp.cantidad).toLocaleString('es-MX', { maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-zinc-500">{mp.unidad}</p>
+                <div className="text-center flex flex-col items-center">
+                  <input 
+                    type="number"
+                    step={Number(mp.permite_decimales) === 1 ? "0.01" : "1"}
+                    value={mp.cantidad}
+                    onChange={e => {
+                      let val = e.target.value;
+                      if (val === '') {
+                        updateMateriaPrima(mp.id, 0, true);
+                        return;
+                      }
+                      let num = parseFloat(val);
+                      if (Number(mp.permite_decimales) !== 1) {
+                        num = Math.round(num);
+                      }
+                      if (isNaN(num)) num = 0;
+                      updateMateriaPrima(mp.id, num, true);
+                    }}
+                    className={`bg-transparent border-b border-zinc-700/50 font-black text-3xl text-center w-28 focus:border-amber-500 focus:outline-none ${isCritical ? 'text-red-400' : 'text-zinc-100'}`}
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">{mp.unidad}</p>
                 </div>
                 {/* Gauge */}
                 <div className="relative h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -460,7 +476,29 @@ export default function InventarioPage() {
                   {/* Min line */}
                   <div className="absolute top-0 h-full w-0.5 bg-zinc-500" style={{ left: `${(mp.minimo / (mp.minimo * 3)) * 100}%` }} />
                 </div>
-                <p className="text-[10px] text-zinc-600 text-center">Mínimo: {mp.minimo} {mp.unidad}</p>
+                <div className="text-[10px] text-zinc-600 text-center flex items-center justify-center gap-1">
+                  <span>Mínimo:</span>
+                  <input 
+                    type="number"
+                    step={Number(mp.permite_decimales) === 1 ? "0.01" : "1"}
+                    value={mp.minimo}
+                    onChange={e => {
+                      let val = e.target.value;
+                      if (val === '') {
+                        updateMateriaPrima(mp.id, 0, true, 'minimo');
+                        return;
+                      }
+                      let num = parseFloat(val);
+                      if (Number(mp.permite_decimales) !== 1) {
+                        num = Math.round(num);
+                      }
+                      if (isNaN(num)) num = 0;
+                      updateMateriaPrima(mp.id, num, true, 'minimo');
+                    }}
+                    className="bg-transparent border-b border-zinc-700/30 text-zinc-400 text-center w-12 focus:border-amber-500 focus:outline-none"
+                  />
+                  <span>{mp.unidad}</span>
+                </div>
                 {/* Actions */}
                 <div className="flex gap-2 justify-center">
                   <button onClick={() => updateMateriaPrima(mp.id, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all"><Minus size={14} /></button>

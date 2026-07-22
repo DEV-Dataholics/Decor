@@ -57,9 +57,16 @@ export default function PersonalPage() {
       end.setHours(23, 59, 59, 999);
     }
 
+    const formatDateLocal = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
+      start: formatDateLocal(start),
+      end: formatDateLocal(end),
     };
   };
 
@@ -137,8 +144,11 @@ export default function PersonalPage() {
     empleados.forEach(emp => {
       if (emp.rol === 'pintor') {
         const stats = map.get(emp.id) || { total: 0, count: 0, completedCount: 0, activePieces: 0 };
-        const basePay = (emp.sueldo_base || 0) + (emp.bono_semanal || 0);
-        stats.total = Number((basePay * scaleFactor).toFixed(2));
+        const sBase = isNaN(Number(emp.sueldo_base)) ? 0 : Number(emp.sueldo_base);
+        const bSeman = isNaN(Number(emp.bono_semanal)) ? 0 : Number(emp.bono_semanal);
+        const basePay = sBase + bSeman;
+        const computed = basePay * scaleFactor;
+        stats.total = isNaN(computed) ? 0 : Number(computed.toFixed(2));
         map.set(emp.id, stats);
       }
     });

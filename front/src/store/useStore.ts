@@ -50,6 +50,7 @@ export interface InventarioItem {
 
 export interface MateriaPrima {
   id: number; nombre: string; unidad: string; cantidad: number; minimo: number; color: string;
+  permite_decimales?: number;
 }
 
 export type WOStatus = 'pendiente' | 'en_produccion' | 'acabados' | 'listo_embarque';
@@ -171,7 +172,7 @@ export interface DecorStore {
   confirmarRecepcion: (embarqueId: number, items: EmbarqueItem[]) => Promise<void>;
   registrarVentaQR: (qrCode: string, tiendaId: number) => boolean;
   registrarVentaCarrito: (tiendaId: number, qrCodes: string[]) => Venta | null;
-  updateMateriaPrima: (id: number, delta: number) => void;
+  updateMateriaPrima: (id: number, val: number, isAbsolute?: boolean, key?: 'cantidad' | 'minimo') => void;
   guardarMateriaPrima: () => Promise<void>;
   addUsuario: (usr: any) => Promise<void>;
   updateUsuario: (usr: any) => Promise<void>;
@@ -293,6 +294,9 @@ export function useStore(): DecorStore {
     if (res.status === 401) {
       setCurrentUser(null);
       localStorage.removeItem(STORAGE_PREFIX + 'currentUser');
+      if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/')) {
+        window.location.href = '/login';
+      }
     }
     return res;
   }, []);
@@ -808,10 +812,19 @@ export function useStore(): DecorStore {
     return venta;
   }, [embarques, terminados]);
 
-  const updateMateriaPrima = useCallback((id: number, delta: number) => {
-    setMateriaPrima(prev => prev.map(mp =>
-      mp.id === id ? { ...mp, cantidad: Math.max(0, Number((Number(mp.cantidad) + delta).toFixed(2))) } : mp
-    ));
+  const updateMateriaPrima = useCallback((id: number, val: number, isAbsolute: boolean = false, key: 'cantidad' | 'minimo' = 'cantidad') => {
+    setMateriaPrima(prev => prev.map(mp => {
+      if (mp.id !== id) return mp;
+      const isDecimal = Number(mp.permite_decimales) === 1;
+      let targetVal = key === 'minimo' ? mp.minimo : mp.cantidad;
+      let newQty = isAbsolute ? val : Number(targetVal) + val;
+      if (!isDecimal) {
+        newQty = Math.round(newQty);
+      } else {
+        newQty = Number(newQty.toFixed(2));
+      }
+      return { ...mp, [key]: Math.max(0, newQty) };
+    }));
   }, []);
 
   const guardarMateriaPrima = useCallback(async () => {
