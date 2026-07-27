@@ -756,10 +756,23 @@ export default function InventarioPage() {
       </div>
 
       {/* Real Print Area (only visible on media print) */}
-      <div className="hidden print:block print:w-full print:absolute print:top-0 print:left-0 print:bg-white print:z-50">
+      <div className="hidden print:block print:w-full print:absolute print:top-0 print:left-0 print:bg-white print:z-50 print-area">
         <style>{`
           @media print {
             @page { margin: 10mm; size: letter; }
+            body * {
+              visibility: hidden;
+            }
+            .print-area, .print-area * {
+              visibility: visible;
+            }
+            .print-area {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              background: white;
+            }
             body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         `}</style>

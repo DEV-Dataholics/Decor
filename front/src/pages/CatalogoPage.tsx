@@ -400,6 +400,47 @@ export default function CatalogoPage() {
         </div>
       )}
 
+      {/* Bulk Print Area for Catalog Labels */}
+      {printBatch && (
+        <div className="hidden print:block print:w-full print:absolute print:top-0 print:left-0 print:bg-white print:z-50 print-area">
+          <style>{`
+            @media print {
+              @page { margin: 10mm; size: letter; }
+              body * {
+                visibility: hidden;
+              }
+              .print-area, .print-area * {
+                visibility: visible;
+              }
+              .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+              }
+              body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          `}</style>
+          <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+            {Array.from({ length: printBatch.count }).map((_, idx) => (
+              <div key={idx} className="break-inside-avoid flex justify-center">
+                <QRLabel 
+                  qrCode={printBatch.sku} 
+                  productoNombre={printBatch.name} 
+                  ordenId={0} 
+                  clienteNombre="MUESTRARIO CATÁLOGO" 
+                  acabado="Varios" 
+                  precio={printBatch.precio}
+                  size={80} 
+                  showPrint={false} 
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
