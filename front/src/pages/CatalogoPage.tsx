@@ -12,7 +12,7 @@ export default function CatalogoPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   
   // Printing states
-  const [printBatch, setPrintBatch] = useState<{ name: string, sku: string, count: number } | null>(null);
+  const [printBatch, setPrintBatch] = useState<{ name: string, sku: string, count: number, precio: number } | null>(null);
   const [printCount, setPrintCount] = useState<number>(1);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -342,7 +342,12 @@ export default function CatalogoPage() {
                       />
                     </div>
                     <button 
-                      onClick={() => setPrintBatch({ name: selected.name, sku: selected.sku, count: printCount })}
+                      onClick={() => setPrintBatch({ 
+                        name: selected.name, 
+                        sku: selected.sku, 
+                        count: printCount, 
+                        precio: selected.prices['Publico'] || selected.prices['General'] || Object.values(selected.prices)[0] || 0
+                      })}
                       className="btn-secondary py-2 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0"
                     >
                       <Printer size={14} /> Imprimir {printCount} Etiquetas
@@ -378,6 +383,7 @@ export default function CatalogoPage() {
                     ordenId={0} 
                     clienteNombre="MUESTRARIO CATÁLOGO" 
                     acabado="Varios" 
+                    precio={printBatch.precio}
                     size={110} 
                     showPrint={false}
                   />

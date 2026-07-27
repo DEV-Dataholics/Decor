@@ -45,7 +45,6 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: withSuspense(DashboardPage) },
-      { path: 'reparto', element: withSuspense(RepartoPage) },
       { path: 'pos', element: withSuspense(PuntoDeVentaPage) },
       { path: 'pedidos', element: withSuspense(PedidosPage) },
       { path: 'produccion', element: withSuspense(ProduccionPage) },

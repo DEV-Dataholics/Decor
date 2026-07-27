@@ -13,7 +13,7 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/reparto', label: 'Reparto', icon: <Truck size={20} />, roles: ['repartidor', 'admin'] },
+
   { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'encargado_taller'] },
   { path: '/pos', label: 'POS (QR)', icon: <ScanLine size={20} />, roles: ['admin', 'gerente_tienda'] },
   { path: '/pedidos', label: 'Pedidos', icon: <ClipboardList size={20} />, roles: ['admin'] },

@@ -11,7 +11,7 @@ type MobileNavItem = {
 };
 
 const MOBILE_NAV: MobileNavItem[] = [
-  { path: '/reparto', label: 'Rutas', icon: <Truck size={20} />, roles: ['repartidor'] },
+
   { path: '/dashboard', label: 'Inicio', icon: <LayoutDashboard size={20} />, roles: ['admin', 'encargado_taller'] },
   { path: '/pos', label: 'POS', icon: <ScanLine size={20} />, roles: ['admin', 'gerente_tienda'] },
   { path: '/pedidos', label: 'Pedidos', icon: <ClipboardList size={20} />, roles: ['admin'] },

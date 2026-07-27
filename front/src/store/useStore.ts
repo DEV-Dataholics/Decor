@@ -10,7 +10,7 @@ import materiaPrimaData from '../data/materia-prima.json';
 import acabadosData from '../data/acabados.json';
 
 // --- Tipos ---
-export type Rol = 'admin' | 'gerente_tienda' | 'encargado_taller' | 'repartidor';
+export type Rol = 'admin' | 'gerente_tienda' | 'encargado_taller';
 
 export interface Usuario {
   id: number; nombre: string; email: string; password?: string; rol: Rol; avatar: string; activo?: boolean; empleado_id?: number; creado_en?: string;
@@ -174,6 +174,7 @@ export interface DecorStore {
   registrarVentaCarrito: (tiendaId: number, qrCodes: string[]) => Venta | null;
   updateMateriaPrima: (id: number, val: number, isAbsolute?: boolean, key?: 'cantidad' | 'minimo') => void;
   guardarMateriaPrima: () => Promise<void>;
+  updateStockTienda: (tiendaId: number, productoId: number, cantidad: number) => Promise<boolean>;
   addUsuario: (usr: any) => Promise<void>;
   updateUsuario: (usr: any) => Promise<void>;
   deleteUsuario: (id: number) => Promise<void>;
@@ -183,12 +184,12 @@ export interface DecorStore {
   addEmpleado: (emp: Omit<Empleado, 'id'>) => void;
   updateEmpleado: (id: number, emp: Partial<Empleado>) => void;
   deleteEmpleado: (id: number) => void;
-  addTienda: (tienda: Omit<Tienda, 'id'>) => void;
-  updateTienda: (id: number, tienda: Partial<Tienda>) => void;
-  deleteTienda: (id: number) => void;
-  addAcabado: (acabado: string) => void;
-  updateAcabado: (oldAcabado: string, newAcabado: string) => void;
-  deleteAcabado: (acabado: string) => void;
+  addTienda: (tienda: Omit<Tienda, 'id'>) => Promise<void>;
+  updateTienda: (id: number, tienda: Partial<Tienda>) => Promise<void>;
+  deleteTienda: (id: number) => Promise<void>;
+  addAcabado: (acabado: string) => Promise<void>;
+  updateAcabado: (oldAcabado: string, newAcabado: string) => Promise<void>;
+  deleteAcabado: (acabado: string) => Promise<void>;
   guardarComoProducto: (item: PedidoItem) => Producto;
   addProducto: (prod: Omit<Producto, 'id'>) => Promise<boolean>;
   updateProducto: (id: number, prod: Partial<Producto>) => Promise<boolean>;
@@ -847,6 +848,52 @@ export function useStore(): DecorStore {
     }
   }, [materiaPrima, apiBase, apiFetch, fetchOperativos]);
 
+  const updateStockTienda = useCallback(async (tiendaId: number, productoId: number, cantidad: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/inventario/ajuste_manual.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tienda_id: tiendaId,
+          producto_id: productoId,
+          tipo: 'ajuste',
+          cantidad: cantidad,
+          es_absoluto: true,
+          origen_stock: 'compra_externa',
+          notas: 'Ajuste manual de inventario de tienda'
+        })
+      });
+      if (res.ok) {
+        // En vez de recargar todo, actualizamos localmente el estado de inventario para una experiencia de usuario instantánea
+        setInventario(prev => {
+          const exists = prev.some(i => i.tienda_id === tiendaId && i.producto_id === productoId);
+          if (exists) {
+            return prev.map(i => i.tienda_id === tiendaId && i.producto_id === productoId ? { ...i, cantidad_disponible: cantidad } : i);
+          } else {
+            return [...prev, {
+              id: Date.now(),
+              tienda_id: tiendaId,
+              producto_id: productoId,
+              cantidad_disponible: cantidad,
+              cantidad_reservada: 0,
+              precio_venta: 0,
+              costo_unitario: 0,
+              origen_stock: 'compra_externa',
+              lote_referencia_tipo: null,
+              lote_referencia_id: null
+            }];
+          }
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [apiBase, apiFetch]);
+
   const addCliente = useCallback((cli: Omit<Cliente, 'id'>) => {
     setClientes(prev => [...prev, { ...cli, id: Date.now() }]);
   }, []);
@@ -859,29 +906,101 @@ export function useStore(): DecorStore {
     setClientes(prev => prev.filter(c => c.id !== id));
   }, []);
 
-  const addTienda = useCallback((tienda: Omit<Tienda, 'id'>) => {
-    setTiendas(prev => [...prev, { ...tienda, id: Date.now() }]);
-  }, []);
+  const addTienda = useCallback(async (tienda: Omit<Tienda, 'id'>) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/tiendas/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tienda)
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const updateTienda = useCallback((id: number, tienda: Partial<Tienda>) => {
-    setTiendas(prev => prev.map(t => t.id === id ? { ...t, ...tienda } : t));
-  }, []);
+  const updateTienda = useCallback(async (id: number, tienda: Partial<Tienda>) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/tiendas/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...tienda })
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const deleteTienda = useCallback((id: number) => {
-    setTiendas(prev => prev.filter(t => t.id !== id));
-  }, []);
+  const deleteTienda = useCallback(async (id: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/tiendas/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'delete' })
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const addAcabado = useCallback((acabado: string) => {
-    setAcabados(prev => prev.includes(acabado) ? prev : [...prev, acabado]);
-  }, []);
+  const addAcabado = useCallback(async (acabado: string) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/acabados/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: acabado })
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const updateAcabado = useCallback((oldAcabado: string, newAcabado: string) => {
-    setAcabados(prev => prev.map(a => a === oldAcabado ? newAcabado : a));
-  }, []);
+  const updateAcabado = useCallback(async (oldAcabado: string, newAcabado: string) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/acabados/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: newAcabado, old_nombre: oldAcabado })
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
-  const deleteAcabado = useCallback((acabado: string) => {
-    setAcabados(prev => prev.filter(a => a !== acabado));
-  }, []);
+  const deleteAcabado = useCallback(async (acabado: string) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/acabados/save.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: acabado, action: 'delete' })
+      });
+      if (res.ok) {
+        await fetchCatalogos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [apiBase, apiFetch, fetchCatalogos]);
 
   const guardarComoProducto = useCallback((item: PedidoItem): Producto => {
     const newProd: Producto = {
@@ -1149,7 +1268,7 @@ export function useStore(): DecorStore {
     moveWorkOrder, crearPedido, editarPedido, eliminarPedido, crearEmbarque,
     cancelarEmbarque,
     updateEmbarqueStatus,
-    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima, guardarMateriaPrima,
+    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima, guardarMateriaPrima, updateStockTienda,
     usuarios, addUsuario, updateUsuario, deleteUsuario,
     addCliente, updateCliente, deleteCliente,
     addTienda, updateTienda, deleteTienda,

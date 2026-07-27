@@ -10,7 +10,7 @@ type Tab = 'tienda' | 'materia_prima' | 'terminados';
 import type { Embarque, EmbarqueItem } from '../store/useStore';
 
 export default function InventarioPage() {
-  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
   const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
   const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
 
@@ -20,7 +20,7 @@ export default function InventarioPage() {
   // Drill-down states for Tienda
   const [selectedTiendaId, setSelectedTiendaId] = useState<number | null>(isGerenteTienda ? posTiendaId : null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [printQRs, setPrintQRs] = useState<{ nombre: string, qrs: string[], tiendaNombre: string } | null>(null);
+  const [printQRs, setPrintQRs] = useState<{ nombre: string, qrs: string[], tiendaNombre: string, precio?: number } | null>(null);
 
   // States for Shop Receiving Flow
   const [activeRecepcionEmb, setActiveRecepcionEmb] = useState<Embarque | null>(null);
@@ -92,7 +92,9 @@ export default function InventarioPage() {
       index++;
     }
 
-    setPrintQRs({ nombre: productName, qrs: qrList, tiendaNombre: tName });
+    const prod = productos.find(p => p.id === productoId);
+    const price = prod ? (prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0) : 0;
+    setPrintQRs({ nombre: productName, qrs: qrList, tiendaNombre: tName, precio: price });
   };
 
   const handlePrintLote = () => {
@@ -359,22 +361,19 @@ export default function InventarioPage() {
     }
     
     // 3. Products level
-    const prods = new Map<number, { producto: typeof productos[0]; total: number; price: number }>();
-    invTienda.forEach(i => {
-      const p = productos.find(prod => prod.id === i.producto_id);
-      const cat = p?.type || 'Otros';
-      if (cat === selectedCategory) {
-        if (!prods.has(i.producto_id)) prods.set(i.producto_id, { 
-          producto: (p || { id: i.producto_id, name: (i as any).producto_nombre || 'Mueble', type: 'Otros', prices: { '1': i.precio_venta }, sku: '', dimensions: '', finishes: [], image_url: '' }) as any, 
-          total: 0, 
-          price: i.precio_venta 
-        });
-        prods.get(i.producto_id)!.total += i.cantidad_disponible;
-      }
-    });
-    return Array.from(prods.values()).filter(g => g.total > 0).sort((a, b) => b.total - a.total).map(g => ({
-      type: 'product' as const, id: g.producto.id, name: g.producto.name, count: g.total, price: g.price
-    }));
+    const catProducts = productos.filter(p => p.type.toLowerCase() === selectedCategory.toLowerCase());
+    return catProducts.map(p => {
+      const invRecord = invTienda.find(i => i.producto_id === p.id);
+      const count = invRecord ? invRecord.cantidad_disponible : 0;
+      const price = invRecord ? invRecord.precio_venta : (p.prices['Publico'] || p.prices['General'] || Object.values(p.prices)[0] || 0);
+      return {
+        type: 'product' as const,
+        id: p.id,
+        name: p.name,
+        count: count,
+        price: price
+      };
+    }).sort((a, b) => b.count - a.count);
   }, [inventario, productos, tiendas, selectedTiendaId, selectedCategory]);
 
   // -- Terminados Tab --
@@ -542,7 +541,13 @@ export default function InventarioPage() {
                   {items.map(t => (
                     <div key={t.id} className={`bg-zinc-800/40 p-3 rounded-lg flex items-center gap-3 border transition-colors ${t.dias > 7 ? 'border-red-500/30' : 'border-zinc-700/30'}`}>
                       <div className="shrink-0">
-                         <QRLabel qrCode={t.qr_code} productoNombre={t.producto_nombre} ordenId={t.orden_id} clienteNombre={t.cliente_nombre} acabado={t.acabado} size={40} showPrint={true} />
+                      {(() => {
+                        const prod = productos.find(p => p.id === t.producto_id || p.name === t.producto_nombre);
+                        const price = prod ? (prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0) : 0;
+                        return (
+                          <QRLabel qrCode={t.qr_code} productoNombre={t.producto_nombre} ordenId={t.orden_id} clienteNombre={t.cliente_nombre} acabado={t.acabado} precio={price} size={40} showPrint={true} />
+                        );
+                      })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-zinc-300">{t.cliente_nombre} · {t.acabado}</p>
@@ -650,7 +655,33 @@ export default function InventarioPage() {
                   {item.type === 'tienda' ? <Store size={32} /> : item.type === 'category' ? <Package size={32} /> : <Store size={32} />}
                 </div>
                 <h3 className="text-xs font-bold text-zinc-200 line-clamp-2 min-h-[32px]">{item.name}</h3>
-                <div className="mt-2 text-2xl font-black text-amber-400">{item.count}</div>
+                {isGerenteTienda && item.type === 'product' ? (
+                  <div className="flex items-center gap-1 mt-2 mb-1" onClick={e => e.stopPropagation()}>
+                    <button 
+                      onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
+                    >
+                      -
+                    </button>
+                    <input 
+                      type="number"
+                      value={item.count}
+                      onChange={e => {
+                        const val = parseInt(e.target.value) || 0;
+                        updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, val));
+                      }}
+                      className="bg-transparent border-b border-zinc-700 font-black text-lg text-center w-12 text-zinc-100 focus:border-amber-500 focus:outline-none"
+                    />
+                    <button 
+                      onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, item.count + 1)} 
+                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 text-2xl font-black text-amber-400">{item.count}</div>
+                )}
                 <p className="text-[10px] text-zinc-500 uppercase font-semibold">
                   {item.type === 'tienda' ? 'Piezas Totales' : item.type === 'category' ? 'Piezas' : 'En Stock'}
                 </p>
@@ -685,7 +716,7 @@ export default function InventarioPage() {
             <div className="p-6 overflow-y-auto space-y-4 print-only-container flex-1">
               <div className="grid grid-cols-2 gap-4">
                 {printQRs.qrs.map(qr => (
-                  <QRLabel key={qr} qrCode={qr} productoNombre={printQRs.nombre} ordenId={0} clienteNombre={printQRs.tiendaNombre} acabado="-" size={120} />
+                   <QRLabel key={qr} qrCode={qr} productoNombre={printQRs.nombre} ordenId={0} clienteNombre={printQRs.tiendaNombre} acabado="-" precio={printQRs.precio} size={120} />
                 ))}
               </div>
             </div>
@@ -735,7 +766,7 @@ export default function InventarioPage() {
         <div className="grid grid-cols-3 gap-y-6 gap-x-4">
           {printQRs && printQRs.qrs.map(qr => (
             <div key={qr} className="break-inside-avoid flex justify-center">
-              <QRLabel qrCode={qr} productoNombre={printQRs.nombre} ordenId={0} clienteNombre={printQRs.tiendaNombre} acabado="-" size={80} showPrint={false} />
+              <QRLabel qrCode={qr} productoNombre={printQRs.nombre} ordenId={0} clienteNombre={printQRs.tiendaNombre} acabado="-" precio={printQRs.precio} size={80} showPrint={false} />
             </div>
           ))}
         </div>

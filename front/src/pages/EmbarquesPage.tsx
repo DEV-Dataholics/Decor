@@ -7,7 +7,7 @@ const STATUS_TIMELINE = ['preparando', 'embarcado', 'en_transito', 'entregado'];
 const STATUS_LABEL: Record<string, string> = { preparando: 'Preparando', embarcado: 'Embarcado', en_transito: 'En Tránsito', entregado: 'Entregado' };
 
 export default function EmbarquesPage() {
-  const { embarques, terminados, tiendas, pedidos, crearEmbarque, updateEmbarqueStatus, cancelarEmbarque } = useDecor();
+  const { currentUser, embarques, terminados, tiendas, pedidos, crearEmbarque, updateEmbarqueStatus, cancelarEmbarque } = useDecor();
   const [showNew, setShowNew] = useState(false);
   const [showReporte, setShowReporte] = useState<number | null>(null);
   const [selectedTerminados, setSelectedTerminados] = useState<Set<number>>(new Set());
@@ -236,8 +236,10 @@ export default function EmbarquesPage() {
                 <div className="flex justify-between"><span className="text-zinc-500">Piezas:</span><span className="text-zinc-300 font-bold">{emb.items.length}</span></div>
               </div>
               <div className="flex gap-2">
-                {emb.estatus === 'preparando' && next && (
-                  <button onClick={() => updateEmbarqueStatus(emb.id, next)} className="btn-primary text-xs flex-1 justify-center">{STATUS_LABEL[next]}</button>
+                {currentUser?.rol === 'admin' && next && (
+                  <button onClick={() => updateEmbarqueStatus(emb.id, next)} className="btn-primary text-xs flex-1 justify-center">
+                    Marcar como: {STATUS_LABEL[next]}
+                  </button>
                 )}
                 {emb.estatus === 'entregado' && (
                   <button onClick={() => handleStartReporte(emb.id)} className="btn-secondary text-xs flex-1 justify-center"><CheckCircle2 size={14} /> Ver Reporte de Entrega</button>

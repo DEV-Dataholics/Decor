@@ -13,15 +13,13 @@ const PAGE_TITLES: Record<string, string> = {
   '/catalogo': 'Catálogo de Productos',
   '/embarques': 'Embarques y Logística',
   '/configuracion': 'Configuración',
-  '/reparto': 'Rutas de Entrega',
   '/personal': 'Personal (RH)',
 };
 
 const ALLOWED_ROUTES: Record<Rol, string[]> = {
-  admin: ['/dashboard', '/pos', '/pedidos', '/produccion', '/inventario', '/catalogo', '/embarques', '/personal', '/configuracion', '/reparto'],
+  admin: ['/dashboard', '/pos', '/pedidos', '/produccion', '/inventario', '/catalogo', '/embarques', '/personal', '/configuracion'],
   gerente_tienda: ['/pos', '/inventario'],
   encargado_taller: ['/dashboard', '/produccion', '/inventario', '/catalogo', '/embarques'],
-  repartidor: ['/reparto'],
 };
 
 export default function AppShell() {

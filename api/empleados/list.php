@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/response.php';
 
 set_json_headers();
-require_role(['admin', 'gerente_tienda', 'encargado_taller', 'repartidor', 'bodega']);
+require_role(['admin', 'gerente_tienda', 'encargado_taller', 'bodega']);
 
 $pdo = getDB();
 $stmt = $pdo->query("
