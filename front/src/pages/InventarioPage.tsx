@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X, Save } from 'lucide-react';
+import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X, Save, List, Grid3X3 } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import QRLabel from '../components/QRLabel';
 import { QRCodeSVG } from 'qrcode.react';
@@ -10,7 +10,7 @@ type Tab = 'tienda' | 'materia_prima' | 'terminados';
 import type { Embarque, EmbarqueItem } from '../store/useStore';
 
 export default function InventarioPage() {
-  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion, fetchOperativos, apiBase, apiFetch } = useDecor();
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion, fetchOperativos, apiBase, apiFetch, acabados } = useDecor();
   const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
   const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
 
@@ -41,6 +41,13 @@ export default function InventarioPage() {
   const [cargaNotas, setCargaNotas] = useState('');
   const [isCargaLoading, setIsCargaLoading] = useState(false);
 
+  // States for Tienda tab search and filter controls (DEC-007 Filters)
+  const [tiendaSearch, setTiendaSearch] = useState('');
+  const [tiendaCatFilter, setTiendaCatFilter] = useState('');
+  const [tiendaFinishFilter, setTiendaFinishFilter] = useState('');
+  const [tiendaView, setTiendaView] = useState<'grid' | 'list'>('grid');
+
+  const catOptions = useMemo(() => Array.from(new Set(productos.map(p => p.type))), [productos]);
   const targetTiendaId = isGerenteTienda ? posTiendaId : selectedTiendaId;
 
   // Embarques en tránsito o en sucursal destinados a esta tienda
@@ -511,8 +518,37 @@ export default function InventarioPage() {
       });
     }
     
-    // 2. Categories level
     const invTienda = inventario.filter(i => i.tienda_id === selectedTiendaId);
+
+    // If search, category or finish filters are active, flatten and filter product level directly
+    if (tiendaSearch || tiendaCatFilter || tiendaFinishFilter) {
+      let filteredProds = productos;
+      if (tiendaCatFilter) {
+        filteredProds = filteredProds.filter(p => p.type === tiendaCatFilter);
+      }
+      if (tiendaSearch) {
+        const q = tiendaSearch.toLowerCase();
+        filteredProds = filteredProds.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+      }
+      if (tiendaFinishFilter) {
+        filteredProds = filteredProds.filter(p => p.finishes?.includes(tiendaFinishFilter));
+      }
+
+      return filteredProds.map(p => {
+        const invRecord = invTienda.find(i => i.producto_id === p.id);
+        const count = invRecord ? invRecord.cantidad_disponible : 0;
+        const price = invRecord ? invRecord.precio_venta : (p.prices['Publico'] || p.prices['General'] || Object.values(p.prices)[0] || 0);
+        return {
+          type: 'product' as const,
+          id: p.id,
+          name: p.name,
+          count: count,
+          price: price
+        };
+      }).sort((a, b) => b.count - a.count);
+    }
+    
+    // 2. Categories level
     if (!selectedCategory) {
       const cats = new Map<string, number>();
       invTienda.forEach(i => {
@@ -537,7 +573,7 @@ export default function InventarioPage() {
         price: price
       };
     }).sort((a, b) => b.count - a.count);
-  }, [inventario, productos, tiendas, selectedTiendaId, selectedCategory]);
+  }, [inventario, productos, tiendas, selectedTiendaId, selectedCategory, tiendaSearch, tiendaCatFilter, tiendaFinishFilter]);
 
   // -- Terminados Tab --
   const terminadosGrouped = useMemo(() => {
@@ -815,70 +851,184 @@ export default function InventarioPage() {
               </button>
             )}
           </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {tiendaData.length === 0 ? (
-               <div className="col-span-full glass-card p-12 text-center"><p className="text-zinc-600 text-sm">No hay inventario en esta sección</p></div>
-            ) : tiendaData.map((item) => (
-              <div 
-                key={item.id} 
-                onClick={() => {
-                  if (item.type === 'tienda') setSelectedTiendaId(item.id as number);
-                  else if (item.type === 'category') setSelectedCategory(item.id as string);
-                }}
-                className={`glass-card p-4 flex flex-col items-center text-center transition-colors relative ${item.type !== 'product' ? 'hover:border-amber-500/50 hover:bg-zinc-800/40 cursor-pointer' : ''}`}
-              >
-                <div className={`w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center mb-3 ${item.type !== 'product' ? 'text-amber-400 group-hover:scale-110 transition-transform' : 'text-zinc-500'}`}>
-                  {item.type === 'tienda' ? <Store size={32} /> : item.type === 'category' ? <Package size={32} /> : <Store size={32} />}
-                </div>
-                <h3 className="text-xs font-bold text-zinc-200 line-clamp-2 min-h-[32px]">{item.name}</h3>
-                {isGerenteTienda && item.type === 'product' ? (
-                  <div className="flex items-center gap-1 mt-2 mb-1" onClick={e => e.stopPropagation()}>
-                    <button 
-                      onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 
-                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
-                    >
-                      -
-                    </button>
-                    <input 
-                      type="number"
-                      value={item.count}
-                      onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, val));
-                      }}
-                      className="bg-transparent border-b border-zinc-700 font-black text-lg text-center w-12 text-zinc-100 focus:border-amber-500 focus:outline-none"
-                    />
-                    <button 
-                      onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, item.count + 1)} 
-                      className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-2xl font-black text-amber-400">{item.count}</div>
-                )}
-                <p className="text-[10px] text-zinc-500 uppercase font-semibold">
-                  {item.type === 'tienda' ? 'Piezas Totales' : item.type === 'category' ? 'Piezas' : 'En Stock'}
-                </p>
-                {item.type === 'product' && item.price && (
-                  <p className="mt-2 text-[10px] text-zinc-400 bg-zinc-800/50 px-2 py-1 rounded w-full">
-                    ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-                {item.type === 'product' && (
+
+          {/* Advanced Filters for Tienda Inventory (DEC-007 Filters) */}
+          {selectedTiendaId && (
+            <div className="flex flex-col sm:flex-row gap-3 bg-zinc-900/10 p-4 rounded-xl border border-zinc-800/40">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-550" size={16} />
+                <input 
+                  value={tiendaSearch} 
+                  onChange={e => setTiendaSearch(e.target.value)} 
+                  className="input-dark pl-10 w-full" 
+                  placeholder="Buscar por nombre o SKU..." 
+                />
+                {tiendaSearch && (
                   <button 
-                    onClick={(e) => handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name)} 
-                    className="absolute top-2 right-2 p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
-                    title="Imprimir QRs"
+                    onClick={() => setTiendaSearch('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
                   >
-                    <QrCode size={14} />
+                    <X size={14} />
                   </button>
                 )}
               </div>
-            ))}
-          </div>
+              <select 
+                value={tiendaCatFilter} 
+                onChange={e => {
+                  setTiendaCatFilter(e.target.value);
+                  setSelectedCategory(null); // Clear manual drill-down category if changing filter
+                }} 
+                className="input-dark w-full sm:w-48 bg-zinc-950 border-zinc-800 text-zinc-200"
+              >
+                <option value="">Todas las categorías</option>
+                {catOptions.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <select 
+                value={tiendaFinishFilter} 
+                onChange={e => setTiendaFinishFilter(e.target.value)} 
+                className="input-dark w-full sm:w-40 bg-zinc-950 border-zinc-800 text-zinc-200"
+              >
+                <option value="">Todos los acabados</option>
+                {acabados.map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+              <button 
+                onClick={() => setTiendaView(tiendaView === 'grid' ? 'list' : 'grid')} 
+                className="btn-ghost shrink-0 border border-zinc-800 rounded-lg p-2.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
+              >
+                {tiendaView === 'grid' ? <List size={16} /> : <Grid3X3 size={16} />}
+              </button>
+            </div>
+          )}
+          
+          {tiendaView === 'list' && (tiendaSearch || tiendaCatFilter || tiendaFinishFilter || selectedCategory) ? (
+            <div className="glass-card overflow-hidden">
+              <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-zinc-800/30 border-b border-zinc-700/30 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                <div className="col-span-5">Producto</div>
+                <div className="col-span-3 text-center">Stock</div>
+                <div className="col-span-2 text-right">Precio</div>
+                <div className="col-span-2 text-right">Acción</div>
+              </div>
+              {tiendaData.length === 0 ? (
+                <div className="p-12 text-center text-zinc-600 text-sm">No hay inventario en esta sección</div>
+              ) : tiendaData.map((item) => (
+                <div key={item.id} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-zinc-800/20 hover:bg-zinc-800/20 transition-colors items-center text-left">
+                  <div className="col-span-5 min-w-0">
+                    <p className="text-xs font-bold text-zinc-200 truncate">{item.name}</p>
+                    <p className="text-[9px] text-zinc-500 font-mono">SKU: {productos.find(p => p.id === item.id)?.sku || '—'}</p>
+                  </div>
+                  <div className="col-span-3 flex justify-center items-center">
+                    {isGerenteTienda ? (
+                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        <button 
+                          onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 
+                          className="w-6 h-6 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-705 transition-colors text-xs font-bold"
+                        >
+                          -
+                        </button>
+                        <input 
+                          type="number"
+                          value={item.count}
+                          onChange={e => {
+                            const val = parseInt(e.target.value) || 0;
+                            updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, val));
+                          }}
+                          className="bg-transparent border-b border-zinc-700 font-black text-sm text-center w-10 text-zinc-100 focus:border-amber-500 focus:outline-none"
+                        />
+                        <button 
+                          onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, item.count + 1)} 
+                          className="w-6 h-6 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-705 transition-colors text-xs font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-black text-amber-400">{item.count}</span>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-right text-xs font-semibold text-zinc-300">
+                    ${'price' in item ? (item.price as number)?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'}
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    <button 
+                      onClick={(e) => handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name)} 
+                      className="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
+                      title="Imprimir QRs"
+                    >
+                      <QrCode size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {tiendaData.length === 0 ? (
+                 <div className="col-span-full glass-card p-12 text-center"><p className="text-zinc-600 text-sm">No hay inventario en esta sección</p></div>
+              ) : tiendaData.map((item) => (
+                <div 
+                  key={item.id} 
+                  onClick={() => {
+                    if (item.type === 'tienda') setSelectedTiendaId(item.id as number);
+                    else if (item.type === 'category') setSelectedCategory(item.id as string);
+                  }}
+                  className={`glass-card p-4 flex flex-col items-center text-center transition-colors relative ${item.type !== 'product' ? 'hover:border-amber-500/50 hover:bg-zinc-800/40 cursor-pointer' : ''}`}
+                >
+                  <div className={`w-16 h-16 rounded-xl bg-zinc-800 flex items-center justify-center mb-3 ${item.type !== 'product' ? 'text-amber-400 group-hover:scale-110 transition-transform' : 'text-zinc-500'}`}>
+                    {item.type === 'tienda' ? <Store size={32} /> : item.type === 'category' ? <Package size={32} /> : <Store size={32} />}
+                  </div>
+                  <h3 className="text-xs font-bold text-zinc-200 line-clamp-2 min-h-[32px]">{item.name}</h3>
+                  {isGerenteTienda && item.type === 'product' ? (
+                    <div className="flex items-center gap-1 mt-2 mb-1" onClick={e => e.stopPropagation()}>
+                      <button 
+                        onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 
+                        className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
+                      >
+                        -
+                      </button>
+                      <input 
+                        type="number"
+                        value={item.count}
+                        onChange={e => {
+                          const val = parseInt(e.target.value) || 0;
+                          updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, val));
+                        }}
+                        className="bg-transparent border-b border-zinc-700 font-black text-lg text-center w-12 text-zinc-100 focus:border-amber-500 focus:outline-none"
+                      />
+                      <button 
+                        onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, item.count + 1)} 
+                        className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors text-sm font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-2xl font-black text-amber-400">{item.count}</div>
+                  )}
+                  <p className="text-[10px] text-zinc-500 uppercase font-semibold">
+                    {item.type === 'tienda' ? 'Piezas Totales' : item.type === 'category' ? 'Piezas' : 'En Stock'}
+                  </p>
+                  {item.type === 'product' && item.price && (
+                    <p className="mt-2 text-[10px] text-zinc-400 bg-zinc-800/50 px-2 py-1 rounded w-full">
+                      ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
+                  {item.type === 'product' && (
+                    <button 
+                      onClick={(e) => handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name)} 
+                      className="absolute top-2 right-2 p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
+                      title="Imprimir QRs"
+                    >
+                      <QrCode size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
