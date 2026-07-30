@@ -197,6 +197,8 @@ export interface DecorStore {
   // Utils
   resetDemo: () => void;
   isInitialized: boolean;
+  apiBase: () => string;
+  apiFetch: (url: string, opts?: RequestInit) => Promise<Response>;
 }
 
 // --- Storage helpers ---
@@ -1275,6 +1277,6 @@ export function useStore(): DecorStore {
     addAcabado, updateAcabado, deleteAcabado,
     guardarComoProducto, updateProducto, addProducto, acabadosList,
     addEmpleado, updateEmpleado, deleteEmpleado,
-    resetDemo, isInitialized: true,
+    resetDemo, isInitialized: true, apiBase, apiFetch,
   };
 }

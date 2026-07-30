@@ -10,7 +10,7 @@ type Tab = 'tienda' | 'materia_prima' | 'terminados';
 import type { Embarque, EmbarqueItem } from '../store/useStore';
 
 export default function InventarioPage() {
-  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion } = useDecor();
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion, fetchOperativos, apiBase, apiFetch } = useDecor();
   const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
   const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
 
@@ -25,6 +25,21 @@ export default function InventarioPage() {
   // States for Shop Receiving Flow
   const [activeRecepcionEmb, setActiveRecepcionEmb] = useState<Embarque | null>(null);
   const [recepcionItems, setRecepcionItems] = useState<EmbarqueItem[]>([]);
+
+  // States for Manual Stock Capture & Bulk Load (DEC-007)
+  const [showCargaModal, setShowCargaModal] = useState(false);
+  const [cargaMode, setCargaMode] = useState<'individual' | 'bulk'>('individual');
+  const [indProductoId, setIndProductoId] = useState<number>(0);
+  const [indTiendaId, setIndTiendaId] = useState<number>(selectedTiendaId || 0);
+  const [indCantidad, setIndCantidad] = useState<number>(1);
+  const [indSearchTerm, setIndSearchTerm] = useState('');
+  const [bulkFileContent, setBulkFileContent] = useState<string>('');
+  const [bulkFileName, setBulkFileName] = useState<string>('');
+  const [cargaStep, setCargaStep] = useState<'input' | 'review'>('input');
+  const [itemsToReview, setItemsToReview] = useState<any[]>([]);
+  const [itemsValid, setItemsValid] = useState<any[]>([]);
+  const [cargaNotas, setCargaNotas] = useState('');
+  const [isCargaLoading, setIsCargaLoading] = useState(false);
 
   const targetTiendaId = isGerenteTienda ? posTiendaId : selectedTiendaId;
 
@@ -191,6 +206,154 @@ export default function InventarioPage() {
       <script>window.onload=function(){setTimeout(window.print, 250);}</script>
     </body></html>`);
     w.document.close();
+  };
+
+  const handleDownloadTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8,sku,tienda_id,cantidad\nDCR-0294,2,10\nDCR-0295,3,5\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "plantilla_inventario_inicial.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePreValidarCarga = async () => {
+    let items = [];
+    if (cargaMode === 'individual') {
+      if (!indProductoId) {
+        alert('Debe seleccionar un producto');
+        return;
+      }
+      if (!indTiendaId) {
+        alert('Debe seleccionar una sucursal');
+        return;
+      }
+      if (indCantidad <= 0) {
+        alert('La cantidad debe ser mayor a 0');
+        return;
+      }
+      items.push({
+        producto_id: indProductoId,
+        tienda_id: indTiendaId,
+        cantidad: indCantidad
+      });
+    } else {
+      if (!bulkFileContent) {
+        alert('Debe cargar un archivo CSV primero');
+        return;
+      }
+      const lines = bulkFileContent.split('\n');
+      if (lines.length === 0) {
+        alert('El archivo CSV está vacío');
+        return;
+      }
+      const parsed = [];
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const skuIdx = headers.indexOf('sku');
+      const tiendaIdx = headers.indexOf('tienda_id');
+      const cantIdx = headers.indexOf('cantidad');
+
+      if (skuIdx === -1 || tiendaIdx === -1 || cantIdx === -1) {
+        alert('El archivo CSV debe tener las cabeceras sku, tienda_id, cantidad');
+        return;
+      }
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cols = line.split(',').map(c => c.trim());
+        if (cols.length < 3) continue;
+        
+        const sku = cols[skuIdx];
+        const tienda_id = parseInt(cols[tiendaIdx]) || 0;
+        const cantidad = parseFloat(cols[cantIdx]) || 0;
+
+        if (sku && tienda_id && cantidad > 0) {
+          parsed.push({ sku, tienda_id, cantidad });
+        }
+      }
+      if (parsed.length === 0) {
+        alert('No se encontraron registros válidos en el archivo CSV');
+        return;
+      }
+      items = parsed;
+    }
+
+    setIsCargaLoading(true);
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/inventario/pre_validar_carga.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        const payload = data.data;
+        if (payload.duplicados.length > 0) {
+          setItemsToReview(payload.duplicados.map((d: any) => ({ ...d, action: 'sumar' })));
+          setItemsValid(payload.validos.map((v: any) => ({ ...v, action: 'sumar' })));
+          setCargaStep('review');
+        } else {
+          await executeConfirmarCarga(payload.validos.map((v: any) => ({ ...v, action: 'sumar' })), '');
+        }
+      } else {
+        alert(data.message || 'Error al validar la carga');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de red al validar la carga');
+    } finally {
+      setIsCargaLoading(false);
+    }
+  };
+
+  const executeConfirmarCarga = async (finalItems: any[], notas: string) => {
+    setIsCargaLoading(true);
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/inventario/confirmar_carga.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: finalItems, notas })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        alert('Inventario cargado exitosamente');
+        setShowCargaModal(false);
+        setCargaStep('input');
+        setItemsToReview([]);
+        setItemsValid([]);
+        setBulkFileContent('');
+        setBulkFileName('');
+        setIndProductoId(0);
+        setIndSearchTerm('');
+        setCargaNotas('');
+        await fetchOperativos();
+      } else {
+        alert(data.message || 'Error al guardar el inventario');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error de red al guardar el inventario');
+    } finally {
+      setIsCargaLoading(false);
+    }
+  };
+
+  const handleConfirmarReviewCarga = async () => {
+    const finalItems = [
+      ...itemsValid,
+      ...itemsToReview.filter(item => item.action !== 'omitir')
+    ];
+    if (finalItems.length === 0) {
+      alert('Todos los artículos duplicados fueron omitidos y no hay artículos nuevos para cargar');
+      return;
+    }
+    await executeConfirmarCarga(finalItems, cargaNotas);
   };
 
   const handlePrintOrdenCompleta = (ordenTitle: string, itemsList: typeof terminados) => {
@@ -601,41 +764,55 @@ export default function InventarioPage() {
             </div>
           )}
 
-          {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400 bg-zinc-800/30 px-4 py-2.5 rounded-lg border border-zinc-700/30">
-            {!isGerenteTienda ? (
-              <button onClick={() => { setSelectedTiendaId(null); setSelectedCategory(null); }} className={`hover:text-amber-400 ${!selectedTiendaId ? 'text-amber-400' : ''}`}>Todas las Tiendas</button>
-            ) : (
-              <span className="text-zinc-300">
-                {posTiendaId ? tiendas.find(t => t.id === posTiendaId)?.nombre : 'Seleccionar Tienda'}
-              </span>
-            )}
-            
-            {/* Si es gerente y posTiendaId es null, pero ya seleccionó una, mostrar su nombre */}
-            {isGerenteTienda && !posTiendaId && selectedTiendaId && (
-              <>
-                <span className="text-zinc-600">/</span>
-                <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
-                  {tiendas.find(t => t.id === selectedTiendaId)?.nombre}
-                </button>
-              </>
-            )}
+          {/* Breadcrumbs & Cargar Inventario button */}
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400 bg-zinc-800/30 px-4 py-2.5 rounded-lg border border-zinc-700/30 flex-1">
+              {!isGerenteTienda ? (
+                <button onClick={() => { setSelectedTiendaId(null); setSelectedCategory(null); }} className={`hover:text-amber-400 ${!selectedTiendaId ? 'text-amber-400' : ''}`}>Todas las Tiendas</button>
+              ) : (
+                <span className="text-zinc-300">
+                  {posTiendaId ? tiendas.find(t => t.id === posTiendaId)?.nombre : 'Seleccionar Tienda'}
+                </span>
+              )}
+              
+              {/* Si es gerente y posTiendaId es null, pero ya seleccionó una, mostrar su nombre */}
+              {isGerenteTienda && !posTiendaId && selectedTiendaId && (
+                <>
+                  <span className="text-zinc-600">/</span>
+                  <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
+                    {tiendas.find(t => t.id === selectedTiendaId)?.nombre}
+                  </button>
+                </>
+              )}
 
-            {/* Para administradores o encargado de taller */}
-            {!isGerenteTienda && selectedTiendaId && (
-              <>
-                <span className="text-zinc-600">/</span>
-                <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
-                  {tiendas.find(t => t.id === selectedTiendaId)?.nombre}
-                </button>
-              </>
-            )}
+              {/* Para administradores o encargado de taller */}
+              {!isGerenteTienda && selectedTiendaId && (
+                <>
+                  <span className="text-zinc-600">/</span>
+                  <button onClick={() => setSelectedCategory(null)} className={`hover:text-amber-400 ${!selectedCategory ? 'text-amber-400' : ''}`}>
+                    {tiendas.find(t => t.id === selectedTiendaId)?.nombre}
+                  </button>
+                </>
+              )}
 
-            {selectedCategory && (
-              <>
-                <span className="text-zinc-600">/</span>
-                <span className="text-amber-400">{selectedCategory}</span>
-              </>
+              {selectedCategory && (
+                <>
+                  <span className="text-zinc-600">/</span>
+                  <span className="text-amber-400">{selectedCategory}</span>
+                </>
+              )}
+            </div>
+
+            {(currentUser?.rol === 'admin' || currentUser?.rol === 'gerente_tienda') && (
+              <button
+                onClick={() => {
+                  setIndTiendaId(selectedTiendaId || posTiendaId || (tiendas[0]?.id || 0));
+                  setShowCargaModal(true);
+                }}
+                className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0"
+              >
+                <Plus size={14} /> Cargar Inventario
+              </button>
             )}
           </div>
           
@@ -854,6 +1031,313 @@ export default function InventarioPage() {
                 ✓ Confirmar Recepción de Stock
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Carga de Inventario Inicial / Manual (DEC-007) */}
+      {showCargaModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border border-zinc-700/50">
+            {/* Header */}
+            <div className="p-5 border-b border-zinc-800/80 flex justify-between items-center bg-zinc-900/90 rounded-t-2xl">
+              <div>
+                <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-2">
+                  <Plus size={16} className="text-amber-500" /> Cargar Inventario Inicial a Tiendas
+                </h3>
+                <p className="text-[10px] text-zinc-400 mt-0.5">Ingresa stock de forma individual o masiva con validación de duplicados</p>
+              </div>
+              <button 
+                onClick={() => { setShowCargaModal(false); setCargaStep('input'); }}
+                className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {cargaStep === 'input' ? (
+              <>
+                {/* Modal Mode Selector */}
+                <div className="flex border-b border-zinc-800/60 bg-zinc-900/40 p-2 gap-2">
+                  <button
+                    onClick={() => setCargaMode('individual')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      cargaMode === 'individual' ? 'bg-zinc-800 text-amber-400 border border-zinc-700/50' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    Captura Individual
+                  </button>
+                  <button
+                    onClick={() => setCargaMode('bulk')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      cargaMode === 'bulk' ? 'bg-zinc-800 text-amber-400 border border-zinc-700/50' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    Carga Masiva (Plantilla CSV)
+                  </button>
+                </div>
+
+                {/* Form Body */}
+                <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                  {cargaMode === 'individual' ? (
+                    <div className="space-y-4">
+                      {/* Producto Dropdown with local search filter */}
+                      <div className="space-y-1.5 relative">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Producto</label>
+                        <input
+                          type="text"
+                          placeholder="Buscar producto por SKU o Nombre..."
+                          value={indSearchTerm}
+                          onChange={(e) => setIndSearchTerm(e.target.value)}
+                          className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                        />
+                        {indSearchTerm && (
+                          <div className="absolute left-0 right-0 mt-1 bg-zinc-950 border border-zinc-800 rounded-lg max-h-40 overflow-y-auto z-50 shadow-xl scrollbar-hide">
+                            {productos
+                              .filter(p => p.name.toLowerCase().includes(indSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(indSearchTerm.toLowerCase()))
+                              .map(p => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setIndProductoId(p.id);
+                                    setIndSearchTerm(`${p.sku} - ${p.name}`);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-zinc-100 border-b border-zinc-900/60 last:border-0"
+                                >
+                                  <span className="font-mono text-amber-500 font-bold">[{p.sku}]</span> {p.name}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sucursal Selector */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Sucursal Destino</label>
+                        <select
+                          value={indTiendaId}
+                          onChange={(e) => setIndTiendaId(Number(e.target.value))}
+                          className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                        >
+                          <option value={0}>Seleccionar Sucursal...</option>
+                          {tiendas.map(t => (
+                            <option key={t.id} value={t.id}>{t.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Cantidad Input */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Cantidad (Piezas)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={indCantidad}
+                          onChange={(e) => setIndCantidad(Math.max(1, parseInt(e.target.value) || 0))}
+                          className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Template Downloader */}
+                      <div className="p-4 bg-zinc-900/40 rounded-xl border border-zinc-800/60 flex justify-between items-center gap-4">
+                        <div>
+                          <h4 className="text-xs font-bold text-zinc-200">1. Descarga la Plantilla CSV</h4>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">Utiliza este archivo para registrar los códigos de barras (SKU), tiendas y cantidades.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownloadTemplate}
+                          className="btn-secondary py-2 px-3.5 text-xs font-bold shrink-0 flex items-center gap-1.5"
+                        >
+                          ⬇ Descargar Plantilla
+                        </button>
+                      </div>
+
+                      {/* File Upload Zone */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">2. Sube la Plantilla Completa</label>
+                        <div 
+                          className="border-2 border-dashed border-zinc-800 hover:border-amber-500/50 rounded-xl p-8 text-center bg-zinc-950/40 transition-colors cursor-pointer relative"
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files[0];
+                            if (file) {
+                              setBulkFileName(file.name);
+                              const reader = new FileReader();
+                              reader.onload = (evt) => {
+                                setBulkFileContent(evt.target?.result as string);
+                              };
+                              reader.readAsText(file);
+                            }
+                          }}
+                        >
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setBulkFileName(file.name);
+                                const reader = new FileReader();
+                                reader.onload = (evt) => {
+                                  setBulkFileContent(evt.target?.result as string);
+                                };
+                                reader.readAsText(file);
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          <div className="space-y-2">
+                            <p className="text-xs text-zinc-400 font-semibold">{bulkFileName ? `Archivo cargado: ${bulkFileName}` : 'Arrastra tu archivo .csv aquí o haz clic para buscar'}</p>
+                            <p className="text-[9px] text-zinc-650">Asegúrate de que la primera fila contenga las columnas obligatorias: sku, tienda_id, cantidad</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-zinc-800/80 flex justify-end gap-3 bg-zinc-900/90 rounded-b-2xl">
+                  <button 
+                    onClick={() => { setShowCargaModal(false); setCargaStep('input'); }} 
+                    className="btn-ghost text-xs py-2 px-4"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handlePreValidarCarga}
+                    disabled={isCargaLoading}
+                    className="btn-primary text-xs py-2 px-6 font-bold flex items-center gap-1.5"
+                  >
+                    {isCargaLoading ? 'Procesando...' : 'Siguiente: Pre-Validar Carga'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Review Step Screen */}
+                <div className="p-6 overflow-y-auto flex-1 space-y-5">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3 items-start">
+                    <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                    <div>
+                      <h4 className="text-xs font-extrabold text-amber-400 uppercase tracking-wide">Detector de Duplicados</h4>
+                      <p className="text-[10px] text-zinc-450 mt-0.5">Se han detectado productos que ya tienen stock registrado en la sucursal destino. Elige la acción correctiva para cada uno:</p>
+                    </div>
+                  </div>
+
+                  {/* List grid */}
+                  <div className="space-y-2">
+                    <div className="bg-zinc-900/60 rounded-xl border border-zinc-800 max-h-[35vh] overflow-y-auto pr-1">
+                      <table className="w-full text-[11px] text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-zinc-800 text-zinc-500 uppercase tracking-wider text-[9px] font-black">
+                            <th className="p-3">Producto</th>
+                            <th className="p-3">Sucursal</th>
+                            <th className="p-3 text-center">Stock Actual</th>
+                            <th className="p-3 text-center">Carga Nueva</th>
+                            <th className="p-3 text-center">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-900">
+                          {itemsToReview.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-zinc-900/30">
+                              <td className="p-3 font-semibold text-zinc-200">
+                                <span className="font-mono text-amber-500 mr-1">[{item.sku}]</span>
+                                {item.producto_nombre}
+                              </td>
+                              <td className="p-3 text-zinc-400 font-medium">{item.tienda_nombre}</td>
+                              <td className="p-3 text-center font-bold text-zinc-500">{item.cantidad_actual}</td>
+                              <td className="p-3 text-center">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={item.cantidad_nueva}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 0);
+                                    setItemsToReview(prev => prev.map((it, i) => i === idx ? { ...it, cantidad_nueva: val } : it));
+                                  }}
+                                  className="w-12 bg-zinc-950 border border-zinc-800 text-center rounded py-1 font-bold text-zinc-200 focus:border-amber-500 focus:outline-none"
+                                />
+                              </td>
+                              <td className="p-3 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={() => {
+                                      setItemsToReview(prev => prev.map((it, i) => i === idx ? { ...it, action: 'sumar' } : it));
+                                    }}
+                                    className={`px-2 py-1 rounded text-[9px] font-black transition-all ${
+                                      item.action === 'sumar' ? 'bg-amber-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-450 hover:bg-zinc-700'
+                                    }`}
+                                    title="Sumar al stock existente"
+                                  >
+                                    Sumar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setItemsToReview(prev => prev.map((it, i) => i === idx ? { ...it, action: 'reemplazar' } : it));
+                                    }}
+                                    className={`px-2 py-1 rounded text-[9px] font-black transition-all ${
+                                      item.action === 'reemplazar' ? 'bg-amber-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-450 hover:bg-zinc-700'
+                                    }`}
+                                    title="Sobrescribir el stock actual"
+                                  >
+                                    Reemplazar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setItemsToReview(prev => prev.map((it, i) => i === idx ? { ...it, action: 'omitir' } : it));
+                                    }}
+                                    className={`px-2 py-1 rounded text-[9px] font-black transition-all ${
+                                      item.action === 'omitir' ? 'bg-red-500/20 text-red-400 border border-red-500/20 font-extrabold' : 'bg-zinc-800 text-zinc-450 hover:bg-zinc-700'
+                                    }`}
+                                    title="Ignorar esta entrada de inventario"
+                                  >
+                                    Omitir
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Audit Trail Note */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Auditoría: Motivo / Comentarios de la carga</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Carga de inventario físico inicial anual, compra externa..."
+                      value={cargaNotas}
+                      onChange={(e) => setCargaNotas(e.target.value)}
+                      className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-zinc-800/80 flex justify-end gap-3 bg-zinc-900/90 rounded-b-2xl">
+                  <button
+                    onClick={() => { setCargaStep('input'); setItemsToReview([]); }}
+                    className="btn-ghost text-xs py-2 px-4"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    onClick={handleConfirmarReviewCarga}
+                    disabled={isCargaLoading}
+                    className="btn-primary text-xs py-2 px-6 font-bold"
+                  >
+                    {isCargaLoading ? 'Cargando...' : '✓ Confirmar e Incrementar Stock'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
