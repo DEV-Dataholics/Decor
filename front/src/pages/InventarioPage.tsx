@@ -41,6 +41,18 @@ export default function InventarioPage() {
   const [cargaNotas, setCargaNotas] = useState('');
   const [isCargaLoading, setIsCargaLoading] = useState(false);
 
+  // States for individual capture product details (DEC-007)
+  const [indNombre, setIndNombre] = useState('');
+  const [indSku, setIndSku] = useState('');
+  const [indCategoria, setIndCategoria] = useState('');
+  const [indCosto, setIndCosto] = useState<number>(0);
+  const [indPrecio, setIndPrecio] = useState<number>(0);
+  const [indAncho, setIndAncho] = useState<number>(0);
+  const [indAlto, setIndAlto] = useState<number>(0);
+  const [indFondo, setIndFondo] = useState<number>(0);
+  const [indAcabados, setIndAcabados] = useState('');
+  const [isIndNewProduct, setIsIndNewProduct] = useState(false);
+
   // States for Tienda tab search and filter controls (DEC-007 Filters)
   const [tiendaSearch, setTiendaSearch] = useState('');
   const [tiendaCatFilter, setTiendaCatFilter] = useState('');
@@ -229,8 +241,16 @@ export default function InventarioPage() {
   const handlePreValidarCarga = async () => {
     let items = [];
     if (cargaMode === 'individual') {
-      if (!indProductoId) {
-        alert('Debe seleccionar un producto');
+      if (!isIndNewProduct && !indProductoId) {
+        alert('Debe seleccionar un producto o activar la casilla de producto nuevo');
+        return;
+      }
+      if (isIndNewProduct && !indSku) {
+        alert('Debe ingresar un SKU para el producto nuevo');
+        return;
+      }
+      if (isIndNewProduct && !indNombre) {
+        alert('Debe ingresar el nombre del producto nuevo');
         return;
       }
       if (!indTiendaId) {
@@ -242,9 +262,18 @@ export default function InventarioPage() {
         return;
       }
       items.push({
-        producto_id: indProductoId,
+        producto_id: isIndNewProduct ? 0 : indProductoId,
+        sku: isIndNewProduct ? indSku : '',
         tienda_id: indTiendaId,
-        cantidad: indCantidad
+        cantidad: indCantidad,
+        nombre: indNombre || undefined,
+        categoria: indCategoria || undefined,
+        costo_produccion: indCosto || undefined,
+        precio_publico: indPrecio || undefined,
+        ancho: indAncho || undefined,
+        alto: indAlto || undefined,
+        fondo: indFondo || undefined,
+        acabados: indAcabados || undefined
       });
     } else {
       if (!bulkFileContent) {
@@ -375,6 +404,16 @@ export default function InventarioPage() {
         setBulkFileName('');
         setIndProductoId(0);
         setIndSearchTerm('');
+        setIndNombre('');
+        setIndSku('');
+        setIndCategoria('');
+        setIndCosto(0);
+        setIndPrecio(0);
+        setIndAncho(0);
+        setIndAlto(0);
+        setIndFondo(0);
+        setIndAcabados('');
+        setIsIndNewProduct(false);
         setCargaNotas('');
         await fetchOperativos();
       } else {
@@ -1267,36 +1306,182 @@ export default function InventarioPage() {
                 <div className="p-6 overflow-y-auto flex-1 space-y-4">
                   {cargaMode === 'individual' ? (
                     <div className="space-y-4">
-                      {/* Producto Dropdown with local search filter */}
-                      <div className="space-y-1.5 relative">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Producto</label>
+                      {/* Checkbox for New Product Toggle */}
+                      <div className="flex items-center gap-2 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/80">
                         <input
-                          type="text"
-                          placeholder="Buscar producto por SKU o Nombre..."
-                          value={indSearchTerm}
-                          onChange={(e) => setIndSearchTerm(e.target.value)}
-                          className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                          type="checkbox"
+                          id="isNewProdCheckbox"
+                          checked={isIndNewProduct}
+                          onChange={(e) => {
+                            setIsIndNewProduct(e.target.checked);
+                            setIndProductoId(0);
+                            setIndSearchTerm('');
+                            setIndNombre('');
+                            setIndSku('');
+                            setIndCategoria('');
+                            setIndCosto(0);
+                            setIndPrecio(0);
+                            setIndAncho(0);
+                            setIndAlto(0);
+                            setIndFondo(0);
+                            setIndAcabados('');
+                          }}
+                          className="rounded border-zinc-800 bg-zinc-950 text-amber-500 focus:ring-amber-500 focus:ring-opacity-25"
                         />
-                        {indSearchTerm && (
-                          <div className="absolute left-0 right-0 mt-1 bg-zinc-950 border border-zinc-800 rounded-lg max-h-40 overflow-y-auto z-50 shadow-xl scrollbar-hide">
-                            {productos
-                              .filter(p => p.name.toLowerCase().includes(indSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(indSearchTerm.toLowerCase()))
-                              .map(p => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setIndProductoId(p.id);
-                                    setIndSearchTerm(`${p.sku} - ${p.name}`);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-zinc-100 border-b border-zinc-900/60 last:border-0"
-                                >
-                                  <span className="font-mono text-amber-500 font-bold">[{p.sku}]</span> {p.name}
-                                </button>
-                              ))}
-                          </div>
-                        )}
+                        <label htmlFor="isNewProdCheckbox" className="text-xs font-bold text-zinc-350 cursor-pointer select-none">
+                          ¿Es un producto nuevo que no existe en el catálogo?
+                        </label>
                       </div>
+
+                      {isIndNewProduct ? (
+                        /* New Product inputs */
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">SKU del Producto</label>
+                            <input
+                              type="text"
+                              placeholder="Ej. DCR-0294"
+                              value={indSku}
+                              onChange={(e) => setIndSku(e.target.value)}
+                              className="input-dark w-full text-xs py-2 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Nombre del Producto</label>
+                            <input
+                              type="text"
+                              placeholder="Ej. Mesa Coffee X"
+                              value={indNombre}
+                              onChange={(e) => setIndNombre(e.target.value)}
+                              className="input-dark w-full text-xs py-2 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        /* Product search selector */
+                        <div className="space-y-1.5 relative">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Producto</label>
+                          <input
+                            type="text"
+                            placeholder="Buscar producto por SKU o Nombre..."
+                            value={indSearchTerm}
+                            onChange={(e) => setIndSearchTerm(e.target.value)}
+                            className="input-dark w-full text-xs py-2.5 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100"
+                          />
+                          {indSearchTerm && !indProductoId && (
+                            <div className="absolute left-0 right-0 mt-1 bg-zinc-950 border border-zinc-800 rounded-lg max-h-40 overflow-y-auto z-50 shadow-xl scrollbar-hide">
+                              {productos
+                                .filter(p => p.name.toLowerCase().includes(indSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(indSearchTerm.toLowerCase()))
+                                .map(p => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setIndProductoId(p.id);
+                                      setIndSearchTerm(`${p.sku} - ${p.name}`);
+                                      setIndNombre(p.name);
+                                      setIndSku(p.sku);
+                                      setIndCategoria(p.type || '');
+                                      setIndCosto(p.costo_produccion || 0);
+                                      setIndPrecio(p.prices['Publico'] || p.prices['General'] || Object.values(p.prices)[0] || 0);
+                                      setIndAncho(p.dimensions?.width || 0);
+                                      setIndAlto(p.dimensions?.height || 0);
+                                      setIndFondo(p.dimensions?.depth || 0);
+                                      setIndAcabados(p.finishes?.join(', ') || '');
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-zinc-100 border-b border-zinc-900/60 last:border-0"
+                                  >
+                                    <span className="font-mono text-amber-500 font-bold">[{p.sku}]</span> {p.name}
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Product Details Form Fields (Visible and Editable) */}
+                      {(isIndNewProduct || indProductoId > 0) && (
+                        <div className="p-4 bg-zinc-950/30 rounded-xl border border-zinc-800/80 space-y-3.5">
+                          <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-wider">Detalles Adicionales del Producto</h4>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Categoría</label>
+                              <input
+                                type="text"
+                                placeholder="Ej. Coffee Tables"
+                                value={indCategoria}
+                                onChange={(e) => setIndCategoria(e.target.value)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Costo Producción ($)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={indCosto}
+                                onChange={(e) => setIndCosto(parseFloat(e.target.value) || 0)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Precio Público ($)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={indPrecio}
+                                onChange={(e) => setIndPrecio(parseFloat(e.target.value) || 0)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Ancho (pulgadas)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={indAncho}
+                                onChange={(e) => setIndAncho(parseFloat(e.target.value) || 0)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Alto (pulgadas)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={indAlto}
+                                onChange={(e) => setIndAlto(parseFloat(e.target.value) || 0)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Fondo (pulgadas)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={indFondo}
+                                onChange={(e) => setIndFondo(parseFloat(e.target.value) || 0)}
+                                className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Acabados (separados por coma)</label>
+                            <input
+                              type="text"
+                              placeholder="Ej. Alder, Dark Walnut, Laqueado Claro"
+                              value={indAcabados}
+                              onChange={(e) => setIndAcabados(e.target.value)}
+                              className="input-dark w-full text-xs py-1.5 bg-zinc-950 border-zinc-800 rounded text-zinc-200"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Sucursal Selector */}
                       <div className="space-y-1.5">
