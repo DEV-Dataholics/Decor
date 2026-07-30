@@ -216,7 +216,7 @@ export default function InventarioPage() {
   };
 
   const handleDownloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,sku,tienda_id,cantidad\nDCR-0294,2,10\nDCR-0295,3,5\n";
+    const csvContent = "data:text/csv;charset=utf-8,sku,tienda_id,cantidad,nombre,categoria,costo_produccion,precio_publico,ancho,alto,fondo,acabados\nDCR-0294,2,10,Mesa Coffee X,Coffee Tables,175.7,251.0,37,18,38,\"Alder,Dark Walnut\"\n";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -262,16 +262,41 @@ export default function InventarioPage() {
       const skuIdx = headers.indexOf('sku');
       const tiendaIdx = headers.indexOf('tienda_id');
       const cantIdx = headers.indexOf('cantidad');
+      const nomIdx = headers.indexOf('nombre');
+      const catIdx = headers.indexOf('categoria');
+      const costoIdx = headers.indexOf('costo_produccion');
+      const precioIdx = headers.indexOf('precio_publico');
+      const anchoIdx = headers.indexOf('ancho');
+      const altoIdx = headers.indexOf('alto');
+      const fondoIdx = headers.indexOf('fondo');
+      const acabadosIdx = headers.indexOf('acabados');
 
       if (skuIdx === -1 || tiendaIdx === -1 || cantIdx === -1) {
-        alert('El archivo CSV debe tener las cabeceras sku, tienda_id, cantidad');
+        alert('El archivo CSV debe tener las cabeceras obligatorias: sku, tienda_id, cantidad');
         return;
       }
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const cols = line.split(',').map(c => c.trim());
+        
+        // Handle CSV split with quote matching for comma-separated finishes:
+        let cols = [];
+        let insideQuote = false;
+        let currentField = '';
+        for (let charIdx = 0; charIdx < line.length; charIdx++) {
+          const char = line[charIdx];
+          if (char === '"') {
+            insideQuote = !insideQuote;
+          } else if (char === ',' && !insideQuote) {
+            cols.push(currentField.trim());
+            currentField = '';
+          } else {
+            currentField += char;
+          }
+        }
+        cols.push(currentField.trim());
+
         if (cols.length < 3) continue;
         
         const sku = cols[skuIdx];
@@ -279,7 +304,19 @@ export default function InventarioPage() {
         const cantidad = parseFloat(cols[cantIdx]) || 0;
 
         if (sku && tienda_id && cantidad > 0) {
-          parsed.push({ sku, tienda_id, cantidad });
+          parsed.push({
+            sku,
+            tienda_id,
+            cantidad,
+            nombre: nomIdx !== -1 ? cols[nomIdx] : '',
+            categoria: catIdx !== -1 ? cols[catIdx] : '',
+            costo_produccion: (costoIdx !== -1 && cols[costoIdx]) ? parseFloat(cols[costoIdx]) : 0,
+            precio_publico: (precioIdx !== -1 && cols[precioIdx]) ? parseFloat(cols[precioIdx]) : 0,
+            ancho: (anchoIdx !== -1 && cols[anchoIdx]) ? parseFloat(cols[anchoIdx]) : 0,
+            alto: (altoIdx !== -1 && cols[altoIdx]) ? parseFloat(cols[altoIdx]) : 0,
+            fondo: (fondoIdx !== -1 && cols[fondoIdx]) ? parseFloat(cols[fondoIdx]) : 0,
+            acabados: acabadosIdx !== -1 ? cols[acabadosIdx] : ''
+          });
         }
       }
       if (parsed.length === 0) {

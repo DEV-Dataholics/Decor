@@ -49,19 +49,42 @@ try {
             continue;
         }
 
-        // 1. Resolver producto
-        $stmtProd->execute([$pIdOrSku, $pIdOrSku]);
-        $prod = $stmtProd->fetch(PDO::FETCH_ASSOC);
-        if (!$prod) {
-            $errores[] = ["index" => $index, "error" => "Producto no encontrado: $pIdOrSku"];
-            continue;
-        }
-
-        // 2. Resolver tienda
+        // 1. Resolver tienda
         $stmtTienda->execute([$tId]);
         $tiendaNombre = $stmtTienda->fetchColumn();
         if (!$tiendaNombre) {
             $errores[] = ["index" => $index, "error" => "Sucursal no encontrada con ID $tId"];
+            continue;
+        }
+
+        // 2. Resolver producto
+        $stmtProd->execute([$pIdOrSku, $pIdOrSku]);
+        $prod = $stmtProd->fetch(PDO::FETCH_ASSOC);
+
+        if (!$prod) {
+            if (!empty($item['nombre'])) {
+                // Producto no existe pero viene con nombre para ser creado
+                $record = [
+                    "producto_id" => 0,
+                    "producto_nombre" => trim($item['nombre']),
+                    "sku" => $pIdOrSku,
+                    "tienda_id" => $tId,
+                    "tienda_nombre" => $tiendaNombre,
+                    "cantidad_actual" => 0.0,
+                    "cantidad_nueva" => $qty,
+                    "is_new" => true,
+                    "categoria" => trim($item['categoria'] ?? ''),
+                    "costo_produccion" => (float)($item['costo_produccion'] ?? 0),
+                    "precio_publico" => (float)($item['precio_publico'] ?? 0),
+                    "ancho" => (float)($item['ancho'] ?? 0),
+                    "alto" => (float)($item['alto'] ?? 0),
+                    "fondo" => (float)($item['fondo'] ?? 0),
+                    "acabados" => trim($item['acabados'] ?? '')
+                ];
+                $validos[] = $record;
+            } else {
+                $errores[] = ["index" => $index, "error" => "Producto no encontrado: $pIdOrSku. Proporcione 'nombre' y 'categoria' para crearlo automáticamente."];
+            }
             continue;
         }
 
@@ -76,7 +99,15 @@ try {
             "tienda_id" => $tId,
             "tienda_nombre" => $tiendaNombre,
             "cantidad_actual" => $inv ? (float)$inv['cantidad_disponible'] : 0.0,
-            "cantidad_nueva" => $qty
+            "cantidad_nueva" => $qty,
+            "is_new" => false,
+            "categoria" => trim($item['categoria'] ?? ''),
+            "costo_produccion" => isset($item['costo_produccion']) ? (float)$item['costo_produccion'] : null,
+            "precio_publico" => isset($item['precio_publico']) ? (float)$item['precio_publico'] : null,
+            "ancho" => isset($item['ancho']) ? (float)$item['ancho'] : null,
+            "alto" => isset($item['alto']) ? (float)$item['alto'] : null,
+            "fondo" => isset($item['fondo']) ? (float)$item['fondo'] : null,
+            "acabados" => trim($item['acabados'] ?? '')
         ];
 
         if ($inv && (float)$inv['cantidad_disponible'] > 0) {
