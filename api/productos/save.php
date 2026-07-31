@@ -15,10 +15,43 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // ─── Validaciones comunes ──────────────────────────────────
 if (empty($body['nombre'])) json_error('El nombre del producto es requerido');
-if (empty($body['categoria_id'])) json_error('La categoría es requerida');
+if (empty($body['categoria_id']) && empty($body['categoria_nombre'])) json_error('La categoría es requerida');
 
 $nombre       = trim($body['nombre']);
-$categoria_id = (int)$body['categoria_id'];
+$categoria_id = (int)($body['categoria_id'] ?? 0);
+$categoria_nombre = trim($body['categoria_nombre'] ?? '');
+
+if ($categoria_id > 0) {
+    $stmtCheckCat = $db->prepare("SELECT id FROM categorias_mueble WHERE id = ?");
+    $stmtCheckCat->execute([$categoria_id]);
+    if (!$stmtCheckCat->fetchColumn()) {
+        $categoria_id = 0;
+    }
+}
+
+if (!$categoria_id && $categoria_nombre) {
+    $stmtCat = $db->prepare("SELECT id FROM categorias_mueble WHERE nombre = ? LIMIT 1");
+    $stmtCat->execute([$categoria_nombre]);
+    $catId = $stmtCat->fetchColumn();
+    if ($catId) {
+        $categoria_id = (int)$catId;
+    } else {
+        $stmtInsCat = $db->prepare("INSERT INTO categorias_mueble (nombre, descripcion) VALUES (?, 'Auto-creada desde formulario')");
+        $stmtInsCat->execute([$categoria_nombre]);
+        $categoria_id = (int)$db->lastInsertId();
+    }
+}
+
+if (!$categoria_id) {
+    $stmtCat = $db->prepare("SELECT id FROM categorias_mueble LIMIT 1");
+    $stmtCat->execute();
+    $categoria_id = (int)$stmtCat->fetchColumn();
+    if (!$categoria_id) {
+        $stmtInsCat = $db->prepare("INSERT INTO categorias_mueble (nombre, descripcion) VALUES ('General', 'Categoría de fallback')");
+        $stmtInsCat->execute();
+        $categoria_id = (int)$db->lastInsertId();
+    }
+}
 $sku          = trim($body['sku'] ?? '');
 $descripcion  = trim($body['descripcion'] ?? '');
 $precio_venta = (float)($body['precio_venta_base'] ?? 0);

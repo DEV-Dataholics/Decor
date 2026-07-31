@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X, Save, List, Grid3X3 } from 'lucide-react';
+import { Package, TreePine, Store, Search, Minus, Plus, Timer, AlertTriangle, QrCode, Printer, X, Save, List, Grid3X3, Trash2 } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import QRLabel from '../components/QRLabel';
 import { QRCodeSVG } from 'qrcode.react';
@@ -10,8 +10,9 @@ type Tab = 'tienda' | 'materia_prima' | 'terminados';
 import type { Embarque, EmbarqueItem } from '../store/useStore';
 
 export default function InventarioPage() {
-  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion, fetchOperativos, apiBase, apiFetch, acabados } = useDecor();
-  const isGerenteTienda = currentUser?.rol === 'gerente_tienda';
+  const { currentUser, inventario, materiaPrima, terminados, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, purgeStockTienda, tiendas, productos, embarques, ventas, devoluciones, confirmarRecepcion, fetchOperativos, apiBase, apiFetch, acabados } = useDecor();
+  const isAdmin = currentUser?.rol === 'admin';
+  const isGerenteTienda = currentUser?.rol === 'gerente_tienda' || currentUser?.rol === 'admin';
   const posTiendaId = localStorage.getItem('decor_pos_tienda_id') ? Number(localStorage.getItem('decor_pos_tienda_id')) : null;
 
   const [tab, setTab] = useState<Tab>(isGerenteTienda ? 'tienda' : 'terminados');
@@ -1028,7 +1029,7 @@ export default function InventarioPage() {
                   <div className="col-span-2 text-right text-xs font-semibold text-zinc-300">
                     ${'price' in item ? (item.price as number)?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'}
                   </div>
-                  <div className="col-span-2 flex justify-end">
+                  <div className="col-span-2 flex justify-end gap-1.5">
                     <button 
                       onClick={(e) => handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name)} 
                       className="p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
@@ -1036,6 +1037,25 @@ export default function InventarioPage() {
                     >
                       <QrCode size={14} />
                     </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`¿Purgar todo el stock de ${item.name} en esta sucursal? Esta acción eliminará los registros de stock y no se puede deshacer.`)) {
+                            const success = await purgeStockTienda(selectedTiendaId as number, item.id as number);
+                            if (success) {
+                              alert('Stock purgado correctamente.');
+                            } else {
+                              alert('Error al purgar el stock.');
+                            }
+                          }
+                        }} 
+                        className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors"
+                        title="Purgar Stock (Pruebas)"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1093,13 +1113,34 @@ export default function InventarioPage() {
                     </p>
                   )}
                   {item.type === 'product' && (
-                    <button 
-                      onClick={(e) => handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name)} 
-                      className="absolute top-2 right-2 p-1.5 text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 rounded transition-colors"
-                      title="Imprimir QRs"
-                    >
-                      <QrCode size={14} />
-                    </button>
+                    <div className="absolute top-2 right-2 flex gap-1 bg-zinc-950/45 p-1 rounded-lg">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handlePrintStoreQRs(e, selectedTiendaId as number, item.id as number, item.count, item.name); }} 
+                        className="p-1 text-zinc-400 hover:text-amber-450 hover:bg-zinc-800 rounded transition-colors"
+                        title="Imprimir QRs"
+                      >
+                        <QrCode size={12} />
+                      </button>
+                      {isAdmin && (
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm(`¿Purgar todo el stock de ${item.name} en esta sucursal? Esta acción eliminará los registros de stock y no se puede deshacer.`)) {
+                              const success = await purgeStockTienda(selectedTiendaId as number, item.id as number);
+                              if (success) {
+                                alert('Stock purgado correctamente.');
+                              } else {
+                                alert('Error al purgar el stock.');
+                              }
+                            }
+                          }} 
+                          className="p-1 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors"
+                          title="Purgar Stock (Pruebas)"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}

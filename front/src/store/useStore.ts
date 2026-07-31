@@ -175,6 +175,7 @@ export interface DecorStore {
   updateMateriaPrima: (id: number, val: number, isAbsolute?: boolean, key?: 'cantidad' | 'minimo') => void;
   guardarMateriaPrima: () => Promise<void>;
   updateStockTienda: (tiendaId: number, productoId: number, cantidad: number) => Promise<boolean>;
+  purgeStockTienda: (tiendaId: number, productoId: number) => Promise<boolean>;
   addUsuario: (usr: any) => Promise<void>;
   updateUsuario: (usr: any) => Promise<void>;
   deleteUsuario: (id: number) => Promise<void>;
@@ -896,6 +897,28 @@ export function useStore(): DecorStore {
     }
   }, [apiBase, apiFetch]);
 
+  const purgeStockTienda = useCallback(async (tiendaId: number, productoId: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/inventario/purge_stock.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tienda_id: tiendaId,
+          producto_id: productoId
+        })
+      });
+      if (res.ok) {
+        setInventario(prev => prev.filter(i => !(i.tienda_id === tiendaId && i.producto_id === productoId)));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [apiBase, apiFetch]);
+
   const addCliente = useCallback((cli: Omit<Cliente, 'id'>) => {
     setClientes(prev => [...prev, { ...cli, id: Date.now() }]);
   }, []);
@@ -950,9 +973,18 @@ export function useStore(): DecorStore {
       });
       if (res.ok) {
         await fetchCatalogos();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || 'Error al procesar la eliminación de la tienda';
+        if (msg.includes('foreign key constraint') || msg.includes('a foreign key constraint fails')) {
+          alert('No se puede eliminar esta sucursal porque tiene inventario, pedidos o registros de embarque vinculados.');
+        } else {
+          alert('Error al eliminar: ' + msg);
+        }
       }
     } catch (e) {
       console.error(e);
+      alert('Error de red al eliminar la sucursal.');
     }
   }, [apiBase, apiFetch, fetchCatalogos]);
 
@@ -998,9 +1030,18 @@ export function useStore(): DecorStore {
       });
       if (res.ok) {
         await fetchCatalogos();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.error || 'Error al procesar la eliminación del acabado';
+        if (msg.includes('foreign key constraint') || msg.includes('a foreign key constraint fails')) {
+          alert('No se puede eliminar el acabado "' + acabado + '" porque está en uso por uno o más productos.');
+        } else {
+          alert('Error al eliminar acabado: ' + msg);
+        }
       }
     } catch (e) {
       console.error(e);
+      alert('Error de red al eliminar el acabado.');
     }
   }, [apiBase, apiFetch, fetchCatalogos]);
 
@@ -1033,6 +1074,7 @@ export function useStore(): DecorStore {
         nombre: prod.name,
         sku: prod.sku,
         categoria_id,
+        categoria_nombre: prod.type,
         precio_venta_base: prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0,
         precio_produccion_base: prod.costo_produccion || 0,
         dimension_alto: prod.dimensions.height,
@@ -1270,7 +1312,7 @@ export function useStore(): DecorStore {
     moveWorkOrder, crearPedido, editarPedido, eliminarPedido, crearEmbarque,
     cancelarEmbarque,
     updateEmbarqueStatus,
-    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima, guardarMateriaPrima, updateStockTienda,
+    confirmarRecepcion, registrarVentaQR, registrarVentaCarrito, updateMateriaPrima, guardarMateriaPrima, updateStockTienda, purgeStockTienda,
     usuarios, addUsuario, updateUsuario, deleteUsuario,
     addCliente, updateCliente, deleteCliente,
     addTienda, updateTienda, deleteTienda,

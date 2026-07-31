@@ -24,11 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             json_error('ID requerido para eliminar', 422);
         }
         try {
-            $stmt = $pdo->prepare("UPDATE tiendas SET activa = 0 WHERE id = ?");
+            // Intentar eliminación física para permitir purga completa de datos de prueba
+            $stmt = $pdo->prepare("DELETE FROM tiendas WHERE id = ?");
             $stmt->execute([$id]);
-            json_ok(['mensaje' => 'Tienda desactivada correctamente']);
+            json_ok(['mensaje' => 'Tienda eliminada físicamente correctamente']);
         } catch (PDOException $e) {
-            json_error('Error al desactivar tienda: ' . $e->getMessage(), 500);
+            // Si tiene registros dependientes (embarques, inventario), intentar deactivación lógica o avisar
+            try {
+                $stmt = $pdo->prepare("UPDATE tiendas SET activa = 0 WHERE id = ?");
+                $stmt->execute([$id]);
+                json_ok(['mensaje' => 'La tienda tiene movimientos asociados; se ha desactivado lógicamente para preservar la integridad de datos']);
+            } catch (PDOException $ex) {
+                json_error('No se puede desactivar la tienda: ' . $ex->getMessage(), 500);
+            }
         }
         exit;
     }

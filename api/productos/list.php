@@ -10,7 +10,7 @@ set_json_headers();
 require_role(['admin', 'gerente_tienda', 'encargado_taller', 'cajero', 'carpintero', 'bodega']);
 
 $db  = getDB();
-$per_page    = 24;
+$per_page    = (isset($_GET['limit']) && $_GET['limit'] === 'all') || !isset($_GET['pagina']) ? 100000 : 24;
 $pagina      = max(1, (int)($_GET['pagina'] ?? 1));
 $offset      = ($pagina - 1) * $per_page;
 $categoria   = isset($_GET['categoria_id']) && is_numeric($_GET['categoria_id'])
