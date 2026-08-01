@@ -916,7 +916,7 @@ export default function InventarioPage() {
               )}
             </div>
 
-            {(currentUser?.rol === 'admin' || currentUser?.rol === 'gerente_tienda') && (
+            {isAdmin && (
               <button
                 onClick={() => {
                   setIndTiendaId(selectedTiendaId || posTiendaId || (tiendas[0]?.id || 0));
@@ -998,7 +998,7 @@ export default function InventarioPage() {
                     <p className="text-[9px] text-zinc-500 font-mono">SKU: {productos.find(p => p.id === item.id)?.sku || '—'}</p>
                   </div>
                   <div className="col-span-3 flex justify-center items-center">
-                    {isGerenteTienda ? (
+                    {isAdmin ? (
                       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         <button 
                           onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 
@@ -1077,7 +1077,7 @@ export default function InventarioPage() {
                     {item.type === 'tienda' ? <Store size={32} /> : item.type === 'category' ? <Package size={32} /> : <Store size={32} />}
                   </div>
                   <h3 className="text-xs font-bold text-zinc-200 line-clamp-2 min-h-[32px]">{item.name}</h3>
-                  {isGerenteTienda && item.type === 'product' ? (
+                  {isAdmin && item.type === 'product' ? (
                     <div className="flex items-center gap-1 mt-2 mb-1" onClick={e => e.stopPropagation()}>
                       <button 
                         onClick={() => updateStockTienda(selectedTiendaId as number, item.id as number, Math.max(0, item.count - 1))} 

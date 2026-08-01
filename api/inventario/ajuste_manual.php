@@ -8,7 +8,7 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/response.php';
 
 set_json_headers();
-require_role(['admin', 'gerente_tienda']);
+require_role(['admin']);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_error('Método no permitido', 405);
