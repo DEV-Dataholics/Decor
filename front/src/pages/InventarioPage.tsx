@@ -132,6 +132,90 @@ export default function InventarioPage() {
     setPrintQRs({ nombre: productName, qrs: qrList, tiendaNombre: tName, precio: price });
   };
 
+  const handlePrintAllStoreQRs = () => {
+    const tiendaId = selectedTiendaId || posTiendaId;
+    if (!tiendaId) return;
+    const tName = tiendas.find(t => t.id === tiendaId)?.nombre || 'STOCK TIENDA';
+    const allQRsToPrint: { qr: string, nombre: string, precio: number }[] = [];
+
+    tiendaData.forEach(item => {
+      if (item.type !== 'product' || item.count <= 0) return;
+      
+      const prod = productos.find(p => p.id === item.id);
+      const price = prod ? (prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0) : 0;
+      
+      const storeQRs = new Set<string>();
+      embarques.forEach(emb => {
+        if (emb.estatus === 'entregado') {
+          emb.items.forEach(ei => {
+            if (ei.producto_id === item.id && ei.estado_recepcion === 'ok' && ei.tienda_destino_id === tiendaId) {
+              storeQRs.add(ei.qr_code);
+            }
+          });
+        }
+      });
+
+      ventas.forEach(venta => {
+        if (venta.tienda_id === tiendaId) {
+          venta.items.forEach(vi => {
+            if (vi.producto_id === item.id) {
+              storeQRs.delete(vi.qr_code);
+            }
+          });
+        }
+      });
+
+      const qrList = Array.from(storeQRs).slice(0, item.count);
+      let index = 0;
+      while (qrList.length < item.count) {
+        qrList.push(`DCR-REC-${tiendaId}-${item.id}-${Date.now()}-${index}`);
+        index++;
+      }
+
+      qrList.forEach(qr => {
+        allQRsToPrint.push({ qr, nombre: item.name, precio: price });
+      });
+    });
+
+    if (allQRsToPrint.length === 0) {
+      alert('No hay stock disponible en esta tienda para imprimir etiquetas.');
+      return;
+    }
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+
+    const css = `
+      @media print {
+        body { margin: 0; padding: 0; background: white; }
+        .page-break { page-break-after: always; }
+      }
+      .avery-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        padding: 20px;
+      }
+      .label-card {
+        border: 1px dashed #ccc;
+        padding: 10px;
+        text-align: center;
+        background: white;
+        color: black;
+        font-family: monospace;
+        font-size: 9px;
+      }
+    `;
+
+    w.document.write("<html><head><title>Impresión de Etiquetas</title><style>" + css + "</style></head><body onload='window.print(); window.close();'><div class='avery-grid'>");
+    allQRsToPrint.forEach(item => {
+      const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + encodeURIComponent(item.qr);
+      w.document.write("<div class='label-card'><div style='font-weight: bold; font-size: 10px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>DECOR</div><div style='font-size: 8px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>" + item.nombre + "</div><img src='" + qrUrl + "' style='width: 70px; height: 70px; margin: 0 auto 4px block;' /><div style='font-size: 8px; font-weight: bold; margin-bottom: 2px;'>$" + item.precio.toLocaleString() + "</div><div style='font-size: 7px; color: #555; word-break: break-all;'>" + item.qr + "</div></div>");
+    });
+    w.document.write("</div></body></html>");
+    w.document.close();
+  };
+
   const handlePrintLote = () => {
     if (!printQRs) return;
     const w = window.open('', '_blank');
@@ -392,7 +476,7 @@ export default function InventarioPage() {
       const res = await apiFetch(`${base}/api/inventario/confirmar_carga.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: finalItems, notas })
+        body: JSON.stringify({ items: finalItems, notas, is_initial_load: true })
       });
       const data = await res.json();
       if (res.ok && data.status === 'ok') {
@@ -916,17 +1000,27 @@ export default function InventarioPage() {
               )}
             </div>
 
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  setIndTiendaId(selectedTiendaId || posTiendaId || (tiendas[0]?.id || 0));
-                  setShowCargaModal(true);
-                }}
-                className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-1.5 shrink-0"
-              >
-                <Plus size={14} /> Cargar Inventario
-              </button>
-            )}
+            <div className="flex gap-2 shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setIndTiendaId(selectedTiendaId || posTiendaId || (tiendas[0]?.id || 0));
+                    setShowCargaModal(true);
+                  }}
+                  className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Plus size={14} /> Cargar Inventario
+                </button>
+              )}
+              {(selectedTiendaId || posTiendaId) && (
+                <button
+                  onClick={handlePrintAllStoreQRs}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-400 border border-zinc-700/50 py-2.5 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Printer size={14} /> Imprimir Todo el Inventario
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Advanced Filters for Tienda Inventory (DEC-007 Filters) */}
@@ -1242,6 +1336,30 @@ export default function InventarioPage() {
               <button onClick={() => setActiveRecepcionEmb(null)} className="text-zinc-500 hover:text-zinc-300">
                 <X size={18} />
               </button>
+            </div>
+            
+            {/* Gun Scanner input in reception modal */}
+            <div className="p-4 bg-zinc-900/60 border-b border-zinc-800/80">
+              <label className="text-[10px] text-zinc-400 font-bold uppercase block mb-1.5 tracking-wider">Escanear código de barras del item (Pistola de Escaneo)</label>
+              <input
+                type="text"
+                placeholder="Escanea el código de barras/QR..."
+                className="input-dark w-full text-xs py-2 bg-zinc-950 border-zinc-800 focus:border-amber-500 rounded-lg text-zinc-100 font-mono"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const code = (e.target as HTMLInputElement).value.trim();
+                    if (code) {
+                      const itemMatch = recepcionItems.find(i => i.qr_code === code);
+                      if (itemMatch) {
+                        handleUpdateItemStatus(code, 'ok');
+                        (e.target as HTMLInputElement).value = '';
+                      } else {
+                        alert('El código escaneado no pertenece a este embarque en tránsito');
+                      }
+                    }
+                  }
+                }}
+              />
             </div>
             
             <div className="p-4 overflow-y-auto flex-1 space-y-3">

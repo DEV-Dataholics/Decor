@@ -162,6 +162,17 @@ export default function PuntoDeVentaPage() {
       }
     }
 
+    // 4. Fallback: Buscar directamente en el catálogo de productos por SKU
+    if (!productoEncontrado) {
+      const prod = productos.find(p => p.sku === trimmed);
+      if (prod) {
+        const precio = prod.prices ? (prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0) : 0;
+        productoEncontrado = { id: prod.id, nombre: prod.name, precio: precio, sku: prod.sku };
+        prodId = prod.id;
+        isStoreValid = true;
+      }
+    }
+
     // Validar y agregar al carrito
     if (productoEncontrado && isStoreValid) {
       // Verificar stock disponible

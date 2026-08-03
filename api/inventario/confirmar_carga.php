@@ -25,11 +25,14 @@ try {
     $pdo = getDB();
     $pdo->beginTransaction();
 
+    $is_initial_load = (bool)($data['is_initial_load'] ?? false);
+    $origen_stock = $is_initial_load ? 'carga_inicial' : 'compra_externa';
+
     $stmtCheck = $pdo->prepare("SELECT id, cantidad_disponible FROM inventario_tienda WHERE tienda_id = ? AND producto_id = ? LIMIT 1 FOR UPDATE");
     $stmtInsInv = $pdo->prepare("
         INSERT INTO inventario_tienda 
             (tienda_id, producto_id, cantidad_disponible, cantidad_reservada, origen_stock, costo_unitario, precio_venta, lote_referencia_tipo, lote_referencia_id)
-        VALUES (?, ?, 0, 0, 'compra_externa', 0, 0, NULL, NULL)
+        VALUES (?, ?, 0, 0, ?, 0, 0, NULL, NULL)
     ");
     $stmtUpdInv = $pdo->prepare("UPDATE inventario_tienda SET cantidad_disponible = ? WHERE id = ?");
     $stmtGetPrice = $pdo->prepare("SELECT precio_venta_base FROM productos WHERE id = ?");
@@ -154,7 +157,7 @@ try {
             $inv_id = (int)$inv['id'];
             $stock_actual = (float)$inv['cantidad_disponible'];
         } else {
-            $stmtInsInv->execute([$tienda_id, $producto_id]);
+            $stmtInsInv->execute([$tienda_id, $producto_id, $origen_stock]);
             $inv_id = (int)$pdo->lastInsertId();
             $stock_actual = 0.0;
 

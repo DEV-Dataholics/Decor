@@ -27,14 +27,17 @@ $costo        = (float)($data['costo_unitario'] ?? 0);
 $origen_stock = $data['origen_stock'] ?? 'compra_externa';  // 'artesania'|'compra_externa'|'pieza_unica'
 $notas        = trim($data['notas'] ?? '');
 
-// Para ajuste tipo "establecer cantidad absoluta"
+$is_initial_load = (bool)($data['is_initial_load'] ?? false);
+if ($is_initial_load) {
+    $origen_stock = 'carga_inicial';
+}
 $es_absoluto  = (bool)($data['es_absoluto'] ?? false);
 
 if (!$producto_id || !$tienda_id) {
     json_error('producto_id y tienda_id son requeridos', 422);
 }
 
-$origenes_validos = ['embarque_taller', 'compra_externa', 'artesania', 'pieza_unica'];
+$origenes_validos = ['embarque_taller', 'compra_externa', 'artesania', 'pieza_unica', 'carga_inicial'];
 if (!in_array($origen_stock, $origenes_validos)) {
     json_error("origen_stock inválido. Valores válidos: " . implode(', ', $origenes_validos), 422);
 }

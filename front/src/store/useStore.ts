@@ -863,8 +863,9 @@ export function useStore(): DecorStore {
           tipo: 'ajuste',
           cantidad: cantidad,
           es_absoluto: true,
-          origen_stock: 'compra_externa',
-          notas: 'Ajuste manual de inventario de tienda'
+          origen_stock: 'carga_inicial',
+          is_initial_load: true,
+          notas: 'Carga inicial de inventario de tienda'
         })
       });
       if (res.ok) {
