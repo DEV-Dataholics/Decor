@@ -49,8 +49,8 @@ if (session_status() === PHP_SESSION_NONE) {
             session_save_path($session_dir);
         }
     }
-    if (defined('SESSION_NAME') && SESSION_NAME) {
-        session_name(SESSION_NAME);
+    if (defined('SESSION_NAME') && constant('SESSION_NAME')) {
+        session_name(constant('SESSION_NAME'));
     }
     @session_start();
 }
