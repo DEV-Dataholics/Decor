@@ -22,7 +22,7 @@ interface CartItem {
 }
 
 export default function PuntoDeVentaPage() {
-  const { registrarVentaCarrito, tiendas, embarques, terminados, inventario, productos, apiFetch } = useDecor();
+  const { registrarVentaCarrito, tiendas, embarques, terminados, inventario, productos, apiFetch, apiBase } = useDecor();
   
   // Persistencia de sucursal activa en local storage (Configurar Caja una sola vez)
   const [tiendaId, setTiendaId] = useState<number | null>(() => {
@@ -60,7 +60,7 @@ export default function PuntoDeVentaPage() {
   useEffect(() => {
     if (!tiendaId) return;
     setIsFetchingCaja(true);
-    apiFetch('/ventas/caja.php?tienda_id=' + tiendaId)
+    apiFetch(`${apiBase()}/api/ventas/caja.php?tienda_id=${tiendaId}`)
       .then(res => res.json())
       .then(res => {
         if (res.caja_id) {
@@ -79,7 +79,7 @@ export default function PuntoDeVentaPage() {
     e.preventDefault();
     if (!tiendaId) return;
     try {
-      const req = await apiFetch('/ventas/caja_abrir.php', {
+      const req = await apiFetch(`${apiBase()}/api/ventas/caja_abrir.php`, {
         method: 'POST',
         body: JSON.stringify({ tienda_id: tiendaId, fondo_inicial: Number(fondoInicial) })
       });
@@ -97,7 +97,7 @@ export default function PuntoDeVentaPage() {
     e.preventDefault();
     if (!cajaActual) return;
     try {
-      const req = await apiFetch('/ventas/caja_cerrar.php', {
+      const req = await apiFetch(`${apiBase()}/api/ventas/caja_cerrar.php`, {
         method: 'POST',
         body: JSON.stringify({ caja_id: cajaActual.caja_id || cajaActual.id, total_efectivo_contado: Number(efectivoContado) })
       });
@@ -190,7 +190,7 @@ export default function PuntoDeVentaPage() {
     }
 
     try {
-      const req = await apiFetch('/inventario/scan.php?codigo=' + encodeURIComponent(trimmed) + '&tienda_id=' + tiendaId);
+      const req = await apiFetch(`${apiBase()}/api/inventario/scan.php?codigo=${encodeURIComponent(trimmed)}&tienda_id=${tiendaId}`);
       const data = await req.json();
       if (data.ok && data.tipo_item === 'producto') {
         const prod = data.data;
@@ -308,7 +308,7 @@ export default function PuntoDeVentaPage() {
         }))
       };
 
-      const req = await apiFetch('/ventas/checkout.php', {
+      const req = await apiFetch(`${apiBase()}/api/ventas/checkout.php`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
