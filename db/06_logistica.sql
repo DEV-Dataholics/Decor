@@ -32,6 +32,8 @@ CREATE TABLE embarques (
   fecha_embarque        DATE              NOT NULL,
   placas_trailer        VARCHAR(20)       NULL,
   transportista         VARCHAR(120)      NULL,
+  ruta_viaje            VARCHAR(200)      NULL
+    COMMENT 'Descripción de la ruta, ej: Taller -> Sucursal Norte',
   carta_porte_url       VARCHAR(500)      NULL,
   folio_carta_porte     VARCHAR(60)       NULL,
   estatus               ENUM(

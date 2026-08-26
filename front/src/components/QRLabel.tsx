@@ -63,6 +63,20 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
         flex-grow: 1;
         overflow: hidden;
       }
+      .branch-header {
+        background: #0d9488;
+        color: white;
+        padding: 2px 4px;
+        font-size: 6.5px;
+        font-weight: 900;
+        text-transform: uppercase;
+        text-align: center;
+        border-radius: 2px;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .title {
         font-size: 8px;
         font-weight: 900;
@@ -94,10 +108,10 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
           ${svgHtml}
         </div>
         <div class="details">
+          <div class="branch-header">📍 ${clienteNombre || 'DECOR MUEBLERÍA'}</div>
           <h1 class="title">${productoNombre}</h1>
-          <p class="meta"><strong>Ord:</strong> #${ordenId}</p>
-          <p class="meta"><strong>Destino:</strong> ${clienteNombre}</p>
-          <p class="meta"><strong>Acabado:</strong> ${acabado}</p>
+          <p class="meta"><strong>Ord:</strong> #${ordenId || 'STOCK'}</p>
+          <p class="meta"><strong>Acabado:</strong> ${acabado || 'Rústico Natural'}</p>
           <div class="sku">${qrCode}</div>
         </div>
       </div>
@@ -107,14 +121,14 @@ export default function QRLabel({ qrCode, productoNombre, ordenId, clienteNombre
   };
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div ref={qrRef} className="bg-white p-2 rounded-lg qr-label-svg-container">
+    <div className="flex flex-col items-center gap-1.5">
+      <div ref={qrRef} className="bg-white p-1.5 rounded-xl border border-stone-200 shadow-xs qr-label-svg-container">
         <QRCodeSVG value={qrCode} size={size} level="M" />
       </div>
-      <p className="text-[10px] font-mono text-zinc-400 text-center break-words w-full" style={{ maxWidth: size + 20 }}>{qrCode}</p>
+      <p className="text-[10px] font-mono text-stone-500 text-center break-words w-full" style={{ maxWidth: size + 30 }}>{qrCode}</p>
       {showPrint && (
-        <button onClick={handlePrint} className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold hover:underline">
-          🖨 Imprimir
+        <button onClick={handlePrint} className="text-xs text-teal-800 hover:text-teal-900 font-bold hover:underline flex items-center gap-1">
+          🖨️ Imprimir
         </button>
       )}
     </div>

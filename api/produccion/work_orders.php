@@ -23,10 +23,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $whereStr = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $sql = "
-        SELECT wo.id, wo.estatus, wo.fecha_asignacion, wo.fecha_terminado,
+        SELECT wo.id,
+               wo.orden_item_id,
+               oi.estatus_item,
+               CASE wo.estatus
+                   WHEN 'pendiente' THEN 'pendiente'
+                   WHEN 'en_progreso' THEN 'en_produccion'
+                   WHEN 'en_revision' THEN 'acabados'
+                   WHEN 'terminado' THEN 'listo_embarque'
+                   WHEN 'pagado' THEN 'listo_embarque'
+                   ELSE wo.estatus
+               END AS estatus,
+               wo.fecha_asignacion, wo.fecha_terminado,
                wo.monto_pago, wo.rechazos, wo.notas_calidad,
                wo.cantidad_asignada AS cantidad, wo.costo_mano_obra_unitario,
                e.nombre  AS empleado_nombre, e.rol AS empleado_rol,
+               p.id      AS producto_id,
                p.nombre  AS producto_nombre, p.codigo_sku,
                oi.acabado_id,
                o.id AS orden_id, c.nombre AS cliente_nombre,
@@ -39,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         LEFT  JOIN clientes c       ON c.id  = o.cliente_id
         LEFT  JOIN acabados a       ON a.id  = oi.acabado_id
         $whereStr
-        ORDER BY wo.fecha_asignacion DESC
+        ORDER BY wo.fecha_asignacion DESC, wo.id DESC
         LIMIT 300
     ";
     $stmt = $pdo->prepare($sql);

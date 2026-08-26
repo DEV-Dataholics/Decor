@@ -10,13 +10,14 @@ set_json_headers();
 require_role(['admin', 'gerente_tienda', 'cajero']);
 
 $pdo       = getDB();
-$tienda_id = (int)($_GET['tienda_id'] ?? 1);
-$buscar    = trim($_GET['buscar'] ?? '');
-$cat_id    = isset($_GET['categoria_id']) && is_numeric($_GET['categoria_id'])
-             ? (int)$_GET['categoria_id'] : null;
+$tienda_param = $_GET['tienda_id'] ?? 'todas';
+$tienda_id    = ($tienda_param === 'todas' || $tienda_param === '0') ? 0 : (int)$tienda_param;
+$buscar       = trim($_GET['buscar'] ?? '');
+$cat_id       = isset($_GET['categoria_id']) && is_numeric($_GET['categoria_id'])
+                ? (int)$_GET['categoria_id'] : null;
 
 $where  = ['p.activo = 1'];
-$params = [':tid' => $tienda_id];
+$params = [];
 
 if ($buscar) {
     $where[]           = '(p.nombre LIKE :buscar OR p.codigo_sku LIKE :buscar2)';
@@ -31,39 +32,72 @@ if ($cat_id) {
 $sql_where = implode(' AND ', $where);
 
 try {
+    if ($tienda_id > 0) {
+        $params[':tid'] = $tienda_id;
+        $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM productos p
+            LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
+            WHERE $sql_where");
+        $count_stmt->execute($params);
+        $total = (int)$count_stmt->fetchColumn();
 
-    $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM productos p
-        LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
-        WHERE $sql_where");
-    $count_stmt->execute($params);
-    $total = (int)$count_stmt->fetchColumn();
+        $stmt = $pdo->prepare("
+            SELECT
+                it.id                   AS inventario_tienda_id,
+                COALESCE(it.tienda_id, :tid) AS tienda_id,
+                COALESCE(it.cantidad_disponible, 0) AS cantidad_disponible,
+                COALESCE(it.cantidad_reservada, 0) AS cantidad_reservada,
+                COALESCE(it.origen_stock, 'embarque_taller') AS origen_stock,
+                COALESCE(it.costo_unitario, p.precio_costo_base) AS costo_unitario,
+                COALESCE(it.precio_venta, p.precio_venta_base) AS precio_venta,
+                it.lote_referencia_id,
+                it.ultima_actualizacion,
+                p.id                    AS producto_id,
+                p.codigo_sku            AS sku,
+                p.nombre                AS producto_nombre,
+                p.es_pieza_unica,
+                p.foto_url,
+                cm.nombre               AS categoria_nombre,
+                t.nombre                AS tienda_nombre
+            FROM productos p
+            LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
+            LEFT JOIN categorias_mueble cm ON cm.id = p.categoria_id
+            LEFT JOIN tiendas t          ON t.id  = :tid
+            WHERE $sql_where
+            ORDER BY cm.nombre, p.nombre
+        ");
+        $stmt->execute($params);
+    } else {
+        $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM productos p WHERE $sql_where");
+        $count_stmt->execute($params);
+        $total = (int)$count_stmt->fetchColumn();
 
-    $stmt = $pdo->prepare("
-        SELECT
-            it.id                   AS inventario_tienda_id,
-            COALESCE(it.tienda_id, :tid) AS tienda_id,
-            COALESCE(it.cantidad_disponible, 0) AS cantidad_disponible,
-            COALESCE(it.cantidad_reservada, 0) AS cantidad_reservada,
-            COALESCE(it.origen_stock, 'embarque_taller') AS origen_stock,
-            COALESCE(it.costo_unitario, p.precio_costo_base) AS costo_unitario,
-            COALESCE(it.precio_venta, p.precio_venta_base) AS precio_venta,
-            it.lote_referencia_id,
-            it.ultima_actualizacion,
-            p.id                    AS producto_id,
-            p.codigo_sku            AS sku,
-            p.nombre                AS producto_nombre,
-            p.es_pieza_unica,
-            p.foto_url,
-            cm.nombre               AS categoria_nombre,
-            t.nombre                AS tienda_nombre
-        FROM productos p
-        LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
-        LEFT JOIN categorias_mueble cm ON cm.id = p.categoria_id
-        LEFT JOIN tiendas t          ON t.id  = :tid
-        WHERE $sql_where
-        ORDER BY cm.nombre, p.nombre
-    ");
-    $stmt->execute($params);
+        $stmt = $pdo->prepare("
+            SELECT
+                it.id                   AS inventario_tienda_id,
+                COALESCE(it.tienda_id, 1) AS tienda_id,
+                COALESCE(it.cantidad_disponible, 0) AS cantidad_disponible,
+                COALESCE(it.cantidad_reservada, 0) AS cantidad_reservada,
+                COALESCE(it.origen_stock, 'embarque_taller') AS origen_stock,
+                COALESCE(it.costo_unitario, p.precio_costo_base) AS costo_unitario,
+                COALESCE(it.precio_venta, p.precio_venta_base) AS precio_venta,
+                it.lote_referencia_id,
+                it.ultima_actualizacion,
+                p.id                    AS producto_id,
+                p.codigo_sku            AS sku,
+                p.nombre                AS producto_nombre,
+                p.es_pieza_unica,
+                p.foto_url,
+                cm.nombre               AS categoria_nombre,
+                COALESCE(t.nombre, 'Sucursal Matriz (Centro)') AS tienda_nombre
+            FROM productos p
+            LEFT JOIN inventario_tienda it ON p.id = it.producto_id
+            LEFT JOIN categorias_mueble cm ON cm.id = p.categoria_id
+            LEFT JOIN tiendas t          ON t.id  = it.tienda_id
+            WHERE $sql_where
+            ORDER BY cm.nombre, p.nombre
+        ");
+        $stmt->execute($params);
+    }
     $items = $stmt->fetchAll();
 
     foreach ($items as &$item) {
@@ -79,18 +113,31 @@ try {
     }
     unset($item);
 
-    // KPIs de inventario para la tienda
-    $kpi_stmt = $pdo->prepare("
-        SELECT
-            COUNT(p.id)                                      AS total_skus,
-            SUM(COALESCE(it.cantidad_disponible, 0))         AS total_piezas,
-            SUM(COALESCE(it.cantidad_disponible, 0) * COALESCE(it.precio_venta, p.precio_venta_base)) AS valor_inventario,
-            SUM(CASE WHEN COALESCE(it.cantidad_disponible, 0) = 0 THEN 1 ELSE 0 END) AS sin_stock
-        FROM productos p
-        LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
-        WHERE p.activo = 1
-    ");
-    $kpi_stmt->execute([':tid' => $tienda_id]);
+    // KPIs de inventario
+    if ($tienda_id > 0) {
+        $kpi_stmt = $pdo->prepare("
+            SELECT
+                COUNT(p.id)                                      AS total_skus,
+                SUM(COALESCE(it.cantidad_disponible, 0))         AS total_piezas,
+                SUM(COALESCE(it.cantidad_disponible, 0) * COALESCE(it.precio_venta, p.precio_venta_base)) AS valor_inventario,
+                SUM(CASE WHEN COALESCE(it.cantidad_disponible, 0) = 0 THEN 1 ELSE 0 END) AS sin_stock
+            FROM productos p
+            LEFT JOIN inventario_tienda it ON p.id = it.producto_id AND it.tienda_id = :tid
+            WHERE p.activo = 1
+        ");
+        $kpi_stmt->execute([':tid' => $tienda_id]);
+    } else {
+        $kpi_stmt = $pdo->query("
+            SELECT
+                COUNT(DISTINCT p.id)                                      AS total_skus,
+                SUM(COALESCE(it.cantidad_disponible, 0))         AS total_piezas,
+                SUM(COALESCE(it.cantidad_disponible, 0) * COALESCE(it.precio_venta, p.precio_venta_base)) AS valor_inventario,
+                SUM(CASE WHEN COALESCE(it.cantidad_disponible, 0) = 0 THEN 1 ELSE 0 END) AS sin_stock
+            FROM productos p
+            LEFT JOIN inventario_tienda it ON p.id = it.producto_id
+            WHERE p.activo = 1
+        ");
+    }
     $kpis = $kpi_stmt->fetch();
 
     json_ok([

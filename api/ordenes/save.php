@@ -1,38 +1,73 @@
 <?php
 // api/ordenes/save.php — Crear o actualizar orden de producción
-header('Content-Type: application/json');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error'=>'POST requerido']); exit; }
-require_once '../config/db.php';
-session_start();
-$user = $_SESSION['user'] ?? null;
-if (!$user) { http_response_code(401); echo json_encode(['error'=>'Sesión requerida']); exit; }
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
 
-$data = json_decode(file_get_contents('php://input'), true);
+set_json_headers();
+require_role(['admin', 'gerente_tienda', 'ventas', 'encargado_taller']);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    json_error('POST requerido', 405);
+}
+
+$data = get_body();
+$user = current_user();
+$userId = !empty($user['id']) ? (int)$user['id'] : 1;
+
 $id              = (int)($data['id'] ?? 0);
 $cliente_id      = (int)($data['cliente_id'] ?? 0);
 $tienda_id       = (int)($data['tienda_origen_id'] ?? 1);
-$tipo_orden      = $data['tipo_orden'] ?? 'linea';
+$tipo_orden_raw  = trim($data['tipo_orden'] ?? 'linea');
+$tipo_orden      = in_array($tipo_orden_raw, ['linea', 'linea_especial', 'especial']) ? $tipo_orden_raw : ($tipo_orden_raw === 'orden_especial' ? 'especial' : 'linea');
 $fecha_creacion  = $data['fecha_creacion'] ?? date('Y-m-d');
 $fecha_entrega   = $data['fecha_entrega_estimada'] ?? null;
-$estatus         = $data['estatus'] ?? 'borrador';
+$estatus_raw     = trim($data['estatus'] ?? 'confirmada');
+$validStatuses   = ['borrador','confirmada','en_produccion','lista','embarcada','entregada','cancelada'];
+$estatus         = in_array($estatus_raw, $validStatuses) ? $estatus_raw : 'confirmada';
 $notas           = trim($data['notas'] ?? '');
 $items           = $data['items'] ?? [];
-
-if (!$cliente_id) { http_response_code(422); echo json_encode(['error'=>'cliente_id requerido']); exit; }
 
 try {
     $pdo = getDB();
     $pdo->beginTransaction();
 
-    if ($id) {
+    if ($cliente_id <= 0) {
+        $cliRow = $pdo->query("SELECT id FROM clientes WHERE activo = 1 LIMIT 1")->fetchColumn();
+        $cliente_id = $cliRow ? (int)$cliRow : 1;
+    }
+
+    // Buscar o crear semana de nómina abierta
+    $stmtSemana = $pdo->query("SELECT id FROM semanas_nomina WHERE estatus = 'abierta' ORDER BY id DESC LIMIT 1");
+    $semana_id = $stmtSemana->fetchColumn();
+    if (!$semana_id) {
+        $stmtNuevaSemana = $pdo->prepare("
+            INSERT INTO semanas_nomina (fecha_inicio, fecha_corte, estatus)
+            VALUES (CURDATE(), DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'abierta')
+        ");
+        $stmtNuevaSemana->execute();
+        $semana_id = (int)$pdo->lastInsertId();
+    }
+
+    // Empleado por defecto
+    $empDefault = (int)$pdo->query("SELECT id FROM empleados WHERE activo = 1 ORDER BY id ASC LIMIT 1")->fetchColumn();
+    if (!$empDefault) {
+        $empDefault = 1;
+    }
+
+    if ($id > 0) {
         // Actualizar cabecera
         $pdo->prepare("
             UPDATE ordenes SET cliente_id=?, tienda_origen_id=?, tipo_orden=?,
                 fecha_entrega_estimada=?, estatus=?, notas=?, actualizado_en=NOW()
             WHERE id=?
         ")->execute([$cliente_id, $tienda_id, $tipo_orden, $fecha_entrega, $estatus, $notas ?: null, $id]);
-        // Borrar items previos y reinsertar
+
+        // Borrar work orders previas y items previos si aún están en pendiente
+        $pdo->prepare("
+            DELETE w FROM work_orders w
+            INNER JOIN orden_items oi ON w.orden_item_id = oi.id
+            WHERE oi.orden_id = ?
+        ")->execute([$id]);
         $pdo->prepare("DELETE FROM orden_items WHERE orden_id=?")->execute([$id]);
     } else {
         // Nueva orden
@@ -40,7 +75,7 @@ try {
             INSERT INTO ordenes (cliente_id, tienda_origen_id, tipo_orden, fecha_creacion,
                 fecha_entrega_estimada, estatus, notas, creado_por)
             VALUES (?,?,?,?,?,?,?,?)
-        ")->execute([$cliente_id, $tienda_id, $tipo_orden, $fecha_creacion, $fecha_entrega, $estatus, $notas ?: null, $user['id']]);
+        ")->execute([$cliente_id, $tienda_id, $tipo_orden, $fecha_creacion, $fecha_entrega, $estatus, $notas ?: null, $userId]);
         $id = (int)$pdo->lastInsertId();
     }
 
@@ -53,8 +88,9 @@ try {
             VALUES (?,?,?,?,?,?,?,?,'pendiente')
         ");
         $stmtWo = $pdo->prepare("
-            INSERT INTO work_orders (orden_item_id, estatus, cantidad_asignada)
-            VALUES (?, 'pendiente', ?)
+            INSERT INTO work_orders 
+                (orden_item_id, empleado_id, asignado_por, semana_nomina_id, fecha_asignacion, estatus, cantidad_asignada, costo_mano_obra_unitario, monto_pago, creado_por)
+            VALUES (?, ?, ?, ?, CURDATE(), 'pendiente', ?, ?, ?, ?)
         ");
         foreach ($items as $item) {
             $qty   = (float)($item['cantidad'] ?? 1);
@@ -73,19 +109,38 @@ try {
                 }
             }
 
+            $prod_id = (int)($item['producto_id'] ?? 0);
             $stmtItem->execute([
                 $id,
-                (int)$item['producto_id'],
+                $prod_id,
                 $qty,
                 $acabado_id,
                 !empty($item['especificaciones_custom']) ? json_encode($item['especificaciones_custom']) : null,
                 $price, $desc, $sub
             ]);
             
-            $orden_item_id = $pdo->lastInsertId();
-            
-            // Recrear work orders
-            $stmtWo->execute([$orden_item_id, $qty]);
+            $orden_item_id = (int)$pdo->lastInsertId();
+
+            // Buscar costo de mano de obra
+            $costo_mo = 0.00;
+            if ($prod_id > 0) {
+                $stmtCosto = $pdo->prepare("SELECT precio_costo_base FROM productos WHERE id = ?");
+                $stmtCosto->execute([$prod_id]);
+                $costo_mo = (float)($stmtCosto->fetchColumn() ?: 0.00);
+            }
+            $monto_pago = $qty * $costo_mo;
+
+            // Recrear work orders con todas las columnas no nulas
+            $stmtWo->execute([
+                $orden_item_id,
+                $empDefault,
+                $userId,
+                $semana_id,
+                $qty,
+                $costo_mo,
+                $monto_pago,
+                $userId
+            ]);
         }
     }
 
@@ -93,10 +148,11 @@ try {
     $pdo->prepare("UPDATE ordenes SET total=? WHERE id=?")->execute([$total, $id]);
 
     $pdo->commit();
-    echo json_encode(['ok'=>true, 'orden_id'=>$id, 'total'=>$total]);
+    json_ok(['orden_id' => $id, 'total' => $total, 'mensaje' => 'Orden guardada con éxito']);
 
 } catch (PDOException $e) {
-    $pdo->rollBack();
-    http_response_code(500);
-    echo json_encode(['error'=>'Error guardando la orden: '.$e->getMessage()]);
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    json_error('Error guardando la orden: ' . $e->getMessage(), 500);
 }

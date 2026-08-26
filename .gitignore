@@ -20,6 +20,7 @@ deploy_produccion_tmp/
 *.log
 tools_history.txt
 tools_history2.txt
+scratch/
 
 # ── Agentes / IA / Gemini / Workspace rules ──
 .gemini/

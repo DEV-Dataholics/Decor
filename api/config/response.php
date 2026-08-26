@@ -91,3 +91,43 @@ function current_user(): array {
     }
     return $_SESSION['user'] ?? [];
 }
+
+function sincronizar_estatus_orden(PDO $pdo, int $orden_id): string {
+    if ($orden_id <= 0) return 'confirmada';
+    
+    $st = $pdo->prepare("SELECT estatus_item FROM orden_items WHERE orden_id = ?");
+    $st->execute([$orden_id]);
+    $statuses = $st->fetchAll(PDO::FETCH_COLUMN);
+    
+    if (empty($statuses)) return 'confirmada';
+    
+    $allEntregados = true;
+    $allEmbarcados = true;
+    $allTerminados = true;
+    $hasProduccion = false;
+    
+    foreach ($statuses as $stItem) {
+        if ($stItem !== 'entregado') $allEntregados = false;
+        if ($stItem !== 'embarcado' && $stItem !== 'entregado') $allEmbarcados = false;
+        if ($stItem !== 'terminado' && $stItem !== 'embarcado' && $stItem !== 'entregado') $allTerminados = false;
+        if ($stItem === 'en_produccion') $hasProduccion = true;
+    }
+    
+    if ($allEntregados) {
+        $newEstatus = 'entregada';
+    } elseif ($allEmbarcados) {
+        $newEstatus = 'embarcada';
+    } elseif ($allTerminados) {
+        $newEstatus = 'lista';
+    } elseif ($hasProduccion) {
+        $newEstatus = 'en_produccion';
+    } else {
+        $newEstatus = 'confirmada';
+    }
+    
+    $up = $pdo->prepare("UPDATE ordenes SET estatus = ?, actualizado_en = NOW() WHERE id = ?");
+    $up->execute([$newEstatus, $orden_id]);
+    
+    return $newEstatus;
+}
+

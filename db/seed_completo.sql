@@ -4,27 +4,27 @@ DELETE FROM productos;
 DELETE FROM clientes;
 DELETE FROM empleados;
 DELETE FROM tiendas;
-INSERT INTO clientes (id, nombre, email, telefono, es_mayorista, descuento_fijo, activo, creado_por) VALUES
-(1, 'CASA CRISTAL', 'casa.cristal@cliente.mx', '+52 614 100 2000', 0, 0, 1, 1),
-(2, 'MONTERREY', 'monterrey@cliente.mx', '+52 615 137 2111', 0, 0, 1, 1),
-(3, 'PEPE MTZ', 'pepe.mtz@cliente.mx', '+52 616 174 2222', 0, 0, 1, 1),
-(4, 'RUIDOSO', 'ruidoso@cliente.mx', '+52 617 211 2333', 0, 0, 1, 1),
-(5, 'SAN ANGELO', 'san.angelo@cliente.mx', '+52 618 248 2444', 0, 0, 1, 1);
+INSERT INTO clientes (id, nombre, email, telefono, tipo, activo, creado_por) VALUES
+(1, 'CASA CRISTAL', 'casa.cristal@cliente.mx', '+52 614 100 2000', 'mayorista', 1, 1),
+(2, 'MONTERREY', 'monterrey@cliente.mx', '+52 615 137 2111', 'mayorista', 1, 1),
+(3, 'PEPE MTZ', 'pepe.mtz@cliente.mx', '+52 616 174 2222', 'mayorista', 1, 1),
+(4, 'RUIDOSO', 'ruidoso@cliente.mx', '+52 617 211 2333', 'mayorista', 1, 1),
+(5, 'SAN ANGELO', 'san.angelo@cliente.mx', '+52 618 248 2444', 'mayorista', 1, 1);
 
-INSERT INTO tiendas (id, nombre, direccion, tipo, telefono, activo) VALUES
-(1, 'Sucursal Matriz (Centro)', 'Av. Juárez #1234, Col. Centro', 'sucursal', '+52 614 123 4567', 1),
-(2, 'Sucursal Norte', 'Blvd. Ortiz Mena #5678, Col. San Felipe', 'sucursal', '+52 614 234 5678', 1),
-(3, 'Sucursal Sur', 'Periférico de la Juventud #9012, Col. Saucito', 'sucursal', '+52 614 345 6789', 1);
+INSERT INTO tiendas (id, nombre, direccion, ciudad, telefono, activa) VALUES
+(1, 'Sucursal Matriz (Centro)', 'Av. Juárez #1234, Col. Centro', 'Chihuahua', '+52 614 123 4567', 1),
+(2, 'Sucursal Norte', 'Blvd. Ortiz Mena #5678, Col. San Felipe', 'Chihuahua', '+52 614 234 5678', 1),
+(3, 'Sucursal Sur', 'Periférico de la Juventud #9012, Col. Saucito', 'Chihuahua', '+52 614 345 6789', 1);
 
-INSERT INTO empleados (id, nombre, rol_operativo, tienda_id, sueldo_base, comision_porcentaje, activo) VALUES
-(1, 'Víctor Manuel López', 'vendedor', NULL, 0, 0, 1),
-(2, 'José García Ramírez', 'vendedor', NULL, 0, 0, 1),
-(3, 'Miguel Hernández Soto', 'vendedor', NULL, 0, 0, 1),
-(4, 'Carlos Martínez Ruiz', 'vendedor', NULL, 0, 0, 1),
-(5, 'Roberto Sánchez Díaz', 'vendedor', NULL, 0, 0, 1),
-(6, 'Fernando Torres Luna', 'vendedor', NULL, 0, 0, 1),
-(7, 'Alberto Morales Cruz', 'vendedor', NULL, 0, 0, 1),
-(8, 'Pedro Jiménez Flores', 'vendedor', NULL, 0, 0, 1);
+INSERT INTO empleados (id, nombre, rol, activo) VALUES
+(1, 'Víctor Manuel López', 'carpintero', 1),
+(2, 'José García Ramírez', 'carpintero', 1),
+(3, 'Miguel Hernández Soto', 'pintor', 1),
+(4, 'Carlos Martínez Ruiz', 'pintor', 1),
+(5, 'Roberto Sánchez Díaz', 'tallador', 1),
+(6, 'Fernando Torres Luna', 'tapicero', 1),
+(7, 'Alberto Morales Cruz', 'embalaje', 1),
+(8, 'Pedro Jiménez Flores', 'encargado', 1);
 
 INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_base, precio_venta_base, precio_costo_base, activo, creado_por) VALUES
 (1, 'DCR-0001', 'FANCY TIN NIGHTSTAND', 14, 'taller', '{"alto": 28, "ancho": 22, "fondo": 16}', 133, 93.1, 1, 1),
@@ -778,7 +778,6 @@ INSERT INTO productos (id, codigo_sku, nombre, categoria_id, origen, medidas_bas
 (735, 'DCR-0735', 'IRON SUGAR MOULDING BASE', 23, 'taller', '{"alto": 30, "ancho": 31, "fondo": 18}', 2, 1.4, 1, 1),
 (736, 'DCR-0736', '16X24 MARIO''S  TABLE', 19, 'taller', '{"alto": 48, "ancho": 36, "fondo": 15}', 96, 67.19999999999999, 1, 1);
 
-INSERT INTO producto_acabados (producto_id, acabado_id) VALUES
 INSERT INTO producto_acabados (producto_id, acabado_id) VALUES
 (1, 8),
 (1, 15),

@@ -1,19 +1,22 @@
 <?php
 // api/ventas/checkout.php
 // Procesa la venta del POS: acepta carrito, cobra y descuenta inventario_tienda.
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
+set_json_headers();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST')    { http_response_code(405); echo json_encode(['error' => 'Método no permitido']); exit; }
-
-require_once '../config/db.php';
-session_start();
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { 
+    http_response_code(405); 
+    echo json_encode(['ok' => false, 'error' => 'Método no permitido'], JSON_UNESCAPED_UNICODE); 
+    exit; 
+}
 
 $user = $_SESSION['user'] ?? null;
-if (!$user) { http_response_code(401); echo json_encode(['error' => 'Sesión requerida']); exit; }
+if (!$user) { 
+    http_response_code(401); 
+    echo json_encode(['ok' => false, 'error' => 'Sesión requerida'], JSON_UNESCAPED_UNICODE); 
+    exit; 
+}
 
 $data = json_decode(file_get_contents('php://input'), true);
 

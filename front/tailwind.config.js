@@ -25,17 +25,33 @@ export default {
           950: '#FAF6EE',   // Body background (light plaster off-white)
         },
         amber: {
-          50: '#fdf7f3',
-          100: '#fbece2',
-          200: '#f7d2be',
-          300: '#f0b08e',
-          400: '#d4915f',   // Light terracotta (highly readable text)
-          500: '#c2703e',   // Terracotta accent
-          600: '#aa5b2c',
-          700: '#8e4922',
-          800: '#733b1a',
-          900: '#5c2f14',
-          950: '#381c0a',
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#14b8a6',   // Vibrant Santa Fe turquoise
+          500: '#0d9488',   // Authentic Santa Fe turquoise primary
+          600: '#0f766e',
+          700: '#115e59',
+          800: '#134e4a',
+          900: '#13403d',
+          950: '#042f2e',
+        },
+        turquoise: {
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#14b8a6',
+          500: '#0d9488',
+          600: '#0f766e',
+          700: '#115e59',
+          800: '#134e4a',
+          900: '#13403d',
+          950: '#042f2e',
+          DEFAULT: '#0d9488',
+          light: '#14b8a6',
+          dark: '#0f766e',
         },
         surface: {
           DEFAULT: 'rgba(45, 32, 21, 0.5)',
@@ -44,11 +60,11 @@ export default {
           border: 'rgba(65, 49, 35, 0.5)',
         },
         accent: {
-          DEFAULT: '#c2703e',
-          hover: '#a85b2e',
-          light: '#d4915f',
-          muted: 'rgba(194, 112, 62, 0.15)',
-          text: '#d4915f',
+          DEFAULT: '#0d9488',
+          hover: '#0f766e',
+          light: '#14b8a6',
+          muted: 'rgba(13, 148, 136, 0.15)',
+          text: '#0d9488',
         },
         terracotta: {
           DEFAULT: '#c2703e',

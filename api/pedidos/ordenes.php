@@ -7,31 +7,34 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/response.php';
 
 set_json_headers();
-require_role(['admin', 'gerente_tienda', 'ventas']);
+require_role(['admin', 'gerente_tienda', 'encargado_taller', 'ventas', 'cajero']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $pdo = getDB();
         $stmt = $pdo->query("
-            SELECT o.id, o.fecha_creacion, o.estatus, o.total, o.tipo_orden,
-                   c.nombre as cliente_nombre, c.email as cliente_email,
+            SELECT o.id, o.fecha_creacion, o.estatus, o.total, o.tipo_orden, o.notas, o.cliente_id,
+                   COALESCE(c.nombre, 'Sin cliente asignado') as cliente_nombre, c.email as cliente_email,
                    COUNT(oi.id) as total_items
             FROM ordenes o
             LEFT JOIN clientes c ON o.cliente_id = c.id
             LEFT JOIN orden_items oi ON oi.orden_id = o.id
             WHERE o.tipo_orden != 'borrador'
             GROUP BY o.id
-            ORDER BY o.fecha_creacion DESC
-            LIMIT 50
+            ORDER BY o.fecha_creacion DESC, o.id DESC
+            LIMIT 100
         ");
         $ordenes = $stmt->fetchAll();
         
         // Obtener ítems para cada orden
         foreach ($ordenes as &$ord) {
             $st = $pdo->prepare("
-                SELECT oi.id, p.nombre as producto_nombre, oi.cantidad, oi.precio_unitario, oi.subtotal, p.codigo_sku
+                SELECT oi.id, oi.producto_id, p.nombre as producto_nombre, oi.cantidad, 
+                       oi.precio_unitario, oi.subtotal, p.codigo_sku, oi.especificaciones_custom, 
+                       a.nombre as acabado
                 FROM orden_items oi
                 JOIN productos p ON p.id = oi.producto_id
+                LEFT JOIN acabados a ON a.id = oi.acabado_id
                 WHERE oi.orden_id = ?
             ");
             $st->execute([$ord['id']]);

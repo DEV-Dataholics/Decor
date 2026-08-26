@@ -43,7 +43,7 @@ CREATE TABLE usuarios (
 
 -- 1. Insertar el usuario admin inicial y demos
 INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES
-  ('Administrador', 'admin@decor.mx', '$2y$10$O9GdUADRhbDfjCXpYYxvveO1rtazHSlQmdwHrBLkTrw61mWu.wVgu', 'admin'),
-  ('Laura Mendoza', 'tienda@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'gerente_tienda'),
-  ('Víctor Manuel', 'taller@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'encargado_taller'),
-  ('Juan López', 'reparto@decor.mx', '$2y$10$/90QlgUM9EEf3ufWUGRbAuTElPiPLU9GaDcKmy2BmNogBq.R/voNS', 'repartidor');
+  ('Administrador', 'admin@decor.mx', '$2y$12$shOWXgfoHexigDOLiUaa0e4sefQ51nX5AxXyv34GNFn3/x6uexseO', 'admin'),
+  ('Laura Mendoza', 'tienda@decor.mx', '$2y$12$shOWXgfoHexigDOLiUaa0e4sefQ51nX5AxXyv34GNFn3/x6uexseO', 'gerente_tienda'),
+  ('Víctor Manuel', 'taller@decor.mx', '$2y$12$shOWXgfoHexigDOLiUaa0e4sefQ51nX5AxXyv34GNFn3/x6uexseO', 'encargado_taller'),
+  ('Juan López', 'reparto@decor.mx', '$2y$12$shOWXgfoHexigDOLiUaa0e4sefQ51nX5AxXyv34GNFn3/x6uexseO', 'repartidor');

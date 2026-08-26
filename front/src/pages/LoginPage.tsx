@@ -18,17 +18,16 @@ export default function LoginPage() {
     const success = await login(email, password);
     setIsLoading(false);
     if (success) navigate('/dashboard');
-    else setError('Credenciales inválidas');
+    else setError('Credenciales inválidas o usuario inactivo');
   };
 
   return (
-    <div className="min-h-screen flex bg-[#fbfaf7] overflow-hidden font-sans">
-      {/* Lado Izquierdo: Estilo Explora Santa Fe / Adobe Hacienda */}
-      <div className="hidden md:flex md:w-[50%] bg-[#d5926b] flex-col items-center justify-center p-12 text-[#4a2818] border-r border-black/5 select-none space-y-14">
+    <div className="min-h-screen flex bg-[#FAF6EE] overflow-hidden font-sans">
+      {/* Lado Izquierdo: Estilo Santa Fe & Identidad de Marca */}
+      <div className="hidden md:flex md:w-[50%] bg-[#0d9488] flex-col items-center justify-center p-12 text-white border-r border-teal-800/20 select-none space-y-12">
         {/* Header con Símbolo Zia */}
         <div className="flex flex-col items-center">
-          {/* Símbolo Zia de Santa Fe */}
-          <svg viewBox="0 0 100 100" className="w-16 h-16 text-[#4a2818]" fill="currentColor">
+          <svg viewBox="0 0 100 100" className="w-20 h-20 text-white/95" fill="currentColor">
             <circle cx="50" cy="50" r="10" stroke="currentColor" strokeWidth="3.5" fill="none" />
             
             {/* North Rays */}
@@ -55,14 +54,17 @@ export default function LoginPage() {
             <line x1="37" y1="52" x2="6" y2="52" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             <line x1="35" y1="55" x2="12" y2="55" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
-          <h2 className="text-xl font-sans font-black tracking-[0.2em] uppercase mt-4">
-            EXPLORA DECOR
+          <h2 className="text-2xl font-black tracking-[0.25em] uppercase mt-5 text-white">
+            DECOR MUEBLERÍA
           </h2>
+          <p className="text-xs text-teal-100 font-bold uppercase tracking-widest mt-1">
+            Muebles Rústicos de Fabricación Fina
+          </p>
         </div>
 
-        {/* Foto de Mueble con Marco Claymorphic */}
-        <div className="clay-card-cream p-4 pb-5 rounded-[2rem] w-full max-w-[280px] border border-black/5">
-          <div className="overflow-hidden rounded-[1.5rem] aspect-[4/3] relative">
+        {/* Hero Card */}
+        <div className="bg-white/10 backdrop-blur-md p-4 pb-5 rounded-3xl w-full max-w-[300px] border border-white/20 shadow-2xl">
+          <div className="overflow-hidden rounded-2xl aspect-[4/3] relative bg-teal-900/40">
             <img 
               src="/decor_login_hero.png" 
               alt="Decor Hacienda Interior" 
@@ -71,9 +73,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Cenefa Geométrica Estilo Santa Fe */}
-        <div className="w-full flex flex-col items-center">
-          <svg viewBox="0 0 120 12" className="w-full max-w-[280px] text-[#4a2818]/50" fill="currentColor">
+        {/* Cenefa Santa Fe */}
+        <div className="w-full flex flex-col items-center opacity-80">
+          <svg viewBox="0 0 120 12" className="w-full max-w-[280px] text-white" fill="currentColor">
             <rect x="0" y="0" width="120" height="1" />
             <path d="
               M0,6 L4,2 L4,10 Z
@@ -101,14 +103,14 @@ export default function LoginPage() {
       </div>
 
       {/* Lado Derecho: Formulario de Acceso */}
-      <div className="w-full md:w-[50%] flex flex-col justify-between p-8 md:p-16 min-h-screen relative z-10 bg-[#fbfaf7] shadow-2xl">
-        <div className="my-auto max-w-sm w-full mx-auto space-y-8">
+      <div className="w-full md:w-[50%] flex flex-col justify-between p-8 md:p-16 min-h-screen relative z-10 bg-white shadow-2xl">
+        <div className="my-auto max-w-sm w-full mx-auto space-y-8 text-left">
           {/* Header */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-sans font-black text-[#4a2818] tracking-tight">
-              Acceso Exclusivo
+          <div className="space-y-1.5">
+            <h1 className="text-3xl font-black text-stone-900 tracking-tight">
+              Iniciar Sesión
             </h1>
-            <p className="text-xs text-[#c2703e] font-bold">
+            <p className="text-xs text-[#0d9488] font-bold uppercase tracking-wider">
               Sistema de Control Integral Decor
             </p>
           </div>
@@ -117,54 +119,54 @@ export default function LoginPage() {
           <div className="space-y-5">
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black text-[#4a2818]/80 uppercase tracking-widest block mb-1.5">
+                <label className="text-[11px] font-bold text-stone-700 uppercase tracking-wider block mb-1.5">
                   Correo Electrónico
                 </label>
                 <input 
                   value={email} 
                   onChange={e => { setEmail(e.target.value); setError(''); }} 
-                  className="w-full clay-input border border-[#e8dfcb] rounded-xl px-4 py-3.5 text-xs text-[#4a2818] placeholder:text-zinc-400 outline-none focus:border-[#c2703e]/50 focus:ring-2 focus:ring-[#c2703e]/10 transition-all"
-                  placeholder="Correo electrónico" 
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3.5 text-xs font-bold text-stone-900 placeholder:text-stone-400 outline-none focus:border-[#0d9488] focus:ring-2 focus:ring-teal-500/10 transition-all"
+                  placeholder="admin@decor.mx" 
                   type="email" 
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-[#4a2818]/80 uppercase tracking-widest block mb-1.5">
+                <label className="text-[11px] font-bold text-stone-700 uppercase tracking-wider block mb-1.5">
                   Contraseña
                 </label>
                 <input 
                   value={password} 
                   onChange={e => { setPassword(e.target.value); setError(''); }} 
                   onKeyDown={e => e.key === 'Enter' && handleLogin()} 
-                  className="w-full clay-input border border-[#e8dfcb] rounded-xl px-4 py-3.5 text-xs text-[#4a2818] placeholder:text-zinc-400 outline-none focus:border-[#c2703e]/50 focus:ring-2 focus:ring-[#c2703e]/10 transition-all"
-                  placeholder="Contraseña" 
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3.5 text-xs font-bold text-stone-900 placeholder:text-stone-400 outline-none focus:border-[#0d9488] focus:ring-2 focus:ring-teal-500/10 transition-all"
+                  placeholder="••••••••" 
                   type="password" 
                 />
               </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{error}</span>
+              <div className="flex items-center gap-2 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                <span className="font-bold">{error}</span>
               </div>
             )}
             
             <button
               onClick={handleLogin}
               disabled={isLoading}
-              className="w-full flex items-center justify-center space-x-3 bg-[#4a2818] hover:bg-[#3a1f12] text-[#fbfaf7] py-4 rounded-[1.5rem] font-bold text-sm tracking-widest transition-all duration-300 transform active:scale-95 shadow-xl hover:shadow-[#4a2818]/20 disabled:opacity-50"
+              className="w-full flex items-center justify-center space-x-2 bg-[#0d9488] hover:bg-[#0f766e] text-white py-3.5 rounded-2xl font-black text-sm transition-all duration-300 transform active:scale-95 shadow-md hover:shadow-teal-900/10 disabled:opacity-50"
             >
-              <LogIn size={14} /> Ingresar al Sistema
+              <LogIn size={16} /> <span>Ingresar al Sistema</span>
             </button>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-[9px] text-zinc-400 space-y-1 mt-8">
-          <p className="font-semibold tracking-wider uppercase">Sistema Decor OS v1.0 — 2026</p>
-          <p className="opacity-80">Plataforma Privada — Uso Restringido</p>
+        <div className="text-center text-[10px] text-stone-400 space-y-0.5 mt-8">
+          <p className="font-bold tracking-wider uppercase text-stone-500">Decor Mueblería ERP v1.0 — 2026</p>
+          <p>Sistema Operativo Transaccional</p>
         </div>
       </div>
     </div>

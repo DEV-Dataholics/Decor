@@ -5,16 +5,16 @@ import { useDecor } from '../../store/StoreContext';
 import type { Rol } from '../../store/useStore';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/pos': 'Punto de Venta',
-  '/pedidos': 'Pedidos Mayoristas',
+  '/dashboard': 'Dashboard Financiero',
+  '/pos': 'Punto de Venta (POS)',
+  '/pedidos': 'Pedidos y Órdenes',
   '/produccion': 'Producción — Taller',
-  '/inventario': 'Inventario General',
+  '/inventario': 'Inventario de Sucursal',
   '/catalogo': 'Catálogo de Productos',
   '/embarques': 'Embarques y Logística',
-  '/configuracion': 'Configuración',
+  '/configuracion': 'Configuración & Manuales',
   '/reparto': 'Rutas de Entrega',
-  '/personal': 'Personal (RH)',
+  '/personal': 'Personal & Nómina (RH)',
 };
 
 const ALLOWED_ROUTES: Record<Rol, string[]> = {
@@ -47,26 +47,29 @@ export default function AppShell() {
   const pageTitle = PAGE_TITLES[location.pathname] || 'Decor Mueblería';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950">
+    <div className="flex h-screen overflow-hidden bg-[#FAF6EE]">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top header bar */}
-        <header className="h-14 shrink-0 border-b border-zinc-800/60 flex items-center justify-between px-4 md:px-6 bg-zinc-950/80 backdrop-blur-sm">
+        <header className="h-16 shrink-0 border-b border-stone-200 flex items-center justify-between px-4 md:px-8 bg-white/95 backdrop-blur-md shadow-xs z-10">
           <div className="flex items-center gap-3">
-            <span className="md:hidden text-xl">🪑</span>
-            <h2 className="text-base font-sans font-bold text-zinc-100 tracking-wide">{pageTitle}</h2>
+            <span className="md:hidden text-xl">🪵</span>
+            <h2 className="text-base font-black text-stone-900 tracking-tight">{pageTitle}</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 bg-stone-50 border border-stone-200/80 px-3 py-1.5 rounded-xl">
               <span className="text-sm">{currentUser.avatar}</span>
-              <span className="text-xs text-zinc-400 hidden sm:block">{currentUser.nombre}</span>
+              <span className="text-xs font-bold text-stone-800 hidden sm:block">{currentUser.nombre}</span>
+              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200">
+                {currentUser.rol.replace('_', ' ')}
+              </span>
             </div>
           </div>
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-8">
           <div className="max-w-7xl mx-auto animate-fade-in">
             <Outlet />
           </div>

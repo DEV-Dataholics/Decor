@@ -1,93 +1,187 @@
 <?php
 // api/produccion/mover_wo.php
-// Actualiza el estatus de un work_order (kanban) y guarda las asignaciones/costos de empleados.
+// Actualiza el estatus y asignación de un work_order (tablero Kanban de Producción)
 
-header('Content-Type: application/json');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error'=>'POST requerido']); exit; }
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
 
-require_once '../config/db.php';
-session_start();
+set_json_headers();
+require_role(['admin', 'gerente_tienda', 'encargado_taller', 'carpintero']);
 
-$user = $_SESSION['user'] ?? null;
-if (!$user) { http_response_code(401); echo json_encode(['error'=>'Sesión requerida']); exit; }
+$pdo = getDB();
+$user = current_user();
 
-$data = json_decode(file_get_contents('php://input'), true);
+$data = get_body();
 $id = (int)($data['id'] ?? 0);
-$estatus = $data['estatus'] ?? '';
+$estatusFrontend = trim($data['estatus'] ?? '');
 $assignment = $data['assignment'] ?? null;
 
-if (!$id || !$estatus) { http_response_code(422); echo json_encode(['error'=>'id y estatus requeridos']); exit; }
+if (!$id || !$estatusFrontend) {
+    json_error('id y estatus requeridos', 422);
+}
+
+// Mapeo bidireccional de estatus Frontend <-> MySQL ENUM
+$statusMap = [
+    'pendiente'      => 'pendiente',
+    'en_produccion'  => 'en_progreso',
+    'en_progreso'    => 'en_progreso',
+    'acabados'       => 'en_revision',
+    'en_revision'    => 'en_revision',
+    'listo_embarque' => 'terminado',
+    'terminado'      => 'terminado',
+    'pagado'         => 'pagado'
+];
+
+$dbStatus = $statusMap[$estatusFrontend] ?? null;
+if (!$dbStatus) {
+    json_error("Estatus no reconocido: $estatusFrontend", 422);
+}
 
 try {
-    $pdo = getDB();
     $pdo->beginTransaction();
 
-    // Obtener la WO actual
-    $stmtWo = $pdo->prepare("SELECT * FROM work_orders WHERE id = ?");
+    // 1. Obtener la WO actual
+    $stmtWo = $pdo->prepare("SELECT * FROM work_orders WHERE id = ? FOR UPDATE");
     $stmtWo->execute([$id]);
     $wo = $stmtWo->fetch(PDO::FETCH_ASSOC);
 
     if (!$wo) {
-        http_response_code(404);
-        echo json_encode(['error'=>'WO no encontrada']);
-        exit;
+        $pdo->rollBack();
+        json_error('Work order no encontrada', 404);
     }
 
-    $updates = ["estatus = :estatus", "actualizado_en = NOW()"];
-    $params = [':estatus' => $estatus, ':id' => $id];
-    $cantidad_a_mover = (float)$wo['cantidad_asignada']; // Por defecto movemos todo lo que tenga la WO original
+    $cantOriginal = (float)$wo['cantidad_asignada'];
+    $cantMover = $cantOriginal;
 
-    // Assignment updates
-    if ($assignment && $estatus === 'en_produccion') {
-        $updates[] = "empleado_carpintero_id = :emp_id";
-        $updates[] = "costo_mano_obra_carpinteria = :costo";
-        if (isset($assignment['cantidad_asignada'])) {
-            $cantidad_a_mover = (float)$assignment['cantidad_asignada'];
-            $updates[] = "cantidad_asignada = :cant";
-            $params[':cant'] = $cantidad_a_mover;
+    if ($assignment && isset($assignment['cantidad_asignada']) && (float)$assignment['cantidad_asignada'] > 0) {
+        $cantMover = (float)$assignment['cantidad_asignada'];
+    }
+
+    // 2. Extraer datos de asignación si vienen
+    $empleado_id = $wo['empleado_id'];
+    $costo_unitario = (float)$wo['costo_mano_obra_unitario'];
+
+    if ($assignment) {
+        if (!empty($assignment['empleado_id'])) {
+            $empleado_id = (int)$assignment['empleado_id'];
         }
-        $params[':emp_id'] = $assignment['empleado_id'];
-        $params[':costo'] = $assignment['costo_mano_obra'];
-    } elseif ($assignment && $estatus === 'acabados') {
-        $updates[] = "empleado_acabado_id = :emp_id";
-        $updates[] = "costo_mano_obra_acabado = :costo";
-        $params[':emp_id'] = $assignment['empleado_id'];
-        $params[':costo'] = $assignment['costo_mano_obra'];
+        if (isset($assignment['costo_mano_obra_unitario']) && (float)$assignment['costo_mano_obra_unitario'] > 0) {
+            $costo_unitario = (float)$assignment['costo_mano_obra_unitario'];
+        } elseif (isset($assignment['costo_mano_obra']) && (float)$assignment['costo_mano_obra'] > 0 && $cantMover > 0) {
+            $costo_unitario = (float)$assignment['costo_mano_obra'] / $cantMover;
+        }
     }
 
-    // Split logic
-    if ($cantidad_a_mover > 0 && $cantidad_a_mover < (float)$wo['cantidad_asignada']) {
-        // 1. Actualizamos la original para que tenga solo la cantidad restante, y se quede en su estatus actual
-        $cant_restante = (float)$wo['cantidad_asignada'] - $cantidad_a_mover;
-        $pdo->prepare("UPDATE work_orders SET cantidad_asignada = ? WHERE id = ?")->execute([$cant_restante, $id]);
+    $monto_pago = $cantMover * $costo_unitario;
 
-        // 2. Insertamos la NUEVA (la que sí se va a mover)
-        $pdo->prepare("
-            INSERT INTO work_orders (orden_item_id, estatus, cantidad_asignada, empleado_carpintero_id, costo_mano_obra_carpinteria, fecha_inicio, fecha_termino)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ")->execute([
-            $wo['orden_item_id'],
-            $estatus,
-            $cantidad_a_mover,
-            $assignment['empleado_id'] ?? null,
-            $assignment['costo_mano_obra'] ?? null,
-            $estatus === 'en_produccion' ? date('Y-m-d') : null,
-            null
-        ]);
+    // 3. Lógica de división (Split) si la cantidad a mover es menor a la cantidad actual
+    if ($cantMover > 0 && $cantMover < $cantOriginal) {
+        // Reducir la original (se queda en su estatus actual)
+        $cantRestante = $cantOriginal - $cantMover;
+        $montoRestante = $cantRestante * (float)$wo['costo_mano_obra_unitario'];
         
+        $pdo->prepare("
+            UPDATE work_orders 
+            SET cantidad_asignada = ?, monto_pago = ?, actualizado_en = NOW() 
+            WHERE id = ?
+        ")->execute([$cantRestante, $montoRestante, $id]);
+
+        // Insertar la nueva WO con la cantidad asignada y nuevo estatus
+        $stmtInsert = $pdo->prepare("
+            INSERT INTO work_orders 
+            (orden_item_id, empleado_id, asignado_por, semana_nomina_id, fecha_asignacion, fecha_inicio_real, estatus, cantidad_asignada, costo_mano_obra_unitario, monto_pago, creado_por, actualizado_en)
+            VALUES (?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $fechaInicio = in_array($dbStatus, ['en_progreso', 'en_revision', 'terminado']) ? date('Y-m-d') : null;
+        $stmtInsert->execute([
+            $wo['orden_item_id'],
+            $empleado_id,
+            $user['empleado_id'] ?: 1,
+            $wo['semana_nomina_id'] ?: 1,
+            $fechaInicio,
+            $dbStatus,
+            $cantMover,
+            $costo_unitario,
+            $monto_pago,
+            $user['id'] ?: 1
+        ]);
+
+        $nueva_wo_id = $pdo->lastInsertId();
+
         $pdo->commit();
-        echo json_encode(['ok'=>true, 'mensaje'=>'WO dividida y movida correctamente']);
+        json_ok([
+            'mensaje' => 'Work order dividida y actualizada correctamente',
+            'nueva_wo_id' => $nueva_wo_id,
+            'estatus' => $estatusFrontend
+        ]);
         exit;
     }
 
-    $setClause = implode(", ", $updates);
-    $pdo->prepare("UPDATE work_orders SET {$setClause} WHERE id = :id")->execute($params);
+    // 4. Actualización normal de la Work Order
+    $fechaInicio = $wo['fecha_inicio_real'];
+    if (!$fechaInicio && in_array($dbStatus, ['en_progreso', 'en_revision', 'terminado'])) {
+        $fechaInicio = date('Y-m-d');
+    }
+
+    $fechaTerminado = $wo['fecha_terminado'];
+    if ($dbStatus === 'terminado' && !$fechaTerminado) {
+        $fechaTerminado = date('Y-m-d H:i:s');
+    }
+
+    $stmtUpd = $pdo->prepare("
+        UPDATE work_orders 
+        SET estatus = :estatus,
+            empleado_id = :empleado_id,
+            cantidad_asignada = :cantidad,
+            costo_mano_obra_unitario = :costo_unit,
+            monto_pago = :monto_pago,
+            fecha_inicio_real = :fecha_inicio,
+            fecha_terminado = :fecha_terminado,
+            actualizado_en = NOW()
+        WHERE id = :id
+    ");
+
+    $stmtUpd->execute([
+        ':estatus'         => $dbStatus,
+        ':empleado_id'     => $empleado_id,
+        ':cantidad'        => $cantMover,
+        ':costo_unit'      => $costo_unitario,
+        ':monto_pago'      => $monto_pago,
+        ':fecha_inicio'    => $fechaInicio,
+        ':fecha_terminado' => $fechaTerminado,
+        ':id'              => $id
+    ]);
+
+    // 5. Sincronizar estatus del orden_item y de la orden padre
+    $itemStatus = 'en_produccion';
+    if ($dbStatus === 'terminado' || $dbStatus === 'pagado') {
+        $itemStatus = 'terminado';
+    } elseif ($dbStatus === 'pendiente') {
+        $itemStatus = 'pendiente';
+    }
+
+    $pdo->prepare("
+        UPDATE orden_items 
+        SET estatus_item = ? 
+        WHERE id = ?
+    ")->execute([$itemStatus, $wo['orden_item_id']]);
+
+    // Obtener orden_id y sincronizar estatus de la orden
+    $ordId = (int)$pdo->query("SELECT orden_id FROM orden_items WHERE id = " . (int)$wo['orden_item_id'])->fetchColumn();
+    if ($ordId > 0) {
+        sincronizar_estatus_orden($pdo, $ordId);
+    }
 
     $pdo->commit();
-    echo json_encode(['ok'=>true, 'mensaje'=>'WO actualizado correctamente']);
-} catch (PDOException $e) {
-    $pdo->rollBack();
-    http_response_code(500);
-    echo json_encode(['error'=>'Error actualizando WO: '.$e->getMessage()]);
+    json_ok([
+        'mensaje' => 'Work order actualizada correctamente',
+        'wo_id'   => $id,
+        'estatus' => $estatusFrontend
+    ]);
+
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    json_error('Error al mover work order: ' . $e->getMessage(), 500);
 }

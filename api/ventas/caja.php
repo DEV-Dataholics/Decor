@@ -3,18 +3,16 @@
 // GET  → Devuelve la caja abierta del día para una tienda.
 //        Si no existe, la crea automáticamente con fondo_inicial = 0.
 // POST → Cierra la caja con el monto contado por el cajero.
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
-
-require_once '../config/db.php';
-session_start();
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/response.php';
+set_json_headers();
 
 $user = $_SESSION['user'] ?? null;
-if (!$user) { http_response_code(401); echo json_encode(['error' => 'Sesión requerida']); exit; }
+if (!$user) { 
+    http_response_code(401); 
+    echo json_encode(['ok' => false, 'error' => 'Sesión requerida'], JSON_UNESCAPED_UNICODE); 
+    exit; 
+}
 
 $pdo       = getDB();
 $tienda_id = (int)($_GET['tienda_id'] ?? $_POST['tienda_id'] ?? 1);
