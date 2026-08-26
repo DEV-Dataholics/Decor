@@ -515,6 +515,14 @@ export default function PuntoDeVentaPage() {
           <span className="text-xs font-black text-[#4a2818]">{sucursalActiva?.nombre} ({sucursalActiva?.ciudad})</span>
         </div>
         <div className="flex items-center gap-2.5">
+          {cajaActual && !showAbrirCaja && !cierreResult && (
+            <button
+              onClick={() => setShowCerrarCaja(true)}
+              className="text-[11px] font-bold transition-all flex items-center gap-1.5 px-3.5 py-2 rounded-xl border active:scale-95 bg-red-100 text-red-600 border-red-200 hover:bg-red-200"
+            >
+              <Lock size={12} /> Cerrar Caja
+            </button>
+          )}
           <button 
             onClick={toggleFullscreen}
             className="text-[11px] text-[#4a2818] hover:text-[#c2703e] font-bold transition-all flex items-center gap-1.5 px-3.5 py-2 rounded-xl clay-btn-white border border-[#e8dfcb]/60 active:scale-95"
@@ -574,6 +582,122 @@ export default function PuntoDeVentaPage() {
           <div className="text-left">
             <p className="text-xs font-black text-red-700">Error en Operación</p>
             <p className="text-[11px] text-red-600 font-medium">{errorMessage || 'QR no encontrado o producto agotado.'}</p>
+          </div>
+        </div>
+      )}
+
+
+      {/* MODAL CERRAR CAJA */}
+      {showCerrarCaja && !cierreResult && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-scale-in">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock size={32} />
+            </div>
+            <h2 className="text-xl font-black text-center text-[#4a2818] mb-2">Cierre de Turno</h2>
+            <p className="text-sm text-center text-zinc-500 mb-6">Ingresa el total de efectivo que contaste en caja.</p>
+            
+            <form onSubmit={handleCerrarCaja} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Efectivo Contado ($)</label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={efectivoContado}
+                  onChange={e => setEfectivoContado(e.target.value)}
+                  className="w-full clay-input border border-[#e8dfcb] rounded-xl px-4 py-3 text-lg font-bold text-[#4a2818]"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCerrarCaja(false)}
+                  className="flex-1 py-3 text-xs font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 btn-danger py-3 text-xs font-bold rounded-xl"
+                >
+                  Confirmar Cierre
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESULTADO DE CIERRE */}
+      {cierreResult && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-scale-in text-center">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} />
+            </div>
+            <h2 className="text-xl font-black text-[#4a2818] mb-2">Turno Cerrado</h2>
+            
+            <div className="space-y-2 mb-6 mt-4 text-left bg-[#FAF6EE] p-4 rounded-xl border border-[#e8dfcb]">
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600">Esperado:</span>
+                <span className="font-bold"></span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600">Contado:</span>
+                <span className="font-bold"></span>
+              </div>
+              <div className="border-t border-[#e8dfcb] my-2 pt-2 flex justify-between text-sm font-black">
+                <span className="text-zinc-600">Diferencia:</span>
+                <span className={cierreResult.diferencia < 0 ? 'text-red-500' : (cierreResult.diferencia > 0 ? 'text-blue-500' : 'text-emerald-500')}>
+                  {cierreResult.diferencia > 0 ? '+' : ''}
+                </span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={finishCierre}
+              className="w-full btn-primary py-3 text-sm font-bold rounded-xl"
+            >
+              Aceptar e Iniciar Nuevo Turno
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PANTALLA BLOQUEADA: ABRIR CAJA */}
+      {showAbrirCaja && !isFetchingCaja && (
+        <div className="absolute inset-0 z-50 bg-[#FAF6EE] flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-xl border border-[#e8dfcb]">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Unlock size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-center text-[#4a2818] mb-2">Abrir Caja</h2>
+            <p className="text-sm text-center text-zinc-500 mb-6">Ingresa el fondo inicial para comenzar a cobrar.</p>
+            
+            <form onSubmit={handleAbrirCaja} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Fondo Inicial ($)</label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={fondoInicial}
+                  onChange={e => setFondoInicial(e.target.value)}
+                  className="w-full clay-input border border-[#e8dfcb] rounded-xl px-4 py-3 text-lg font-bold text-[#4a2818]"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                className="w-full btn-primary py-4 text-sm font-black rounded-xl shadow-lg mt-2"
+              >
+                Abrir Turno
+              </button>
+            </form>
           </div>
         </div>
       )}
