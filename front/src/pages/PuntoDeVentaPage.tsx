@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
-  ShoppingBag, CheckCircle2, XCircle, Search, Camera, X, 
+  ShoppingBag, CheckCircle2, Lock, Unlock, XCircle, Search, Camera, X, 
   ArrowLeft, CreditCard, Wallet, Landmark, RefreshCw, 
   Mail, ChevronRight, Store, ArrowRight, Printer,
   Maximize2, Minimize2
@@ -8,17 +8,21 @@ import {
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { useDecor } from '../store/StoreContext';
 import type { Venta } from '../store/useStore';
+import { calculateTotals, calculatePaymentInfo, handleNumpadInput } from '../utils/posLogic';
+
 
 interface CartItem {
   productoId: number;
+  inventario_tienda_id: number;
+  cantidad: number;
   nombre: string;
   precio: number;
   sku: string;
-  qrs: string[]; // Lista de códigos QR escaneados/generados para este item
+  qrs: string[];
 }
 
 export default function PuntoDeVentaPage() {
-  const { registrarVentaCarrito, tiendas, embarques, terminados, inventario, productos } = useDecor();
+  const { registrarVentaCarrito, tiendas, embarques, terminados, inventario, productos, apiFetch } = useDecor();
   
   // Persistencia de sucursal activa en local storage (Configurar Caja una sola vez)
   const [tiendaId, setTiendaId] = useState<number | null>(() => {
@@ -42,6 +46,77 @@ export default function PuntoDeVentaPage() {
   const [emailCliente, setEmailCliente] = useState('');
   const [emailEnviado, setEmailEnviado] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+
+  // Caja State
+  const [cajaActual, setCajaActual] = useState<any>(null);
+  const [showAbrirCaja, setShowAbrirCaja] = useState(false);
+  const [showCerrarCaja, setShowCerrarCaja] = useState(false);
+  const [fondoInicial, setFondoInicial] = useState('0');
+  const [efectivoContado, setEfectivoContado] = useState('0');
+  const [cierreResult, setCierreResult] = useState<any>(null);
+  const [isFetchingCaja, setIsFetchingCaja] = useState(false);
+
+  // Fetch caja actual
+  useEffect(() => {
+    if (!tiendaId) return;
+    setIsFetchingCaja(true);
+    apiFetch('/ventas/caja.php?tienda_id=' + tiendaId)
+      .then(res => res.json())
+      .then(res => {
+        if (res.caja_id) {
+          setCajaActual(res.caja);
+          setShowAbrirCaja(false);
+        } else {
+          setCajaActual(null);
+          setShowAbrirCaja(true);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsFetchingCaja(false));
+  }, [tiendaId, apiFetch]);
+
+  const handleAbrirCaja = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tiendaId) return;
+    try {
+      const req = await apiFetch('/ventas/caja_abrir.php', {
+        method: 'POST',
+        body: JSON.stringify({ tienda_id: tiendaId, fondo_inicial: Number(fondoInicial) })
+      });
+      const res = await req.json();
+      if (res.ok) {
+        setCajaActual({ id: res.caja_id, fondo_inicial: Number(fondoInicial) });
+        setShowAbrirCaja(false);
+      }
+    } catch (e) {
+      alert('Error al abrir caja');
+    }
+  };
+
+  const handleCerrarCaja = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cajaActual) return;
+    try {
+      const req = await apiFetch('/ventas/caja_cerrar.php', {
+        method: 'POST',
+        body: JSON.stringify({ caja_id: cajaActual.caja_id || cajaActual.id, total_efectivo_contado: Number(efectivoContado) })
+      });
+      const res = await req.json();
+      if (res.ok) {
+        setCierreResult(res);
+      }
+    } catch (e) {
+      alert('Error cerrando caja');
+    }
+  };
+
+  const finishCierre = () => {
+    setCajaActual(null);
+    setShowCerrarCaja(false);
+    setCierreResult(null);
+    setShowAbrirCaja(true);
+  };
+
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -103,12 +178,10 @@ export default function PuntoDeVentaPage() {
     }
   }, [qrInput]);
 
-  const handleScan = (code: string) => {
+  const handleScan = async (code: string) => {
     const trimmed = code.trim();
-    if (!trimmed) return;
-    if (tiendaId === null) return;
+    if (!trimmed || tiendaId === null) return;
 
-    // Verificar si el código QR exacto ya está en el carrito
     const qrExistente = carrito.some(item => item.qrs.includes(trimmed));
     if (qrExistente) {
       setQrInput('');
@@ -116,107 +189,44 @@ export default function PuntoDeVentaPage() {
       return;
     }
 
-    let productoEncontrado = null;
-    let prodId = 0;
-    let isStoreValid = false;
-
-    // 1. Detectar si es un QR de reposición / inicial autodescriptivo
-    if (trimmed.startsWith('DCR-REC-')) {
-      const parts = trimmed.split('-');
-      if (parts.length >= 4) {
-        const qrTiendaId = Number(parts[2]);
-        const qrProductoId = Number(parts[3]);
-        const prod = productos.find(p => p.id === qrProductoId);
-        if (prod) {
-          const precio = prod.prices ? Object.values(prod.prices)[0] || 200 : 200;
-          productoEncontrado = { id: prod.id, nombre: prod.name, precio: precio, sku: prod.sku };
-          prodId = prod.id;
-          isStoreValid = qrTiendaId === tiendaId;
+    try {
+      const req = await apiFetch('/inventario/scan.php?codigo=' + encodeURIComponent(trimmed) + '&tienda_id=' + tiendaId);
+      const data = await req.json();
+      if (data.ok && data.tipo_item === 'producto') {
+        const prod = data.data;
+        if (prod.stock_disponible <= 0) {
+          triggerError('El producto ' + prod.nombre + ' no tiene stock disponible en esta tienda.');
+          return;
         }
-      }
-    }
 
-    // 2. Buscar si el producto fue entregado a esta tienda específica
-    if (!productoEncontrado) {
-      for (const emb of embarques) {
-        if (emb.estatus === 'entregado') {
-          const item = emb.items.find(i => i.qr_code === trimmed && i.estado_recepcion === 'ok');
-          if (item) {
-            productoEncontrado = { id: item.producto_id, nombre: item.producto_nombre, precio: item.precio_unitario, sku: item.codigo_sku };
-            prodId = item.producto_id;
-            if (item.tienda_destino_id === tiendaId) {
-              isStoreValid = true;
-            }
-          }
+        const existingItemIndex = carrito.findIndex(i => i.productoId === prod.id && i.precio === prod.precio_venta);
+        if (existingItemIndex >= 0) {
+          const newCart = [...carrito];
+          newCart[existingItemIndex].qrs.push(trimmed);
+          newCart[existingItemIndex].cantidad = (newCart[existingItemIndex].cantidad || 1) + 1;
+          setCarrito(newCart);
+        } else {
+          setCarrito(prev => [...prev, {
+            productoId: prod.id,
+            inventario_tienda_id: prod.inventario_tienda_id,
+            cantidad: 1,
+            nombre: prod.nombre,
+            precio: prod.precio_venta,
+            sku: prod.codigo,
+            qrs: [trimmed]
+          }]);
         }
-      }
-    }
-
-    // 3. Buscar en terminados si no fue parte de un embarque
-    if (!productoEncontrado) {
-      const term = terminados.find(t => t.qr_code === trimmed);
-      if (term) {
-        productoEncontrado = { id: term.producto_id, nombre: term.producto_nombre, precio: term.precio_estimado, sku: term.codigo_sku };
-        prodId = term.producto_id;
-        isStoreValid = tiendaId === 1; // Asumir venta directa en tienda matriz
-      }
-    }
-
-    // 4. Fallback: Buscar directamente en el catálogo de productos por SKU
-    if (!productoEncontrado) {
-      const prod = productos.find(p => p.sku === trimmed);
-      if (prod) {
-        const precio = prod.prices ? (prod.prices['Publico'] || prod.prices['General'] || Object.values(prod.prices)[0] || 0) : 0;
-        productoEncontrado = { id: prod.id, nombre: prod.name, precio: precio, sku: prod.sku };
-        prodId = prod.id;
-        isStoreValid = true;
-      }
-    }
-
-    // Validar y agregar al carrito
-    if (productoEncontrado && isStoreValid) {
-      // Verificar stock disponible
-      const inv = inventario.find(i => i.tienda_id === tiendaId && i.producto_id === prodId);
-      const cantidadEnCarrito = carrito.find(i => i.productoId === prodId)?.qrs.length || 0;
-      const stockDisponible = inv ? inv.cantidad_disponible : 0;
-
-      if (stockDisponible > cantidadEnCarrito) {
-        // Agregar al carrito
-        setCarrito(prev => {
-          const idx = prev.findIndex(item => item.productoId === prodId);
-          if (idx > -1) {
-            // Ya existe en el carrito, añadir el QR a la lista
-            const updated = [...prev];
-            updated[idx] = {
-              ...updated[idx],
-              qrs: [...updated[idx].qrs, trimmed]
-            };
-            return updated;
-          } else {
-            // Es un artículo nuevo en el carrito
-            return [...prev, {
-              productoId: prodId,
-              nombre: productoEncontrado!.nombre,
-              precio: productoEncontrado!.precio,
-              sku: productoEncontrado!.sku,
-              qrs: [trimmed]
-            }];
-          }
-        });
+        
         setResult('success');
         setTimeout(() => setResult(null), 1500);
+        setQrInput('');
+        setShowCamera(false);
       } else {
-        triggerError('Producto agotado o sin existencias suficientes en esta sucursal.');
+        triggerError('Producto no encontrado en inventario de tienda.');
       }
-    } else {
-      triggerError(!isStoreValid && productoEncontrado 
-        ? 'Este producto pertenece a otra sucursal de Decor Mueblería.'
-        : 'Código QR no encontrado en el catálogo o sistema.'
-      );
+    } catch (e) {
+      triggerError('Error de red al buscar el codigo.');
     }
-    
-    setQrInput('');
-    setShowCamera(false);
   };
 
   const triggerError = (msg: string) => {
@@ -230,34 +240,22 @@ export default function PuntoDeVentaPage() {
 
   // Funciones táctiles del Carrito (+ / - / eliminar)
   const handleIncreaseQty = (productoId: number) => {
-    if (tiendaId === null) return;
-    const inv = inventario.find(i => i.tienda_id === tiendaId && i.producto_id === productoId);
-    const item = carrito.find(c => c.productoId === productoId);
-    if (!item) return;
-
-    const stockDisponible = inv ? inv.cantidad_disponible : 0;
-    if (stockDisponible > item.qrs.length) {
-      // Generamos un QR de reposición temporal al vuelo para la pieza adicional
-      const nuevoQr = `DCR-REC-${tiendaId}-${productoId}-${Date.now()}-${item.qrs.length}`;
-      setCarrito(prev => prev.map(c => 
-        c.productoId === productoId 
-          ? { ...c, qrs: [...c.qrs, nuevoQr] } 
-          : c
-      ));
-    } else {
-      triggerError('No hay más stock disponible de este producto en la tienda.');
-    }
+    setCarrito(prev => prev.map(c => 
+      c.productoId === productoId 
+        ? { ...c, cantidad: (c.cantidad || 1) + 1 }
+        : c
+    ));
   };
 
   const handleDecreaseQty = (productoId: number) => {
     setCarrito(prev => prev.map(c => {
       if (c.productoId === productoId) {
         const updatedQrs = [...c.qrs];
-        updatedQrs.pop(); // Remover el último código QR
-        return { ...c, qrs: updatedQrs };
+        updatedQrs.pop();
+        return { ...c, cantidad: c.cantidad - 1, qrs: updatedQrs };
       }
       return c;
-    }).filter(c => c.qrs.length > 0)); // Eliminar del carrito si llega a 0
+    }).filter(c => c.cantidad > 0));
   };
 
   const handleRemoveProduct = (productoId: number) => {
@@ -265,18 +263,11 @@ export default function PuntoDeVentaPage() {
   };
 
   // Calcular totales
-  const totalArticulos = carrito.reduce((sum, item) => sum + item.qrs.length, 0);
-  const totalPagar = carrito.reduce((sum, item) => sum + (item.precio * item.qrs.length), 0);
+  const { totalArticulos, totalPagar } = calculateTotals(carrito);
 
   // Manejo de la pantalla del Numpad Táctil
   const handleNumpadPress = (val: string) => {
-    setMontoRecibido(prev => {
-      if (prev === '0') {
-        return val === '.' ? '0.' : val;
-      }
-      if (val === '.' && prev.includes('.')) return prev;
-      return prev + val;
-    });
+    setMontoRecibido(prev => handleNumpadInput(val, prev));
   };
 
   const handleNumpadClear = () => {
@@ -294,26 +285,51 @@ export default function PuntoDeVentaPage() {
     setMontoRecibido(cash.toString());
   };
 
-  const numMontoRecibido = Number(montoRecibido) || 0;
-  const cambioEntregar = Math.max(0, numMontoRecibido - totalPagar);
-  const faltaCobrar = Math.max(0, totalPagar - numMontoRecibido);
+  const { numMontoRecibido, cambioEntregar, faltaCobrar, canConfirmPayment } = calculatePaymentInfo(totalPagar, montoRecibido, metodoPago);
 
-  const canConfirmPayment = 
-    metodoPago !== null && 
-    (metodoPago !== 'efectivo' || numMontoRecibido >= totalPagar);
-
-  const handleCobrar = () => {
+  const handleCobrar = async () => {
     if (tiendaId === null || carrito.length === 0 || !canConfirmPayment) return;
+    if (!cajaActual) {
+      triggerError('No hay turno abierto (caja).');
+      return;
+    }
 
-    const allQrs = carrito.flatMap(c => c.qrs);
-    const venta = registrarVentaCarrito(tiendaId, allQrs);
-    if (venta) {
-      setUltimaVenta(venta);
-      setStep(3); // Avanzar a pantalla de éxito/ticket
-      setEmailEnviado(false);
-      setEmailCliente('');
-    } else {
-      triggerError('Ocurrió un error al registrar la venta en la base de datos.');
+    try {
+      const payload = {
+        caja_id: cajaActual.caja_id || cajaActual.id,
+        tienda_id: tiendaId,
+        pagos: [{ metodo: metodoPago, monto: Number(montoRecibido) }],
+        items: carrito.map(item => ({
+          inventario_tienda_id: item.inventario_tienda_id,
+          producto_id: item.productoId,
+          cantidad: item.cantidad || 1,
+          precio_unitario: item.precio,
+          descuento_item: 0
+        }))
+      };
+
+      const req = await apiFetch('/ventas/checkout.php', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const data = await req.json();
+      
+      if (data.ok) {
+        setUltimaVenta({
+          id: data.venta_id,
+          folio: data.folio,
+          fecha_venta: new Date().toISOString(),
+          total: data.total,
+          items: carrito.map(i => ({ producto_nombre: i.nombre, precio_unitario: i.precio, cantidad: i.cantidad }))
+        } as any);
+        setStep(3);
+        setEmailEnviado(false);
+        setEmailCliente('');
+      } else {
+        triggerError(data.error || 'Ocurrio un error al cobrar.');
+      }
+    } catch (e) {
+      triggerError('Error de red al procesar el cobro.');
     }
   };
 
@@ -673,7 +689,7 @@ export default function PuntoDeVentaPage() {
                           >
                             -
                           </button>
-                          <span className="w-12 text-center text-sm font-black text-[#4a2818]">{item.qrs.length}</span>
+                          <span className="w-12 text-center text-sm font-black text-[#4a2818]">{item.cantidad}</span>
                           <button 
                             onClick={() => handleIncreaseQty(item.productoId)}
                             className="w-12 h-12 rounded-xl clay-btn-white hover:bg-white text-[#4a2818] flex items-center justify-center text-xl font-bold active:scale-90 transition-transform border border-[#e8dfcb]"
