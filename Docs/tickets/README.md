@@ -39,4 +39,5 @@ En esta carpeta se almacenan todos los tickets de desarrollo, requerimientos, di
 | **DEC-026** | Integración de piezas listas en Reparto con registro de incidencias | `RESUELTO` |
 | **DEC-027** | Trazabilidad integral Pedido ➔ Producción ➔ Embarque ➔ Entrega | `RESUELTO` |
 | **DEC-028** | Corrección de recepción de embarques y consolidación en Reparto | `RESUELTO` |
+| **DEC-029** | Corrección de métricas de taller, mano de obra y carpinteros en Dashboard | `RESUELTO` |
 

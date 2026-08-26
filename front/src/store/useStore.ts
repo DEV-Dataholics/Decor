@@ -525,7 +525,27 @@ export function useStore(): DecorStore {
       if (resWo.ok) {
         const d = await resWo.json();
         if (d.data) {
-          const allWo = (Array.isArray(d.data) ? d.data : (d.data.items || [])) as WorkOrder[];
+          const rawWo = (Array.isArray(d.data) ? d.data : (d.data.items || []));
+          const allWo: WorkOrder[] = rawWo.map((w: any) => ({
+            id: Number(w.id),
+            orden_id: Number(w.orden_id) || 0,
+            orden_item_id: Number(w.orden_item_id) || 0,
+            producto_id: Number(w.producto_id) || 0,
+            producto_nombre: w.producto_nombre || '',
+            codigo_sku: w.codigo_sku || '',
+            cantidad: parseFloat(w.cantidad || '1'),
+            estatus: w.estatus as WOStatus,
+            fecha_asignacion: w.fecha_asignacion || '',
+            acabado_nombre: w.acabado_nombre || '',
+            cliente_nombre: w.cliente_nombre || '',
+            estatus_item: w.estatus_item || '',
+            empleado_id: w.empleado_id !== undefined && w.empleado_id !== null ? Number(w.empleado_id) : undefined,
+            empleado_nombre: w.empleado_nombre || '',
+            costo_mano_obra: parseFloat(w.costo_mano_obra || w.monto_pago || '0'),
+            costo_mano_obra_unitario: parseFloat(w.costo_mano_obra_unitario || '0'),
+            fecha_termino: w.fecha_termino || w.fecha_terminado || '',
+            rechazos: Number(w.rechazos) || 0
+          }));
           // Mantener todas las órdenes de trabajo en el tablero Kanban (incluyendo listo_embarque)
           setWorkOrders(allWo);
           

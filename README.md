@@ -1,113 +1,111 @@
 # 🛋️ Decor Mueblería - Sistema de Gestión Integral (SPA)
 
 > **Estado del Proyecto:** 🟢 **LISTO PARA PRODUCCIÓN / AUDITADO**
-> **Última Actualización:** 8 de Julio, 2026
-> **Fase:** Limpieza Profunda, Sincronización Real y Optimización del Repositorio.
+> **Última Actualización:** 26 de Agosto, 2026
+> **Fase:** Sprint de Consolidación Transaccional, Unificación Visual Santa Fe y Persistencia MySQL (DEC-001 a DEC-029).
 
 Plataforma moderna de gestión para **Decor Mueblería**, que centraliza el Taller de Producción, los Pedidos Mayoristas y el Punto de Venta (POS) en una Single Page Application (SPA).
 
 ---
 
 ## 🎯 Objetivo y Estado Actual
-El sistema ha superado la fase de prototipado con datos demo. Actualmente, **todos los módulos están conectados a la API real (PHP/PDO)** y reflejan únicamente los datos persistidos en la base de datos `decor_muebleria`. Se ha realizado un "Reseteo Transaccional" y limpieza de archivos temporales y auxiliares de desarrollo para iniciar operaciones de producción con un repositorio limpio.
+El sistema ha superado la fase de prototipado con datos demo. Actualmente, **todos los módulos están conectados a la API real (PHP/PDO)** y reflejan únicamente los datos persistidos en la base de datos `decor_muebleria`. Se ha completado la suite de endpoints CRUD, la sincronización de estados operativos y la identidad visual institucional con la paleta Turquesa Santa Fe.
 
 ### Capacidades Core:
-1. **Dashboard Dinámico:** Estadísticas reales de ventas, pedidos y producción.
-2. **POS Profesional:** Gestión de carrito, stock en tiempo real por sucursal y cierre de ventas.
-3. **Inventario Centralizado:** Control de existencias en tienda con alertas de stock.
-4. **Producción Kanban:** Seguimiento de Work Orders desde el taller hasta la ingesta en tienda.
-5. **Logística B2B:** Armado de embarques y generación de remisiones en PDF.
+1. **Dashboard Dinámico:** Estadísticas reales de ventas, tickets emitidos, rentabilidad por modelo y productividad por carpintero.
+2. **POS Profesional:** Búsqueda rápida por SKU/nombre y escaneo de códigos QR físicos con descuento inmediato de inventario y emisión de tickets térmicos.
+3. **Inventario Centralizado:** Vista dual (tabla y tarjetas), filtros multicriterio, micro-KPIs interactivos y administración de materia prima de taller.
+4. **Producción Kanban:** Trazabilidad integral de Work Orders, avance de fases y cálculo automatizado de mano de obra.
+5. **Logística y Reparto Unificado:** Flujo directo de entrega a tienda o cliente final con registro de incidencias físicas (dañado/rechazado).
 
 ---
 
 ## 🏗️ Stack Tecnológico
 | Capa | Tecnología | Estado |
 |---|---|---|
-| **Frontend** | React + TypeScript + Vite | SPA Moderna y Reactiva |
-| **Styling** | Vanilla CSS + Tailwind | Diseño Premium / Glassmorphism |
-| **Pruebas (E2E)**| Playwright | Pruebas Automatizadas (E2E y unitarias en frontend) |
-| **API Backend** | PHP 8.x (Vanilla / PDO) | Endpoints RESTful |
+| **Frontend** | React 19 + TypeScript + Vite | SPA Moderna, Reactiva y Tipada |
+| **Styling** | Vanilla CSS + TailwindCSS | Paleta Turquesa Santa Fe (`#0d9488`) |
+| **Iconografía**| Lucide React | Sistema de Iconos Estandarizado |
+| **Gráficos** | Recharts | Visualizaciones Interactivas |
+| **API Backend** | PHP 8.x (Vanilla / PDO) | Endpoints RESTful con Validación de Roles |
 | **Base de Datos** | MySQL (cPanel / Producción) | Esquema Relacional Estricto |
 
 ---
 
-## 📁 Estructura del Proyecto (Producción 2026)
+## 📁 Estructura del Proyecto
 ```
 sistema_decor/
 ├── front/              # Frontend React (Vite)
 │   ├── src/
-│   │   ├── api/        # Cliente de API centralizado
-│   │   ├── features/   # Módulos: pos, inventario, produccion, pedidos
-│   │   └── App.tsx     # Orquestador de vistas y Dashboard
-│   └── tests/          # Pruebas automatizadas de Playwright (E2E)
+│   │   ├── components/ # Componentes reutilizables, layout y etiquetas QR
+│   │   ├── pages/      # Vistas: Dashboard, POS, Inventario, Pedidos, Producción, Reparto, Personal, Configuración
+│   │   ├── store/      # Estado global tipado (StoreContext, useStore)
+│   │   └── App.tsx     # Orquestador de rutas y navegación
 ├── api/                # Backend PHP (Endpoints Reales)
-│   ├── auth/           # Autenticación (login, logout, me)
-│   ├── clientes/       # Endpoints de clientes
-│   ├── ordenes/        # Gestión de pedidos y guardado
-│   ├── config/         # Conexión PDO a DB (db.php) y respuestas
-│   └── ...             # Otros submódulos operativos PHP
-└── db/                 # Base de Datos (SQL)
-    ├── 00_base.sql     # Usuarios y DB base (ejecutar primero)
-    ├── 01_catalogo.sql a 06_logistica.sql # Esquema modular
-    ├── 07_semilla.sql  # Acabados iniciales estándar
-    ├── seed_completo.sql # Catálogo real de producción (736 productos)
-    └── truncate_operaciones.sql # Limpieza transaccional operativa
+│   ├── auth/           # Autenticación segura y control de sesiones
+│   ├── clientes/       # CRUD de clientes
+│   ├── empleados/      # CRUD de empleados y artesanos
+│   ├── tiendas/        # CRUD de sucursales físicas
+│   ├── productos/      # CRUD y catálogo de productos
+│   ├── inventario/     # Consultas y ajustes de stock
+│   ├── pedidos/        # Creación y consulta de pedidos
+│   ├── produccion/     # Work orders, Kanban y avance de taller
+│   ├── taller/         # Materias primas e insumos
+│   ├── ventas/         # Checkout POS, cajas y arqueo Z
+│   ├── embarques/      # Manifiestos de despacho y recepción
+│   └── config/         # Conexión PDO (db.php) y respuestas estándar
+├── db/                 # Base de Datos (SQL Modular y Catálogo)
+│   ├── 00_base.sql a 06_logistica.sql # Esquema relacional
+│   ├── 07_semilla.sql  # Acabados oficiales
+│   └── seed_completo.sql # Catálogo real de 736 productos oficiales
+└── Docs/               # Documentación Técnica
+    ├── tickets/        # Bitácora de tickets DEC-001 a DEC-029
+    └── PULL_REQUEST.md # Plantilla y descripción para PR en GitHub
 ```
 
 ---
 
-## 🧩 Estatus de Módulos (Auditado 08/07/26)
+## 🧩 Estatus de Módulos (Auditado 26/08/26)
 | Módulo | Estado | Conectividad | Demo Data |
 |---|---|---|---|
-| **Dashboard** | ✅ Operativo | `api/dashboard/stats.php` | 🚫 Eliminada |
-| **Punto de Venta** | ✅ Operativo | `api/inventario/list_tienda.php` | 🚫 Eliminada |
-| **Inventario** | ✅ Operativo | `api/inventario/list_tienda.php` | 🚫 Eliminada |
-| **Producción** | ✅ Operativo | `api/produccion/work_orders.php` | 🚫 Eliminada |
-| **Pedidos** | ✅ Operativo | `api/pedidos/ordenes.php` | 🚫 Eliminada |
+| **Dashboard** | ✅ Operativo | `api/pedidos/ordenes.php`, `api/produccion/work_orders.php`, `api/ventas/list.php` | 🚫 Eliminada |
+| **Punto de Venta** | ✅ Operativo | `api/inventario/list_tienda.php`, `api/ventas/checkout.php`, `api/ventas/caja.php` | 🚫 Eliminada |
+| **Inventario** | ✅ Operativo | `api/inventario/list_tienda.php`, `api/taller/materiales.php` | 🚫 Eliminada |
+| **Producción** | ✅ Operativo | `api/produccion/work_orders.php`, `api/produccion/mover_wo.php` | 🚫 Eliminada |
+| **Pedidos** | ✅ Operativo | `api/pedidos/ordenes.php`, `api/pedidos/crear.php` | 🚫 Eliminada |
+| **Reparto** | ✅ Operativo | `api/embarques/list.php`, `api/embarques/recibir.php` | 🚫 Eliminada |
+| **Personal** | ✅ Operativo | `api/empleados/list.php`, `api/empleados/save.php` | 🚫 Eliminada |
+| **Catálogo** | ✅ Operativo | `api/productos/list.php`, `api/productos/save.php` | 🚫 Eliminada |
 
 ---
 
-## 🤖 Guía para el Agente Orquestador (Mantenimiento)
-Para futuros ajustes o soporte, el agente debe considerar los siguientes puntos:
+## 🚀 Flujo de Trabajo Git & Pull Request
+Para integrar las mejoras desarrolladas al repositorio principal de GitHub:
 
-1. **Sin Datos Estáticos:** Nunca introduzcas `DEMO_DATA` o constantes de prueba en el frontend. Si un listado está vacío, debe mostrar el estado de "Cero registros" proveniente de la API.
-2. **Integridad de Inventario:** El flujo de Producción → Tienda se gestiona mediante el campo `estatus` en `work_orders`. Al pasar a `entregado`, la ingesta en tienda se actualiza en el inventario real.
-3. **Mantenimiento y Reseteo:** 
-   - Para limpiar operaciones de prueba en producción sin alterar catálogos, utiliza `db/truncate_operaciones.sql`.
-   - Para re-poblar el catálogo real de 736 productos, utiliza `db/seed_completo.sql`.
-4. **Debug de API:** Los logs de error de PHP se consultan directamente en el servidor. El cliente de React en `front/src/api/index.ts` realiza el manejo unificado de errores HTTP y de red.
+1. **Rama de Trabajo Actual:** `feature/ajustes-pdv-reporte-ventas`
+2. **Rama Destino (Target):** `main`
+3. **Checklist previo al PR:**
+   - [x] Compilación limpia de TypeScript sin errores (`npm run build`).
+   - [x] Bitácora de tickets documentada en `Docs/tickets/DEC-001` a `DEC-029`.
+   - [x] Historial actualizado en `CHANGELOG.md`.
+   - [x] Sin variables de entorno expuestas ni credenciales en código fuente.
 
 ---
 
 ## 📝 Log de Cambios Recientes
 
-### [2026-07-08] — Limpieza y Depuración del Repositorio ✅
-*   **Limpieza de la Raíz:** Exclusión de archivos y carpetas auxiliares de desarrollo, logs históricos, temporales de empaquetado (`deploy.py`, `deploy_produccion.ps1`, `deploy_produccion_tmp/`), configuraciones locales de agentes (`.agent/`, `.agents/`), tareas en desarrollo (`tasks/`) e `index.html` legacy.
-*   **Consolidación de Base de Datos:** Eliminación de scripts duplicados, de prueba o incompletos (`instalacion_limpia.sql`, `migration_produccion.sql`, `rebuild_tables.sql`, `import_catalogo.sql`, `seed_clientes.sql`). Se conservó el esquema modular (`00_base` a `06_logistica`), los acabados base (`07_semilla`) y el catálogo definitivo (`seed_completo.sql` con 736 productos reales).
-*   **Actualización de Documentación:** Reestructuración de la guía de la base de datos en `db/README.md` y de este README general.
-
-### [2026-07-06] — Doble Asignación, Reportes POS y Stress-Test Tool ✅
-*   **Doble Asignación en Taller:** Modificación del store y vistas de producción para asignar un Carpintero (fase de Producción) y un Pintor (fase de Acabados) a la misma orden con tarifas sugeridas independientes.
-*   **Prenómina e Integración Financiera:** Adaptación del módulo de personal para acreditar nóminas por etapa e integración de costos en los márgenes de pedidos y gráficas de carga del Dashboard.
-*   **Reporte de Ventas por Sucursal:** Panel en la base de la SPA con filtros de fecha y sucursal, KPIs dinámicos, Top 5 artículos rotativos y generación de PDF.
-*   **Buscador en Logística:** Incorporación de filtros de fecha y tienda de destino en la sección de Embarques.
-*   **Simulador de Rendimiento:** Integración de herramienta en Configuración para inyectar 1 año de datos ficticios en localStorage y probar estrés de renders cliente-servidor.
-*   **Corrección Financiera (Doble Contabilización):** Ajuste de la fórmula del gráfico de rentabilidad de productos en el Dashboard para usar el costo estándar del catálogo, eliminando el saldo negativo redundante.
-
-### [2026-04-28] — Fase de "Limpieza Profunda" y Salida a Producción ✅
-*   **Reset Transaccional:** Ejecución de auditoría en DB para vaciar tablas operativas preservando catálogos.
-*   **Desconexión de Demos:** Se eliminaron todas las constantes hardcoded (`DEMO_ORDERS`, `DEMO_DATA`, etc.) de los componentes de React.
-*   **Integración Dashboard:** El tablero principal ahora suma ventas reales y cuenta órdenes activas desde la base de datos.
-*   **Sincronización POS:** El Punto de Venta ahora descuenta stock y carga productos dinámicamente por sucursal.
-*   **Refactor Producción:** El Kanban de taller ahora permite cambiar estados que persisten en la tabla `work_orders`.
-
-### [2026-04-20] — Migración a React SPA
-*   Abandono de las vistas `.html` vanilla en favor de una arquitectura basada en componentes.
-*   Implementación de diseño con estética "Premium/Dark Mode" para el Dashboard.
+### [2026-08-26] — Sprint Integral de Producción y Persistencia MySQL (DEC-001 a DEC-029) ✅
+*   **DEC-001 a DEC-007:** Control de turnos y corte Z en POS, soporte dual de escáner QR y catálogo en vivo, reporte transaccional de ventas por sucursal con exportación a PDF.
+*   **DEC-010 a DEC-016:** Unificación de identidad institucional con paleta **Turquesa Santa Fe** (`#0d9488`), vista dual tabla/tarjetas y micro-KPIs interactivos en Inventario.
+*   **DEC-017 a DEC-023:** Catálogo limpio de 736 productos oficiales, suite completa de endpoints CRUD con persistencia MySQL, módulo de materia prima y paginación rápida.
+*   **DEC-024 a DEC-028:** Trazabilidad integral de pedidos desde taller hasta reparto unificado, persistencia de incidencias en entregas y simplificación de navegación.
+*   **DEC-029:** Corrección de métricas de taller en Dashboard, sincronización de `empleado_id`, normalización de costos de mano de obra y cálculo en vivo de productividad por carpintero.
 
 ---
 
-## 🚀 Próximos Pasos (Soporte en Producción)
-1. **Configuración de Backups:** Calendarizar respaldos automáticos y periódicos de la base de datos MySQL de producción.
-2. **Monitoreo de Desempeño:** Evaluar latencias de red y tiempos de respuesta de la API al escalar el número de transacciones reales en el POS.
-3. **Auditoría de Roles:** Validar que los permisos por rol de usuario (`admin`, `gerente_tienda`, etc.) funcionen adecuadamente en todas las llamadas de la API bajo escenarios reales.
+## 🤖 Guía para el Agente Orquestador (Mantenimiento)
+1. **Sin Datos Estáticos:** Prohibido reintroducir `DEMO_DATA` en el frontend. Si no hay datos, renderizar `EmptyState`.
+2. **Tipado Estricto:** Toda interacción de red y estado global debe implementar interfaces en `src/store/useStore.ts`.
+3. **Mantenimiento y Reseteo:**
+   - Para reiniciar operaciones sin afectar catálogos: `db/truncate_operaciones.sql`.
+   - Para re-poblar catálogo maestro: `db/seed_completo.sql`.
