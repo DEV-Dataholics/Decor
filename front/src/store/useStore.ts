@@ -400,7 +400,7 @@ export function useStore(): DecorStore {
     const res = await fetch(url, { credentials: 'include', ...opts });
     if (res.status === 401) {
       setCurrentUser(null);
-      localStorage.removeItem('decor_pos_currentUser');
+      localStorage.removeItem(STORAGE_PREFIX + 'currentUser');
       if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/')) {
         window.location.href = '/login';
       }
