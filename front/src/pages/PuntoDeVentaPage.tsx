@@ -31,9 +31,15 @@ export default function PuntoDeVentaPage() {
     return saved ? Number(saved) : null;
   });
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(() => {
+    const s = localStorage.getItem('decor_pos_step');
+    return s ? (Number(s) as 0 | 1 | 2 | 3) : 0;
+  });
   const [qrInput, setQrInput] = useState('');
-  const [carrito, setCarrito] = useState<CartItem[]>([]);
+  const [carrito, setCarrito] = useState<CartItem[]>(() => {
+    const c = localStorage.getItem('decor_pos_carrito');
+    return c ? JSON.parse(c) : [];
+  });
   const [showCamera, setShowCamera] = useState(false);
   const [result, setResult] = useState<'success' | 'error' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -56,9 +62,17 @@ export default function PuntoDeVentaPage() {
   } | null>(null);
 
   // Estados para el flujo de pago y checkout transaccional (DEC-006)
-  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<number | null>(null);
-  const [clienteNombreLibre, setClienteNombreLibre] = useState<string>('Público General');
-  const [metodoPago, setMetodoPago] = useState<'efectivo' | 'tarjeta' | 'transferencia' | null>(null);
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<number | null>(() => {
+    const c = localStorage.getItem('decor_pos_clienteId');
+    return c ? Number(c) : null;
+  });
+  const [clienteNombreLibre, setClienteNombreLibre] = useState<string>(() => {
+    return localStorage.getItem('decor_pos_clienteNombre') || 'Publico General';
+  });
+  const [metodoPago, setMetodoPago] = useState<'efectivo' | 'tarjeta' | 'transferencia' | null>(() => {
+    const m = localStorage.getItem('decor_pos_metodoPago');
+    return m ? (m as any) : null;
+  });
   const [montoRecibido, setMontoRecibido] = useState<string>('0');
   const [procesandoVenta, setProcesandoVenta] = useState(false);
   const [folioVentaReal, setFolioVentaReal] = useState<string>('');
@@ -70,6 +84,33 @@ export default function PuntoDeVentaPage() {
   const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => { localStorage.setItem('decor_pos_step', String(step)); }, [step]);
+  useEffect(() => { localStorage.setItem('decor_pos_carrito', JSON.stringify(carrito)); }, [carrito]);
+  useEffect(() => { 
+    if (clienteSeleccionadoId) localStorage.setItem('decor_pos_clienteId', String(clienteSeleccionadoId));
+    else localStorage.removeItem('decor_pos_clienteId');
+  }, [clienteSeleccionadoId]);
+  useEffect(() => { localStorage.setItem('decor_pos_clienteNombre', clienteNombreLibre); }, [clienteNombreLibre]);
+  useEffect(() => { 
+    if (metodoPago) localStorage.setItem('decor_pos_metodoPago', metodoPago);
+    else localStorage.removeItem('decor_pos_metodoPago');
+  }, [metodoPago]);
+
+  const resetVentaState = () => {
+    setCarrito([]);
+    setClienteSeleccionadoId(null);
+    setClienteNombreLibre('Publico General');
+    setMetodoPago(null);
+    setMontoRecibido('0');
+    setStep(0);
+    localStorage.removeItem('decor_pos_carrito');
+    localStorage.removeItem('decor_pos_clienteId');
+    localStorage.removeItem('decor_pos_clienteNombre');
+    localStorage.removeItem('decor_pos_metodoPago');
+    localStorage.setItem('decor_pos_step', '0');
+  };
+
 
   // Auto-cargar caja activa e inventario al cambiar o montar sucursal
   useEffect(() => {
@@ -788,6 +829,26 @@ export default function PuntoDeVentaPage() {
             <p className="text-xs font-black text-red-700">Error en Operación</p>
             <p className="text-[11px] text-red-600 font-medium">{errorMessage || 'QR no encontrado o producto agotado.'}</p>
           </div>
+        </div>
+      )}
+
+      
+      {/* --- STEP 0: INICIO DE VENTA --- */}
+      {step === 0 && (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
+          <div className="w-24 h-24 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center shadow-inner">
+            <ShoppingBag size={48} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-3xl font-black text-stone-800">Terminal Lista</h2>
+            <p className="text-stone-500 font-medium max-w-md">La caja está abierta y lista para procesar nuevas transacciones. Presiona iniciar para comenzar a escanear productos.</p>
+          </div>
+          <button 
+            onClick={() => setStep(1)}
+            className="px-10 py-5 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-2xl font-black text-lg shadow-xl shadow-teal-900/20 active:scale-95 transition-all flex items-center gap-3"
+          >
+            <Sparkles size={24} /> Iniciar Venta
+          </button>
         </div>
       )}
 

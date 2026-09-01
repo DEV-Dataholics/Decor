@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useDecor } from '../store/StoreContext';
-import { Search, Plus, X, Edit2, Trash2, Users, DollarSign, Briefcase, Wrench, CheckCircle2, Save, Calendar, Eye } from 'lucide-react';
+import { Search, Plus, X, Edit2, Trash2, Users, DollarSign, Briefcase, Wrench, CheckCircle2, Save, Calendar, Eye, Download } from 'lucide-react';
 import type { Empleado } from '../store/useStore';
 
 export default function PersonalPage() {
@@ -136,6 +136,24 @@ export default function PersonalPage() {
       return matchesSearch && matchesRole;
     });
   }, [empleados, search, roleFilter]);
+
+
+  const exportarNominaCSV = () => {
+    let csv = 'ID,Nombre,Rol,Estado,Piezas Activas (Taller),Piezas Terminadas (Periodo),Ganancia (Periodo)\n';
+    filtered.forEach(emp => {
+      const stats = earningsMap.get(emp.id) || { total: 0, count: 0, completedCount: 0, activePieces: 0 };
+      csv += `${emp.id},"${emp.nombre}",${emp.rol},${emp.activo ? 'Activo' : 'Inactivo'},${stats.activePieces},${stats.completedCount},${stats.total.toFixed(2)}\n`;
+    });
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Reporte_Nomina_${startDate}_a_${endDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleOpenEdit = (emp: Empleado) => {
     setEditingId(emp.id);
