@@ -396,8 +396,16 @@ export function useStore(): DecorStore {
     return isProduction ? '' : (import.meta.env.VITE_API_URL || 'http://localhost/sistema_decor');
   }, []);
 
-  const apiFetch = useCallback((url: string, opts?: RequestInit) => {
-    return fetch(url, { credentials: 'include', ...opts });
+  const apiFetch = useCallback(async (url: string, opts?: RequestInit) => {
+    const res = await fetch(url, { credentials: 'include', ...opts });
+    if (res.status === 401) {
+      setCurrentUser(null);
+      localStorage.removeItem('decor_pos_currentUser');
+      if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/')) {
+        window.location.href = '/login';
+      }
+    }
+    return res;
   }, []);
 
   // ── Auth ──
