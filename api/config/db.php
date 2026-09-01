@@ -43,7 +43,6 @@ if (session_status() === PHP_SESSION_NONE) {
         // Corregir directorio de sesiones roto en cPanel (guardar fuera de public_html)
         // COMENTADO: En la mayoría de servidores cPanel modernos, reescribir esta ruta
         // en public_html/tmp causa pérdida masiva de sesiones por permisos o recolectores de basura.
-        /*
         $session_dir = dirname(__DIR__, 3) . '/tmp/sessions';
         if (!is_dir($session_dir)) {
             @mkdir($session_dir, 0700, true);
@@ -51,7 +50,6 @@ if (session_status() === PHP_SESSION_NONE) {
         if (is_dir($session_dir) && is_writable($session_dir)) {
             session_save_path($session_dir);
         }
-        */
     }
     if (defined('SESSION_NAME') && SESSION_NAME) {
         session_name(SESSION_NAME);
