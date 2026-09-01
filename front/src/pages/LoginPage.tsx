@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, AlertCircle } from 'lucide-react';
 import { useDecor } from '../store/StoreContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
-  const { login } = useDecor();
+  const { login, currentUser } = useDecor();
   const navigate = useNavigate();
+  useEffect(() => { if (currentUser) navigate('/dashboard'); }, [currentUser, navigate]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
