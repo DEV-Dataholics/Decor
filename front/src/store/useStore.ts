@@ -249,7 +249,8 @@ export interface DecorStore {
   fetchInventarioTienda: (tiendaId?: number | 'todas') => Promise<void>;
   ajustarInventarioManual: (payload: AjusteInventarioPayload) => Promise<{ ok: boolean; message?: string }>;
   fetchCajaActiva: (tiendaId: number) => Promise<CajaTienda | null>;
-  cerrarCaja: (cajaId: number, contado: number) => Promise<{ ok: boolean; diferencia?: number; esperado?: number; contado?: number; mensaje?: string; error?: string }>;
+    abrirCaja: (tiendaId: number, fondoInicial: number) => Promise<{ ok: boolean; caja_id?: number; error?: string }>;
+    cerrarCaja: (cajaId: number, contado: number) => Promise<{ ok: boolean; diferencia?: number; esperado?: number; contado?: number; mensaje?: string; error?: string }>;
   procesarCheckout: (payload: CheckoutPayload) => Promise<{ ok: boolean; venta_id?: number; folio?: string; total?: number; mensaje?: string; error?: string }>;
   fetchVentas: (params?: { tienda_id?: number | string; fecha_inicio?: string; fecha_fin?: string }) => Promise<void>;
   cajaActiva: CajaTienda | null;
@@ -665,28 +666,30 @@ export function useStore(): DecorStore {
       if (res.ok) {
         const d = await res.json();
         if (d.ok && d.caja) {
-          const c: CajaTienda = {
-            caja_id: Number(d.caja_id || d.caja.caja_id),
-            nombre: d.caja.nombre || 'Caja 1',
-            fondo_inicial: Number(d.caja.fondo_inicial) || 0,
-            total_efectivo_esperado: Number(d.caja.total_efectivo_esperado) || 0,
-            fecha_apertura: d.caja.fecha_apertura || new Date().toISOString(),
-            estatus: 'abierta'
-          };
-          setCajaActiva(c);
-          return c;
-        } else if (d.ok && d.caja_id) {
-          const c: CajaTienda = {
-            caja_id: Number(d.caja_id),
-            nombre: 'Caja 1',
-            fondo_inicial: 0,
-            total_efectivo_esperado: 0,
-            fecha_apertura: new Date().toISOString(),
-            estatus: 'abierta'
-          };
-          setCajaActiva(c);
-          return c;
-        }
+            const c: CajaTienda = {
+              caja_id: Number(d.caja_id || d.caja.caja_id),
+              nombre: d.caja.nombre || 'Caja 1',
+              fondo_inicial: Number(d.caja.fondo_inicial) || 0,
+              total_efectivo_esperado: Number(d.caja.total_efectivo_esperado) || 0,
+              fecha_apertura: d.caja.fecha_apertura || new Date().toISOString(),
+              estatus: 'abierta'
+            };
+            setCajaActiva(c);
+            return c;
+          } else if (d.ok && d.caja_id) {
+            const c: CajaTienda = {
+              caja_id: Number(d.caja_id),
+              nombre: 'Caja 1',
+              fondo_inicial: 0,
+              total_efectivo_esperado: 0,
+              fecha_apertura: new Date().toISOString(),
+              estatus: 'abierta'
+            };
+            setCajaActiva(c);
+            return c;
+          } else {
+            setCajaActiva(null);
+          }
       }
       return null;
     } catch (e) {
@@ -694,6 +697,28 @@ export function useStore(): DecorStore {
       return null;
     }
   }, [apiBase, apiFetch]);
+
+  const abrirCaja = useCallback(async (tiendaId: number, fondoInicial: number) => {
+    try {
+      const base = apiBase();
+      const res = await apiFetch(`${base}/api/ventas/caja.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'abrir', tienda_id: tiendaId, fondo_inicial: fondoInicial })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.ok) {
+          await fetchCajaActiva(tiendaId);
+          return { ok: true, caja_id: d.caja_id };
+        }
+        return { ok: false, error: d.error };
+      }
+      return { ok: false, error: 'Error al abrir caja' };
+    } catch (e: any) {
+      return { ok: false, error: e.message };
+    }
+  }, [apiBase, apiFetch, fetchCajaActiva]);
 
   const cerrarCaja = useCallback(async (cajaId: number, contado: number) => {
     try {
@@ -1490,7 +1515,7 @@ export function useStore(): DecorStore {
   return {
     currentUser, login, logout, checkAuth, fetchCatalogos, fetchOperativos,
     fetchInventarioTienda, ajustarInventarioManual,
-    fetchCajaActiva, cerrarCaja, procesarCheckout, fetchVentas,
+    fetchCajaActiva, abrirCaja, cerrarCaja, procesarCheckout, fetchVentas,
     cajaActiva, ventasRealizadas,
     productos, categorias, clientes, empleados, tiendas, acabados,
     inventario, materiaPrima, workOrders, pedidos, terminados, embarques, ventas, devoluciones,
@@ -1508,3 +1533,5 @@ export function useStore(): DecorStore {
     resetDemo, isInitialized: true,
   };
 }
+
+

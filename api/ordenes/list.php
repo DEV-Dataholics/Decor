@@ -15,7 +15,7 @@ if ($estatus) { $where = 'WHERE o.estatus = ?'; $params[] = $estatus; }
 $sql = "
     SELECT o.id, o.tipo_orden, o.fecha_creacion, o.fecha_entrega_estimada,
            o.estatus, o.total, o.notas,
-           c.nombre AS cliente_nombre, c.tipo AS cliente_tipo,
+           IF(o.tipo_orden = 'resurtido_tienda', t.nombre, c.nombre) AS cliente_nombre, c.tipo AS cliente_tipo,
            t.nombre AS tienda_nombre,
            (SELECT COUNT(*) FROM orden_items oi WHERE oi.orden_id = o.id) AS total_items
     FROM ordenes o
@@ -28,3 +28,4 @@ $sql = "
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 echo json_encode(['ok'=>true, 'items'=>$stmt->fetchAll()]);
+

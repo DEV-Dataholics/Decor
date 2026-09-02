@@ -1,8 +1,5 @@
 <?php
 // api/ventas/caja.php
-// GET  → Devuelve la caja abierta del día para una tienda.
-//        Si no existe, la crea automáticamente con fondo_inicial = 0.
-// POST → Cierra la caja con el monto contado por el cajero.
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/response.php';
 set_json_headers();
@@ -10,16 +7,14 @@ set_json_headers();
 $user = $_SESSION['user'] ?? null;
 if (!$user) { 
     http_response_code(401); 
-    echo json_encode(['ok' => false, 'error' => 'Sesión requerida'], JSON_UNESCAPED_UNICODE); 
+    echo json_encode(['ok' => false, 'error' => 'Sesion requerida']); 
     exit; 
 }
 
 $pdo       = getDB();
 $tienda_id = (int)($_GET['tienda_id'] ?? $_POST['tienda_id'] ?? 1);
 
-// ── GET: obtener o crear caja abierta ───────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Buscar caja abierta para esta tienda
     $stmt = $pdo->prepare("
         SELECT id AS caja_id, nombre, fondo_inicial, total_efectivo_esperado, fecha_apertura
         FROM cajas_tienda
@@ -35,26 +30,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // No hay caja abierta → crear una automáticamente
-    $ins = $pdo->prepare("
-        INSERT INTO cajas_tienda (tienda_id, nombre, fondo_inicial, usuario_apertura_id)
-        VALUES (?, 'Caja 1', 0.00, ?)
-    ");
-    $ins->execute([$tienda_id, $user['id']]);
-    $caja_id = (int)$pdo->lastInsertId();
-
     echo json_encode([
         'ok'      => true,
-        'caja_id' => $caja_id,
-        'nueva'   => true,
-        'mensaje' => 'Caja abierta automáticamente'
+        'caja_id' => null,
+        'caja'    => null,
+        'mensaje' => 'No hay caja abierta'
     ]);
     exit;
 }
 
-// ── POST: cerrar caja ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data    = json_decode(file_get_contents('php://input'), true);
+    $data   = json_decode(file_get_contents('php://input'), true);
+    $action = $data['action'] ?? 'cerrar';
+    
+    if ($action === 'abrir') {
+        $fondo = (float)($data['fondo_inicial'] ?? 0);
+        $ins = $pdo->prepare("
+            INSERT INTO cajas_tienda (tienda_id, nombre, fondo_inicial, usuario_apertura_id)
+            VALUES (?, 'Caja 1', ?, ?)
+        ");
+        $ins->execute([$tienda_id, $fondo, $user['id']]);
+        echo json_encode(['ok' => true, 'caja_id' => (int)$pdo->lastInsertId()]);
+        exit;
+    }
+    
     $caja_id = (int)($data['caja_id'] ?? 0);
     $contado = (float)($data['total_efectivo_contado'] ?? 0);
 
@@ -81,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Obtener diferencia calculada
         $row = $pdo->prepare("SELECT diferencia, total_efectivo_esperado FROM cajas_tienda WHERE id = ?");
         $row->execute([$caja_id]);
         $result = $row->fetch();
@@ -101,4 +99,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 http_response_code(405);
-echo json_encode(['error' => 'Método no permitido']);
+echo json_encode(['error' => 'Metodo no permitido']);

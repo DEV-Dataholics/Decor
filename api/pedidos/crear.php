@@ -22,14 +22,17 @@ $tipo_orden_raw   = trim($data['tipo_orden'] ?? 'linea');
 $notas            = trim($data['notas'] ?? '');
 $items            = $data['items'] ?? [];
 
-// Normalizar tipo de orden al ENUM('linea','linea_especial','especial')
+// Normalizar tipo de orden
 $tipo_orden = 'linea';
 if ($tipo_orden_raw === 'especial' || $tipo_orden_raw === 'orden_especial') {
     $tipo_orden = 'especial';
 } elseif ($tipo_orden_raw === 'linea_especial') {
     $tipo_orden = 'linea_especial';
+} elseif ($tipo_orden_raw === 'resurtido_tienda') {
+    $tipo_orden = 'resurtido_tienda';
+    $tienda_origen_id = $cliente_id;
+    $cliente_id = 1;
 }
-
 if (empty($items)) {
     json_error('El pedido debe contener al menos un producto o ítem', 422);
 }

@@ -3,7 +3,7 @@ import {
   ShoppingBag, CheckCircle2, XCircle, Search, Camera, X, 
   ArrowLeft, CreditCard, Wallet, Landmark, RefreshCw, 
   Mail, ChevronRight, Store, ArrowRight, Printer,
-  Maximize2, Minimize2, FileText, Sparkles, Layers, DollarSign
+  Maximize2, Minimize2, FileText, Sparkles, Layers, DollarSign, Trash2
 } from 'lucide-react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { useDecor } from '../store/StoreContext';
@@ -22,7 +22,7 @@ interface CartItem {
 export default function PuntoDeVentaPage() {
   const { 
     tiendas, embarques, terminados, inventario, productos, clientes, categorias,
-    cajaActiva, fetchCajaActiva, cerrarCaja, procesarCheckout, fetchInventarioTienda
+    cajaActiva, fetchCajaActiva, abrirCaja, cerrarCaja, procesarCheckout, fetchInventarioTienda
   } = useDecor();
   
   // Persistencia de sucursal activa en local storage (Configurar Caja una sola vez)
@@ -118,7 +118,7 @@ export default function PuntoDeVentaPage() {
       fetchCajaActiva(tiendaId);
       fetchInventarioTienda(tiendaId);
     }
-  }, [tiendaId, fetchCajaActiva, fetchInventarioTienda]);
+  }, [tiendaId, fetchCajaActiva, abrirCaja, fetchInventarioTienda]);
 
   // Escuchar cambios de pantalla completa (por si salen con ESC)
   useEffect(() => {
@@ -741,6 +741,7 @@ export default function PuntoDeVentaPage() {
             <span className="text-xs font-black text-stone-900">{sucursalActiva?.nombre} ({sucursalActiva?.ciudad})</span>
           </div>
 
+                    
           {cajaActiva && (
             <div className="flex items-center gap-2 bg-stone-100 border border-stone-200 px-3 py-1 rounded-xl text-xs font-bold text-stone-800 shadow-sm">
               <Wallet size={14} className="text-[#0d9488]" />
@@ -753,6 +754,16 @@ export default function PuntoDeVentaPage() {
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    {step > 0 && (
+            <button
+              onClick={resetVentaState}
+              className="text-[11px] text-rose-900 bg-rose-100 hover:bg-rose-200 border border-rose-300 font-bold transition-all flex items-center gap-1.5 px-3.5 py-2 rounded-xl active:scale-95 shadow-sm"
+              title="Cancelar la venta actual y limpiar el carrito"
+            >
+              <Trash2 size={13} className="text-rose-700" />
+              <span>Cancelar Venta</span>
+            </button>
+          )}
           {cajaActiva && (
             <button 
               onClick={() => {
@@ -836,19 +847,63 @@ export default function PuntoDeVentaPage() {
       {/* --- STEP 0: INICIO DE VENTA --- */}
       {step === 0 && (
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
-          <div className="w-24 h-24 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center shadow-inner">
-            <ShoppingBag size={48} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl font-black text-stone-800">Terminal Lista</h2>
-            <p className="text-stone-500 font-medium max-w-md">La caja está abierta y lista para procesar nuevas transacciones. Presiona iniciar para comenzar a escanear productos.</p>
-          </div>
-          <button 
-            onClick={() => setStep(1)}
-            className="px-10 py-5 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-2xl font-black text-lg shadow-xl shadow-teal-900/20 active:scale-95 transition-all flex items-center gap-3"
-          >
-            <Sparkles size={24} /> Iniciar Venta
-          </button>
+          {!cajaActiva ? (
+            <>
+              <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center shadow-inner">
+                <Wallet size={48} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-stone-800">Caja Cerrada</h2>
+                <p className="text-stone-500 font-medium max-w-md">Debes abrir el turno y declarar el fondo inicial de la caja para poder comenzar a vender.</p>
+              </div>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget as HTMLFormElement);
+                const fondo = parseFloat(fd.get('fondo_inicial') as string) || 0;
+                if (tiendaId !== null) {
+                  const res = await abrirCaja(tiendaId, fondo);
+                  if (res.ok) {
+                    
+                  } else {
+                    triggerError(res.error || 'Error al abrir caja');
+                  }
+                }
+              }} className="flex items-center gap-3 bg-stone-50 p-3 rounded-2xl border border-stone-200">
+                <div className="relative">
+                  <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                  <input 
+                    name="fondo_inicial"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    required
+                    className="pl-9 pr-4 py-3 bg-white border border-stone-200 rounded-xl w-40 text-sm font-black focus:outline-none focus:border-[#0d9488]"
+                  />
+                </div>
+                <button type="submit" className="px-6 py-3 bg-stone-800 hover:bg-stone-900 text-white rounded-xl font-bold shadow-md transition-colors">
+                  Abrir Caja
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="w-24 h-24 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center shadow-inner">
+                <ShoppingBag size={48} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-stone-800">Terminal Lista</h2>
+                <p className="text-stone-500 font-medium max-w-md">La caja estA? abierta y lista para procesar nuevas transacciones. Presiona iniciar para comenzar a escanear productos.</p>
+              </div>
+              <button 
+                onClick={() => setStep(1)}
+                className="px-10 py-5 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-2xl font-black text-lg shadow-xl shadow-teal-900/20 active:scale-95 transition-all flex items-center gap-3"
+              >
+                <Sparkles size={24} /> Iniciar Venta
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -1707,3 +1762,9 @@ export default function PuntoDeVentaPage() {
     </div>
   );
 }
+
+
+
+
+
+

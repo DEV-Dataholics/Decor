@@ -18,7 +18,8 @@ $id              = (int)($data['id'] ?? 0);
 $cliente_id      = (int)($data['cliente_id'] ?? 0);
 $tienda_id       = (int)($data['tienda_origen_id'] ?? 1);
 $tipo_orden_raw  = trim($data['tipo_orden'] ?? 'linea');
-$tipo_orden      = in_array($tipo_orden_raw, ['linea', 'linea_especial', 'especial']) ? $tipo_orden_raw : ($tipo_orden_raw === 'orden_especial' ? 'especial' : 'linea');
+\$tipo_orden      = in_array(\$tipo_orden_raw, ['linea', 'linea_especial', 'especial', 'resurtido_tienda']) ? \$tipo_orden_raw : (\$tipo_orden_raw === 'orden_especial' ? 'especial' : 'linea');
+if (\$tipo_orden === 'resurtido_tienda') { \$tienda_id = \$cliente_id; \$cliente_id = 1; }
 $fecha_creacion  = $data['fecha_creacion'] ?? date('Y-m-d');
 $fecha_entrega   = $data['fecha_entrega_estimada'] ?? null;
 $estatus_raw     = trim($data['estatus'] ?? 'confirmada');
@@ -156,3 +157,4 @@ try {
     }
     json_error('Error guardando la orden: ' . $e->getMessage(), 500);
 }
+

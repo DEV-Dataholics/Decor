@@ -14,10 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $pdo = getDB();
         $stmt = $pdo->query("
             SELECT o.id, o.fecha_creacion, o.estatus, o.total, o.tipo_orden, o.notas, o.cliente_id,
-                   COALESCE(c.nombre, 'Sin cliente asignado') as cliente_nombre, c.email as cliente_email,
-                   COUNT(oi.id) as total_items
+                   IF(o.tipo_orden = 'resurtido_tienda', t.nombre, COALESCE(c.nombre, 'Sin cliente asignado')) as cliente_nombre, c.email as cliente_email,
+                   COALESCE(SUM(oi.cantidad), 0) as total_items
             FROM ordenes o
             LEFT JOIN clientes c ON o.cliente_id = c.id
+            LEFT JOIN tiendas t ON o.tienda_origen_id = t.id
             LEFT JOIN orden_items oi ON oi.orden_id = o.id
             WHERE o.tipo_orden != 'borrador'
             GROUP BY o.id
@@ -133,3 +134,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         json_error('Error al procesar orden de compra: ' . $e->getMessage(), 500);
     }
 }
+
