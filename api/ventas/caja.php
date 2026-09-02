@@ -47,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'abrir') {
         $fondo = (float)($data['fondo_inicial'] ?? 0);
         $ins = $pdo->prepare("
-            INSERT INTO cajas_tienda (tienda_id, nombre, fondo_inicial, usuario_apertura_id)
-            VALUES (?, 'Caja 1', ?, ?)
+            INSERT INTO cajas_tienda (tienda_id, nombre, fondo_inicial, total_efectivo_esperado, usuario_apertura_id)
+            VALUES (?, 'Caja 1', ?, ?, ?)
         ");
         $ins->execute([$tienda_id, $fondo, $user['id']]);
         echo json_encode(['ok' => true, 'caja_id' => (int)$pdo->lastInsertId()]);
