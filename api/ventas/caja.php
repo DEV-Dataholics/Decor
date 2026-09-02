@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INSERT INTO cajas_tienda (tienda_id, nombre, fondo_inicial, total_efectivo_esperado, usuario_apertura_id)
             VALUES (?, 'Caja 1', ?, ?, ?)
         ");
-        $ins->execute([$tienda_id, $fondo, $user['id']]);
+        $ins->execute([$tienda_id, $fondo, $fondo, $user['id']]);
         echo json_encode(['ok' => true, 'caja_id' => (int)$pdo->lastInsertId()]);
         exit;
     }
