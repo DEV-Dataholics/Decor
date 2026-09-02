@@ -11,10 +11,10 @@ if (!$user) {
     exit; 
 }
 
-$pdo       = getDB();
-$tienda_id = (int)($_GET['tienda_id'] ?? $_POST['tienda_id'] ?? 1);
+$pdo = getDB();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $tienda_id = (int)($_GET['tienda_id'] ?? 1);
     $stmt = $pdo->prepare("
         SELECT id AS caja_id, nombre, fondo_inicial, total_efectivo_esperado, fecha_apertura
         FROM cajas_tienda
@@ -40,8 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data   = json_decode(file_get_contents('php://input'), true);
-    $action = $data['action'] ?? 'cerrar';
+    $data      = json_decode(file_get_contents('php://input'), true) ?: [];
+    $tienda_id = (int)($data['tienda_id'] ?? $_POST['tienda_id'] ?? $_GET['tienda_id'] ?? 1);
+    $action    = $data['action'] ?? 'cerrar';
     
     if ($action === 'abrir') {
         $fondo = (float)($data['fondo_inicial'] ?? 0);
