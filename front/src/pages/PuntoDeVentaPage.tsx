@@ -58,6 +58,12 @@ export default function PuntoDeVentaPage() {
     diferencia: number;
     esperado: number;
     contado: number;
+    fondo_inicial?: number;
+    resumen?: {
+      total_ventas: number;
+      gran_total: number;
+      pagos: Record<string, number>;
+    };
     mensaje: string;
   } | null>(null);
 
