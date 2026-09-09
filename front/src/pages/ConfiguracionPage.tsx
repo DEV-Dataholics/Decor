@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Settings, Store, Users, Paintbrush, RotateCcw, Plus, Edit2, Trash2, 
   X, Check, BookOpen, Search, ArrowRight, CheckCircle2, Printer, 
@@ -18,6 +19,7 @@ const TABS: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function ConfiguracionPage() {
+  const navigate = useNavigate();
   const { 
     acabados, addAcabado, updateAcabado, deleteAcabado,
     tiendas, addTienda, updateTienda, deleteTienda,
@@ -824,10 +826,33 @@ export default function ConfiguracionPage() {
             <h3 className="text-sm font-black text-stone-900">Información del Sistema</h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1.5 border-b border-stone-100"><span className="text-stone-500 font-medium">Versión</span><span className="text-stone-900 font-mono font-bold">v1.0.0 — Producción</span></div>
-              <div className="flex justify-between py-1.5 border-b border-stone-100"><span className="text-stone-500 font-medium">Modo Base de Datos</span><span className="text-teal-800 font-bold">MySQL Relacional (Laragon)</span></div>
+              <div className="flex justify-between py-1.5 border-b border-stone-100"><span className="text-stone-500 font-medium">Modo Base de Datos</span><span className="text-teal-800 font-bold">MySQL Relacional (Producción)</span></div>
               <div className="flex justify-between py-1.5 border-b border-stone-100"><span className="text-stone-500 font-medium">Productos en Catálogo</span><span className="text-stone-900 font-bold">{productos.length}</span></div>
               <div className="flex justify-between py-1.5"><span className="text-stone-500 font-medium">Materias Primas</span><span className="text-stone-900 font-bold">{materiaPrima.length} tipos</span></div>
             </div>
+          </div>
+
+          {/* Tarjeta de Acceso a Logs y Auditoría */}
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-[#0d9488] flex items-center justify-center">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-stone-900">Logs y Auditoría del Sistema</h3>
+                <p className="text-[11px] text-stone-500 font-medium">Solo Perfil Administrador</p>
+              </div>
+            </div>
+            <p className="text-xs text-stone-600 font-medium">
+              Consulta la traza completa de operaciones: aperturas de caja, ventas, cambios de producción, inicios de sesión y monitoreo de errores.
+            </p>
+            <button
+              onClick={() => navigate('/logs')}
+              className="w-full flex items-center justify-center gap-2 bg-[#0d9488] hover:bg-[#0f766e] text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs"
+            >
+              <FileText size={14} />
+              <span>Abrir Consola de Logs</span>
+            </button>
           </div>
         </div>
       )}

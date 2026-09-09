@@ -173,6 +173,15 @@ try {
     }
 
     $pdo->commit();
+
+    log_activity('PRODUCCION', 'MOVER_WO', "Work Order #$id movida a '$estatusFrontend' ($cantMover pzas) para empleado #$empleado_id.", [
+        'wo_id'            => $id,
+        'estatus_anterior' => $wo['estatus'],
+        'estatus_nuevo'    => $estatusFrontend,
+        'empleado_id'      => $empleado_id,
+        'cantidad'         => $cantMover
+    ]);
+
     json_ok([
         'mensaje' => 'Work order actualizada correctamente',
         'wo_id'   => $id,

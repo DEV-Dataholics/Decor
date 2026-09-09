@@ -14,6 +14,7 @@ const EmbarquesPage = lazy(() => import('./pages/EmbarquesPage'));
 const RepartoPage = lazy(() => import('./pages/RepartoPage'));
 const ConfiguracionPage = lazy(() => import('./pages/ConfiguracionPage'));
 const PersonalPage = lazy(() => import('./pages/PersonalPage'));
+const LogsPage = lazy(() => import('./pages/LogsPage'));
 
 function PageLoader() {
   return (
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: 'embarques', element: withSuspense(EmbarquesPage) },
       { path: 'personal', element: withSuspense(PersonalPage) },
       { path: 'configuracion', element: withSuspense(ConfiguracionPage) },
+      { path: 'logs', element: withSuspense(LogsPage) },
     ],
   },
 ]);

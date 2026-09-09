@@ -51,7 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES (?, 'Caja 1', ?, ?, ?)
         ");
         $ins->execute([$tienda_id, $fondo, $fondo, $user['id']]);
-        echo json_encode(['ok' => true, 'caja_id' => (int)$pdo->lastInsertId()]);
+        $newCajaId = (int)$pdo->lastInsertId();
+        log_activity('POS', 'APERTURA_CAJA', "Apertura de turno de caja #$newCajaId en tienda #$tienda_id con fondo inicial de \$$fondo.", [
+            'caja_id' => $newCajaId,
+            'tienda_id' => $tienda_id,
+            'fondo_inicial' => $fondo
+        ]);
+        echo json_encode(['ok' => true, 'caja_id' => $newCajaId]);
         exit;
     }
     
@@ -81,9 +87,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $row = $pdo->prepare("SELECT diferencia, total_efectivo_esperado FROM cajas_tienda WHERE id = ?");
+        $row = $pdo->prepare("SELECT diferencia, total_efectivo_esperado, fondo_inicial FROM cajas_tienda WHERE id = ?");
         $row->execute([$caja_id]);
         $result = $row->fetch();
+
+        $dif = (float)$result['diferencia'];
+        $esp = (float)$result['total_efectivo_esperado'];
+        $nivelCorte = abs($dif) > 0.01 ? 'WARNING' : 'INFO';
+        $descCorte = "Cierre y Corte Z de caja #$caja_id. Esperado: \$$esp, Contado: \$$contado, Diferencia: \$$dif.";
+        log_activity('POS', 'CORTE_Z', $descCorte, [
+            'caja_id'    => $caja_id,
+            'esperado'   => $esp,
+            'contado'    => $contado,
+            'diferencia' => $dif
+        ], $nivelCorte);
 
         echo json_encode([
             'ok'         => true,

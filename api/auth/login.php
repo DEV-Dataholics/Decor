@@ -21,6 +21,7 @@ try {
     $user = $stmt->fetch();
 
     if (!$user || !password_verify($pass, $user['password_hash'])) {
+        log_activity('AUTH', 'LOGIN_FALLIDO', "Intento de inicio de sesión fallido para '$email'", ['email' => $email], 'WARNING');
         json_error('Credenciales incorrectas', 401);
     }
 
@@ -34,6 +35,8 @@ try {
         'email'  => $user['email'],
         'rol'    => $user['rol'],
     ];
+
+    log_activity('AUTH', 'LOGIN_EXITOSO', "El usuario '{$user['nombre']}' ({$user['rol']}) inició sesión.", ['email' => $email], 'INFO');
 
     echo json_encode(['ok' => true, 'user' => $_SESSION['user']], JSON_UNESCAPED_UNICODE);
 

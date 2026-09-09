@@ -170,6 +170,14 @@ try {
     }
 
     $pdo->commit();
+
+    log_activity('PEDIDOS', 'CREAR_PEDIDO', "Se creó el pedido #$orden_id ($tipo_orden) con " . count($items) . " partidas para cliente #$cliente_id.", [
+        'orden_id'    => $orden_id,
+        'tipo_orden'  => $tipo_orden,
+        'cliente_id'  => $cliente_id,
+        'items_count' => count($items)
+    ]);
+
     json_ok(['orden_id' => $orden_id, 'mensaje' => 'Pedido registrado y órdenes de trabajo creadas con éxito']);
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {

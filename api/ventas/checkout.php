@@ -143,6 +143,15 @@ try {
 
     $pdo->commit();
 
+    log_activity('POS', 'CHECKOUT_VENTA', "Venta #$venta_id (Folio " . str_pad($venta_id, 6, '0', STR_PAD_LEFT) . ") completada por un total de \$$total.", [
+        'venta_id'    => $venta_id,
+        'caja_id'     => $caja_id,
+        'tienda_id'   => $tienda_id,
+        'total'       => $total,
+        'items_count' => count($items),
+        'pagos'       => $pagos
+    ]);
+
     echo json_encode([
         'ok'       => true,
         'venta_id' => $venta_id,
@@ -152,7 +161,14 @@ try {
     ]);
 
 } catch (PDOException $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    log_system_error('POS', 'ERROR_CHECKOUT', $e, [
+        'caja_id'   => $caja_id ?? null,
+        'tienda_id' => $tienda_id ?? null,
+        'total'     => $total ?? null
+    ]);
     http_response_code(500);
     echo json_encode(['error' => 'Error interno al procesar la venta: ' . $e->getMessage()]);
 }

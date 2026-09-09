@@ -2,6 +2,8 @@
 // api/config/response.php
 // Helpers para respuestas JSON estandarizadas
 
+require_once __DIR__ . '/logger.php';
+
 function json_ok($data, int $code = 200): void {
     set_json_headers();
     http_response_code($code);
@@ -12,6 +14,13 @@ function json_ok($data, int $code = 200): void {
 function json_error(string $message, int $code = 400): void {
     set_json_headers();
     http_response_code($code);
+    if ($code >= 500 && function_exists('log_activity')) {
+        log_activity('SISTEMA', 'ERROR_HTTP_' . $code, $message, [
+            'http_code' => $code,
+            'uri'       => $_SERVER['REQUEST_URI'] ?? '',
+            'metodo'    => $_SERVER['REQUEST_METHOD'] ?? ''
+        ], 'ERROR');
+    }
     echo json_encode(['ok' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
     exit;
 }

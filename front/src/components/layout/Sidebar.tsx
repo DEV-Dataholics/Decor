@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ScanLine, ClipboardList, Hammer,
   PackageSearch, Grid3X3, Truck, Settings, ChevronLeft,
-  ChevronRight, LogOut, Users
+  ChevronRight, LogOut, Users, FileText
 } from 'lucide-react';
 import { useDecor } from '../../store/StoreContext';
 import type { Rol } from '../../store/useStore';
@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/catalogo', label: 'Catálogo', icon: <Grid3X3 size={20} />, roles: ['admin', 'encargado_taller', 'gerente_tienda'] },
   { path: '/personal', label: 'Personal (RH)', icon: <Users size={20} />, roles: ['admin'] },
   { path: '/configuracion', label: 'Configuración', icon: <Settings size={20} />, roles: ['admin'] },
+  { path: '/logs', label: 'Logs y Auditoría', icon: <FileText size={20} />, roles: ['admin'] },
 ];
 
 export default function Sidebar() {

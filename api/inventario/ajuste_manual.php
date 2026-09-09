@@ -136,6 +136,17 @@ try {
     $finalStmt->execute([$inv_id]);
     $stock_final = (float)$finalStmt->fetchColumn();
 
+    log_activity('INVENTARIO', 'AJUSTE_STOCK', "Ajuste manual de inventario para producto #$producto_id en tienda #$tienda_id: $tipo_mov $cantidad_mov piezas (Stock final: $stock_final).", [
+        'producto_id'    => $producto_id,
+        'tienda_id'      => $tienda_id,
+        'tipo_mov'       => $tipo_mov,
+        'cantidad_mov'   => $cantidad_mov,
+        'stock_anterior' => $stock_actual,
+        'stock_final'    => $stock_final,
+        'origen_stock'   => $origen_stock,
+        'notas'          => $notas
+    ]);
+
     json_ok([
         'inventario_tienda_id' => $inv_id,
         'stock_anterior'       => $stock_actual,
