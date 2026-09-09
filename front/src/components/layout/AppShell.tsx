@@ -15,10 +15,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/configuracion': 'Configuración & Manuales',
   '/reparto': 'Rutas de Entrega',
   '/personal': 'Personal & Nómina (RH)',
+  '/logs': 'Auditoría y Logs del Sistema',
 };
 
 const ALLOWED_ROUTES: Record<Rol, string[]> = {
-  admin: ['/dashboard', '/pos', '/pedidos', '/produccion', '/inventario', '/catalogo', '/embarques', '/personal', '/configuracion', '/reparto'],
+  admin: ['/dashboard', '/pos', '/pedidos', '/produccion', '/inventario', '/catalogo', '/embarques', '/personal', '/configuracion', '/reparto', '/logs'],
   gerente_tienda: ['/pos', '/inventario'],
   encargado_taller: ['/dashboard', '/produccion', '/inventario', '/catalogo', '/embarques'],
   repartidor: ['/reparto'],
